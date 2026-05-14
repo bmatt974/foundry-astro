@@ -1,0 +1,102 @@
+---
+/**
+ * Catch-all page route. Hits the Foundry headless API for the
+ * (website, locale, path) tuple and renders the returned blocks.
+ *
+ * Rendered on each request (no prerendering) because content is
+ * authored in the Laravel CMS and may change between deploys.
+ */
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Block from '../../components/Block.astro';
+import { fetchPage } from '../../lib/foundry';
+
+const { locale, path } = Astro.params;
+
+if (!locale) {
+    return new Response('Missing locale segment.', { status: 400 });
+}
+
+const page = await fetchPage(locale, path ?? '');
+if (!page) {
+    return new Response('Not found', { status: 404 });
+}
+
+const t = page.translation;
+const title = t?.meta_title ?? t?.title ?? 'Untitled';
+const description = t?.meta_description ?? t?.snippet ?? null;
+---
+
+<BaseLayout title={title} description={description} locale={locale}>
+    <header class="mb-10 border-b border-gray-200 pb-6">
+        {t?.eyebrow && (
+            <p class="mb-2 text-sm font-medium uppercase tracking-wide text-indigo-600">
+                {t.eyebrow}
+            </p>
+        )}
+        <h1 class="text-4xl font-bold tracking-tight text-gray-900">
+            {t?.title ?? 'Untitled'}
+        </h1>
+        {t?.subtitle && <p class="mt-3 text-xl text-gray-600">{t.subtitle}</p>}
+        {t?.intro && (
+            <div class="mt-6 whitespace-pre-wrap text-lg leading-relaxed text-gray-700">
+                {t.intro}
+            </div>
+        )}
+    </header>
+
+    {page.blocks.length > 0 ? (
+        <div class="space-y-2">
+            {page.blocks.map((block) => <Block block={block} />)}
+        </div>
+    ) : (
+        <p class="text-sm italic text-gray-500">No blocks on this page.</p>
+    )}
+
+    {t?.conclusion && (
+        <footer class="mt-12 border-t border-gray-200 pt-6 whitespace-pre-wrap text-gray-700">
+            {t.conclusion}
+        </footer>
+    )}
+
+    {(page.nav.parent || page.nav.children.length > 0 || page.nav.siblings.length > 0) && (
+        <nav class="mt-16 border-t border-gray-200 pt-6 text-sm text-gray-600">
+            {page.nav.parent && (
+                <p class="mb-2">
+                    ↑ <a href={`/${locale}/${page.nav.parent.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                        {page.nav.parent.title}
+                    </a>
+                </p>
+            )}
+            {page.nav.children.length > 0 && (
+                <div class="mb-4">
+                    <p class="mb-2 font-medium text-gray-900">Sous-pages</p>
+                    <ul class="list-disc pl-5">
+                        {page.nav.children.map((c) => (
+                            <li>
+                                <a href={`/${locale}/${c.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                                    {c.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {page.nav.siblings.length > 0 && (
+                <div>
+                    <p class="mb-2 font-medium text-gray-900">À voir aussi</p>
+                    <ul class="list-disc pl-5">
+                        {page.nav.siblings.map((s) => (
+                            <li>
+                                <a href={`/${locale}/${s.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                                    {s.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </nav>
+    )}
+</BaseLayout>

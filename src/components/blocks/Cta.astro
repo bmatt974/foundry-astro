@@ -1,0 +1,28 @@
+---
+import type { PageBlock } from '../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    label?: string;
+    url?: string;
+    description?: string;
+};
+---
+
+<section class="my-8 rounded-lg bg-indigo-50 p-6 text-center">
+    {content.description && (
+        <p class="mb-4 text-gray-700">{content.description}</p>
+    )}
+    {content.url && content.label && (
+        <a
+            href={content.url}
+            class="inline-block rounded-md bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-700"
+        >
+            {content.label}
+        </a>
+    )}
+</section>

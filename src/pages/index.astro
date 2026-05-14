@@ -1,0 +1,53 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { fetchWebsite, websiteSlug } from '../lib/foundry';
+
+const slug = websiteSlug();
+const website = await fetchWebsite(slug);
+---
+
+<BaseLayout title={website?.name ?? 'Foundry frontend'}>
+    <h1 class="text-3xl font-bold mb-6">Foundry frontend — debug</h1>
+
+    {website ? (
+        <section class="space-y-4">
+            <p>
+                Connected to <code class="rounded bg-gray-100 px-1.5 py-0.5">{slug}</code> —
+                <strong>{website.name}</strong>
+            </p>
+            <p class="text-sm text-gray-600">
+                Type: <code>{website.type ?? '—'}</code> · theme:{' '}
+                <code>{website.theme ?? '—'}</code> · default locale:{' '}
+                <code>{website.default_locale ?? '—'}</code>
+            </p>
+
+            <h2 class="mt-6 text-lg font-semibold">Locales</h2>
+            <ul class="list-disc pl-5 text-sm">
+                {website.locales.map((l) => (
+                    <li>
+                        <a href={`/${l.locale}/`} class="text-indigo-600 hover:underline">
+                            {l.locale}
+                        </a>
+                        {l.is_default && <span class="ml-2 text-xs text-gray-500">(default)</span>}
+                        <span class="ml-2 text-xs text-gray-500">— {l.base_url}</span>
+                    </li>
+                ))}
+            </ul>
+
+            <p class="mt-6 text-sm text-gray-500">
+                Try a page: <code class="bg-gray-100 px-1.5 py-0.5">/{website.default_locale ?? 'fr'}/&lt;slug&gt;</code>
+            </p>
+        </section>
+    ) : (
+        <section class="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
+            <p class="font-medium">Could not reach the Foundry API.</p>
+            <p class="mt-2 text-sm">
+                Check that <code>FOUNDRY_API_URL</code> in <code>.env</code> points at a running
+                Laravel instance, and that the website slug <code>{slug}</code> exists and is
+                published.
+            </p>
+        </section>
+    )}
+</BaseLayout>

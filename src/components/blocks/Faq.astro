@@ -1,0 +1,31 @@
+---
+import type { PageBlock } from '../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    title?: string;
+    questions?: Array<{ question: string; answer: string }>;
+    items?: Array<{ question: string; answer: string }>;
+};
+// `questions` is the canonical key; `items` is a legacy fallback kept by the
+// Laravel renderer for older drafts — mirror that here.
+const questions = content.questions ?? content.items ?? [];
+---
+
+<section class="my-8">
+    {content.title && <h2 class="text-2xl font-semibold mb-4">{content.title}</h2>}
+    <div class="divide-y divide-gray-200 rounded-lg border border-gray-200">
+        {questions.map((qa) => (
+            <details class="group p-4">
+                <summary class="cursor-pointer font-medium text-gray-900 group-open:mb-2">
+                    {qa.question}
+                </summary>
+                <div class="text-gray-700 whitespace-pre-wrap">{qa.answer}</div>
+            </details>
+        ))}
+    </div>
+</section>

@@ -1,0 +1,33 @@
+---
+/**
+ * Dispatches a block to the per-type component. Adding a new block_type
+ * means adding a row in the `blockComponents` map and a component file
+ * under src/components/blocks/. Unknown types fall back to <Default />.
+ */
+import type { PageBlock } from '../lib/foundry';
+import Text from './blocks/Text.astro';
+import KeyFacts from './blocks/KeyFacts.astro';
+import Faq from './blocks/Faq.astro';
+import Cta from './blocks/Cta.astro';
+import Section from './blocks/Section.astro';
+import Default from './blocks/Default.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+
+const blockComponents: Partial<Record<string, any>> = {
+    text: Text,
+    summary: Text,
+    key_facts: KeyFacts,
+    faq: Faq,
+    cta: Cta,
+    section: Section,
+};
+
+const Component = blockComponents[block.block_type] ?? Default;
+---
+
+<Component block={block} />
