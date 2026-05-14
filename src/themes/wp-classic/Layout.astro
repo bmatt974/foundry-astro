@@ -1,0 +1,36 @@
+---
+import './styles.css';
+import { css } from './tokens';
+
+interface Props {
+    title: string;
+    description?: string | null;
+    locale?: string;
+}
+
+const { title, description, locale = 'en' } = Astro.props;
+const themeConfig = Astro.locals.tenant?.themeConfig ?? {};
+const inlineTokens = css(themeConfig);
+---
+
+<!doctype html>
+<html lang={locale} style={inlineTokens || undefined}>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {description && <meta name="description" content={description} />}
+        <title>{title}</title>
+    </head>
+    <body class="wp-site">
+        <header class="wp-site-header">
+            <div class="wp-block-group">
+                <a href="/" class="wp-site-blog">All locales</a>
+                <slot name="locale-switcher" />
+            </div>
+        </header>
+
+        <main class="wp-site-main">
+            <slot />
+        </main>
+    </body>
+</html>

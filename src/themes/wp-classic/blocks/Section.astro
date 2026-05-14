@@ -1,0 +1,22 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
+import Block from '../components/Block.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as { title?: string; body?: string };
+---
+
+<section class="wp-block-group wp-block-group--section">
+    {content.title && <h2 class="wp-block-heading">{content.title}</h2>}
+    {content.body && <Markdown text={content.body} />}
+    {block.children.length > 0 && (
+        <div class="wp-block-group__inner">
+            {block.children.map((child) => <Block block={child} />)}
+        </div>
+    )}
+</section>

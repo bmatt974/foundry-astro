@@ -1,0 +1,16 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as { title?: string; body?: string };
+---
+
+<article class="wp-block-group wp-block-group--text">
+    {content.title && <h2 class="wp-block-heading">{content.title}</h2>}
+    <Markdown text={content.body} />
+</article>

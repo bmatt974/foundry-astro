@@ -1,0 +1,25 @@
+---
+/**
+ * Fallback renderer for unmapped block types in wp-classic. Dumps the
+ * payload as JSON in a styled box. Replace by registering a real
+ * component in `components/Block.astro` once you build it.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+---
+
+<section class="wp-block-default">
+    <p class="wp-block-default__label">
+        Unsupported block type: <code class="wp-inline-code">{block.block_type}</code>
+        {block.cluster_block_key && <> (<code class="wp-inline-code">{block.cluster_block_key}</code>)</>}
+    </p>
+    <pre class="wp-block-default__payload">{JSON.stringify(block.content, null, 2)}</pre>
+    {block.children.length > 0 && (
+        <p class="wp-block-default__label">…and {block.children.length} nested children</p>
+    )}
+</section>

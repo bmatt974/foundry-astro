@@ -1,0 +1,30 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    title?: string;
+    questions?: Array<{ question: string; answer: string }>;
+    items?: Array<{ question: string; answer: string }>;
+};
+const questions = content.questions ?? content.items ?? [];
+---
+
+<section class="wp-block-group wp-block-group--faq">
+    {content.title && <h2 class="wp-block-heading">{content.title}</h2>}
+    <div class="wp-block-details-group">
+        {questions.map((qa) => (
+            <details class="wp-block-details">
+                <summary>{qa.question}</summary>
+                <div class="wp-block-details__answer">
+                    <Markdown text={qa.answer} />
+                </div>
+            </details>
+        ))}
+    </div>
+</section>

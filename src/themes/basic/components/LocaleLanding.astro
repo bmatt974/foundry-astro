@@ -1,0 +1,33 @@
+---
+import type { SitemapNode } from '../../../lib/foundry';
+import SitemapTree from './SitemapTree.astro';
+
+interface Props {
+    websiteName: string;
+    locale: string;
+    isDefaultLocale: boolean;
+    sitemap: SitemapNode[];
+}
+
+const { websiteName, locale, isDefaultLocale, sitemap } = Astro.props;
+---
+
+<header class="brand-border mb-10 border-b pb-6">
+    <h1 class="text-4xl font-bold tracking-tight">{websiteName}</h1>
+    <p class="brand-text-muted mt-2 text-sm">
+        Locale: <code class="rounded bg-gray-100 px-1.5 py-0.5">{locale}</code>
+        {isDefaultLocale && <span class="ml-2 text-xs">(default)</span>}
+        · {sitemap.length} pages
+    </p>
+</header>
+
+{sitemap.length > 0 ? (
+    <section>
+        <h2 class="mb-4 text-lg font-semibold">Sitemap</h2>
+        <SitemapTree locale={locale} nodes={sitemap} />
+    </section>
+) : (
+    <p class="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
+        No pages with a <code>{locale}</code> translation found for this website.
+    </p>
+)}

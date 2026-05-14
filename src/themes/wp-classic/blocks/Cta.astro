@@ -1,0 +1,25 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    label?: string;
+    url?: string;
+    description?: string;
+};
+---
+
+<section class="wp-block-cover">
+    {content.description && (
+        <p class="wp-block-cover__description">{content.description}</p>
+    )}
+    {content.url && content.label && (
+        <div class="wp-block-button">
+            <a href={content.url} class="wp-block-button__link">{content.label}</a>
+        </div>
+    )}
+</section>

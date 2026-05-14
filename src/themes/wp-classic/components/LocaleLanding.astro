@@ -1,0 +1,31 @@
+---
+import type { SitemapNode } from '../../../lib/foundry';
+import SitemapTree from './SitemapTree.astro';
+
+interface Props {
+    websiteName: string;
+    locale: string;
+    isDefaultLocale: boolean;
+    sitemap: SitemapNode[];
+}
+
+const { websiteName, locale, isDefaultLocale, sitemap } = Astro.props;
+---
+
+<header class="entry-header">
+    <h1 class="entry-title">{websiteName}</h1>
+    <p class="entry-subtitle">
+        Locale <code class="wp-inline-code">{locale}</code>
+        {isDefaultLocale && <> (default)</>}
+        — {sitemap.length} pages
+    </p>
+</header>
+
+{sitemap.length > 0 ? (
+    <section class="wp-block-group wp-block-group--section">
+        <h2 class="wp-block-heading">Sitemap</h2>
+        <SitemapTree locale={locale} nodes={sitemap} />
+    </section>
+) : (
+    <p class="notice-warning">No pages with a <code class="wp-inline-code">{locale}</code> translation found for this website.</p>
+)}

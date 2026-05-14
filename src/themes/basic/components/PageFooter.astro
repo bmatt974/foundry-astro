@@ -1,0 +1,16 @@
+---
+import type { PageTranslation } from '../../../lib/foundry';
+import Markdown from './Markdown.astro';
+
+interface Props {
+    translation: PageTranslation;
+}
+
+const { translation: t } = Astro.props;
+---
+
+{t.conclusion && (
+    <footer class="brand-border mt-12 border-t pt-6">
+        <Markdown text={t.conclusion} />
+    </footer>
+)}

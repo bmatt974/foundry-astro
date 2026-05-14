@@ -1,10 +1,11 @@
 /**
- * Default theme — Tailwind-based shell preserved from the initial
- * single-tenant build. Used as the registry fallback when a website
- * has no `template` set or the requested template is missing.
+ * wp-classic — WordPress-block-theme lookalike. Hand-written CSS, no
+ * Tailwind imports, class names every reader would assume come from
+ * the WordPress block editor (.wp-block-*, .entry-*, .has-*).
  *
- * Slated for removal in phase 5 of the multi-tenant rollout: every
- * production site should land on a hand-written theme before then.
+ * Built to share zero rendered class names with the basic theme so
+ * sister sites on different themes can't be visually fingerprinted as
+ * sharing infrastructure.
  */
 
 import type { Theme } from '../types';

@@ -24,7 +24,7 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, Block, LocaleSwitcher, Markdown } = theme;
+const { Layout, LocaleSwitcher, PageHeader, PageBlocks, PageFooter, PreviewBanner } = theme;
 
 const t = page.translation;
 // Page-level translation may be absent on work-in-progress pages (the
@@ -33,6 +33,7 @@ const t = page.translation;
 const sourceName = page.sourceable && 'name' in page.sourceable ? page.sourceable.name : null;
 const title = t?.meta_title ?? t?.title ?? sourceName ?? `Preview #${id}`;
 const description = t?.meta_description ?? t?.snippet ?? null;
+const fallbackTitle = sourceName ?? `Preview #${id}`;
 ---
 
 <Layout title={title} description={description} locale={locale}>
@@ -43,34 +44,8 @@ const description = t?.meta_description ?? t?.snippet ?? null;
         pageLocales={page.available_locales}
     />
 
-    <div class="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-        Preview mode — page id <code>{id}</code>{t?.slug && <> · live slug: <code>/{locale}/{t.slug}</code></>}
-    </div>
-
-    <header class="mb-10 border-b border-gray-200 pb-6">
-        {t?.eyebrow && (
-            <p class="brand-text-primary mb-2 text-sm font-medium uppercase tracking-wide">
-                {t.eyebrow}
-            </p>
-        )}
-        <h1 class="text-4xl font-bold tracking-tight text-gray-900">
-            {t?.title ?? sourceName ?? `Preview #${id}`}
-        </h1>
-        {t?.subtitle && <p class="mt-3 text-xl text-gray-600">{t.subtitle}</p>}
-        {t?.intro && <Markdown text={t.intro} size="lg" class="mt-6 text-gray-700" />}
-    </header>
-
-    {page.blocks.length > 0 ? (
-        <div class="space-y-2">
-            {page.blocks.map((block) => <Block block={block} />)}
-        </div>
-    ) : (
-        <p class="text-sm italic text-gray-500">No blocks on this page yet.</p>
-    )}
-
-    {t?.conclusion && (
-        <footer class="mt-12 border-t border-gray-200 pt-6">
-            <Markdown text={t.conclusion} class="text-gray-700" />
-        </footer>
-    )}
+    <PreviewBanner id={id} liveSlug={t?.slug ?? null} locale={locale} />
+    <PageHeader translation={t} fallbackTitle={fallbackTitle} />
+    <PageBlocks blocks={page.blocks} />
+    {t && <PageFooter translation={t} />}
 </Layout>

@@ -1,0 +1,47 @@
+---
+import type { AvailableLocale, WebsiteLocale } from '../../../lib/foundry';
+
+interface Props {
+    currentLocale: string;
+    websiteLocales: WebsiteLocale[];
+    pageLocales?: AvailableLocale[];
+}
+
+const { currentLocale, websiteLocales, pageLocales } = Astro.props;
+const enabled = websiteLocales.filter((l) => l.enabled);
+const pageLocaleMap = new Map((pageLocales ?? []).map((p) => [p.locale, p.slug ?? '']));
+---
+
+{enabled.length > 1 && (
+    <ul class="wp-block-navigation wp-block-navigation--language" aria-label="Language">
+        {enabled.map((l) => {
+            const isCurrent = l.locale === currentLocale;
+            const pageSlug = pageLocaleMap.get(l.locale);
+            const hasPage = pageLocales === undefined || pageLocaleMap.has(l.locale);
+
+            if (isCurrent) {
+                return (
+                    <li class="wp-block-navigation-item wp-block-navigation-item--current">
+                        <span class="wp-block-navigation-item__content">{l.locale}</span>
+                    </li>
+                );
+            }
+
+            if (!hasPage) {
+                return (
+                    <li class="wp-block-navigation-item wp-block-navigation-item--unavailable">
+                        <span class="wp-block-navigation-item__content" title={`Not available in ${l.locale}`}>{l.locale}</span>
+                    </li>
+                );
+            }
+
+            const href = pageSlug !== undefined ? `/${l.locale}/${pageSlug}` : `/${l.locale}/`;
+
+            return (
+                <li class="wp-block-navigation-item">
+                    <a href={href} class="wp-block-navigation-item__content">{l.locale}</a>
+                </li>
+            );
+        })}
+    </ul>
+)}

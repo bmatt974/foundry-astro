@@ -39,9 +39,53 @@ export interface Theme {
     Markdown: AstroComponent;
 
     /**
-     * Inline CSS string injected in `<head>` per request. Themes use
-     * this to project the site's `theme_config` (colors, fonts) into
-     * CSS custom properties. Phase-2 themes can return an empty string.
+     * Article header — eyebrow + title + subtitle + intro. Receives:
+     *   - translation: PageTranslation | null
+     *   - fallbackTitle?: string (used when translation lacks a title,
+     *     e.g. work-in-progress preview pages where the page-level
+     *     translation hasn't been generated yet)
+     */
+    PageHeader: AstroComponent;
+
+    /**
+     * Wrapper around the block list with an empty-state fallback.
+     * Receives `blocks: PageBlock[]`. Internally dispatches through
+     * `theme.Block`.
+     */
+    PageBlocks: AstroComponent;
+
+    /** Conclusion footer. Receives `translation: PageTranslation`. */
+    PageFooter: AstroComponent;
+
+    /**
+     * Parent / children / siblings nav. Receives `locale: string` and
+     * `nav: { parent, children, siblings }`. Renders nothing when all
+     * three are empty.
+     */
+    PageNav: AstroComponent;
+
+    /**
+     * Banner shown on the /preview/[id] route to make it obvious the
+     * editor is viewing a draft. Receives `id: string`, `liveSlug:
+     * string | null`, `locale: string`.
+     */
+    PreviewBanner: AstroComponent;
+
+    /**
+     * Renders the `/[locale]/` landing page (website name + sitemap).
+     * Receives:
+     *   - websiteName: string
+     *   - locale: string
+     *   - isDefaultLocale: boolean
+     *   - sitemap: SitemapNode[]
+     */
+    LocaleLanding: AstroComponent;
+
+    /**
+     * CSS declaration list (no `:root {}` wrapper) injected as inline
+     * `style=` on `<html>` per request. Themes use it to project the
+     * site's `theme_config` (colors, fonts) into CSS custom properties.
+     * Return an empty string when the theme has no per-site tokens.
      */
     css: (themeConfig: Record<string, unknown>) => string;
 

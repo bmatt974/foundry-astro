@@ -1,0 +1,35 @@
+---
+import type { SitemapNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    nodes: SitemapNode[];
+    parentId?: number | null;
+    depth?: number;
+}
+
+const { locale, nodes, parentId = null, depth = 0 } = Astro.props;
+
+const children = nodes
+    .filter((n) => n.parent_id === parentId)
+    .sort((a, b) => a.position - b.position);
+const hasChildren = (id: number) => nodes.some((n) => n.parent_id === id);
+---
+
+{children.length > 0 && (
+    <ul class:list={['wp-block-navigation-submenu', depth === 0 && 'wp-block-navigation-submenu--root']}>
+        {children.map((node) => (
+            <li class="wp-block-navigation-item">
+                <div class="wp-block-navigation-link">
+                    <a href={`/${locale}/${node.slug ?? ''}`} class="wp-block-navigation-link__anchor">
+                        {node.title}
+                    </a>
+                    <span class="wp-block-navigation-link__meta">{node.page_type}</span>
+                </div>
+                {hasChildren(node.id) && (
+                    <Astro.self locale={locale} nodes={nodes} parentId={node.id} depth={depth + 1} />
+                )}
+            </li>
+        ))}
+    </ul>
+)}
