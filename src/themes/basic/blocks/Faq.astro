@@ -1,5 +1,6 @@
 ---
-import type { PageBlock } from '../../lib/foundry';
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
 
 interface Props {
     block: PageBlock;
@@ -24,7 +25,7 @@ const questions = content.questions ?? content.items ?? [];
                 <summary class="cursor-pointer font-medium text-gray-900 group-open:mb-2">
                     {qa.question}
                 </summary>
-                <div class="text-gray-700 whitespace-pre-wrap">{qa.answer}</div>
+                <Markdown text={qa.answer} size="sm" class="text-gray-700" />
             </details>
         ))}
     </div>

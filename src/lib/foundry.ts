@@ -5,8 +5,10 @@
  *   - GET /websites/{slug}                          → site metadata
  *   - GET /websites/{slug}/{locale}/pages/{path}    → page + blocks
  *
- * Configure the base URL via the FOUNDRY_API_URL env var. The single-site
- * frontend reads its target site from FOUNDRY_WEBSITE_SLUG.
+ * Configure the base URL via the FOUNDRY_API_URL env var. The serving
+ * website is resolved per-request from the HTTP Host header by the
+ * Astro middleware — every fetch in this file takes the resolved
+ * `slug` as an argument; there is no single-tenant fallback.
  */
 
 // ──────────────────────────────────────────────
@@ -94,6 +96,11 @@ export type Sourceable =
           continent: string | null;
       };
 
+export interface AvailableLocale {
+    locale: string;
+    slug: string | null;
+}
+
 export interface Page {
     id: number;
     website_id: number;
@@ -113,6 +120,7 @@ export interface Page {
         children: NavNode[];
         siblings: NavNode[];
     };
+    available_locales: AvailableLocale[];
 }
 
 export interface WebsiteLocale {
@@ -133,11 +141,31 @@ export interface Website {
     slug: string;
     type: string | null;
     theme: string | null;
+    template: string | null;
+    theme_config: Record<string, unknown>;
     status: number | null;
     persona: { id: number; key: string; name: string } | null;
     locales: WebsiteLocale[];
     default_locale: string | null;
     settings: Record<string, unknown> | null;
+}
+
+/**
+ * Slim payload returned by `/api/v1/resolve?host=...` and consumed by
+ * the Astro middleware. Only the fields the middleware / pages actually
+ * read on every request — keep it small because every response is
+ * cached per host.
+ */
+export interface TenantResolution {
+    website: {
+        id: number;
+        slug: string;
+        name: string;
+        template: string | null;
+        theme_config: Record<string, unknown>;
+    };
+    locales: WebsiteLocale[];
+    default_locale: string | null;
 }
 
 // ──────────────────────────────────────────────
@@ -150,18 +178,6 @@ export interface Website {
 function apiBase(): string {
     const raw = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
     return raw.replace(/\/+$/, '');
-}
-
-/**
- * Slug of the website this Astro instance serves. Single-site by design —
- * spin up additional Astro builds for additional sites.
- */
-export function websiteSlug(): string {
-    const slug = import.meta.env.FOUNDRY_WEBSITE_SLUG;
-    if (!slug) {
-        throw new Error('FOUNDRY_WEBSITE_SLUG is not set. Add it to .env.');
-    }
-    return slug;
 }
 
 /**
@@ -208,14 +224,58 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 // Public API
 // ──────────────────────────────────────────────
 
-export async function fetchWebsite(slug: string = websiteSlug()): Promise<Website | null> {
+export async function fetchWebsite(slug: string): Promise<Website | null> {
     return fetchJson<Website>(`/websites/${encodeURIComponent(slug)}`);
+}
+
+/**
+ * Resolve an incoming HTTP host to its serving website. Hits the
+ * `/resolve` endpoint introduced in phase 1 of the multi-tenant
+ * rollout. Returns null when the host is unknown — caller (typically
+ * the middleware) handles the 404 response.
+ */
+export async function fetchWebsiteByHost(host: string): Promise<TenantResolution | null> {
+    return fetchJson<TenantResolution>(`/resolve?host=${encodeURIComponent(host)}`);
+}
+
+export async function fetchRootPages(
+    locale: string,
+    slug: string,
+): Promise<NavNode[]> {
+    const list = await fetchJson<NavNode[]>(
+        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages`,
+    );
+    return list ?? [];
+}
+
+export interface SitemapNode extends NavNode {
+    parent_id: number | null;
+}
+
+export async function fetchSitemap(
+    locale: string,
+    slug: string,
+): Promise<SitemapNode[]> {
+    const list = await fetchJson<SitemapNode[]>(
+        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages?tree=1`,
+    );
+    return list ?? [];
+}
+
+export async function fetchPageById(
+    locale: string,
+    id: number | string,
+    slug: string,
+): Promise<Page | null> {
+    return fetchJson<Page>(
+        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/preview/${encodeURIComponent(String(id))}`,
+    );
 }
 
 export async function fetchPage(
     locale: string,
     path: string,
-    slug: string = websiteSlug(),
+    slug: string,
 ): Promise<Page | null> {
     // Path may contain slashes ("destinations/italie/rome"); each segment is
     // URL-encoded independently so accented characters survive.

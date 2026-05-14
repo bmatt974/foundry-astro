@@ -1,5 +1,6 @@
 ---
-import type { PageBlock } from '../../lib/foundry';
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
 
 interface Props {
     block: PageBlock;
@@ -11,5 +12,5 @@ const content = (block.content ?? {}) as { title?: string; body?: string };
 
 <section class="my-8">
     {content.title && <h2 class="text-2xl font-semibold mb-3">{content.title}</h2>}
-    {content.body && <div class="whitespace-pre-wrap text-gray-800">{content.body}</div>}
+    <Markdown text={content.body} class="text-gray-800" />
 </section>

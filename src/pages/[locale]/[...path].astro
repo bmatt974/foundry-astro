@@ -1,34 +1,44 @@
 ---
 /**
  * Catch-all page route. Hits the Foundry headless API for the
- * (website, locale, path) tuple and renders the returned blocks.
+ * (website, locale, path) tuple and renders the returned blocks
+ * through the active theme.
  *
  * Rendered on each request (no prerendering) because content is
  * authored in the Laravel CMS and may change between deploys.
  */
 export const prerender = false;
 
-import BaseLayout from '../../layouts/BaseLayout.astro';
-import Block from '../../components/Block.astro';
 import { fetchPage } from '../../lib/foundry';
+import { getTheme } from '../../themes/registry';
 
 const { locale, path } = Astro.params;
-
 if (!locale) {
     return new Response('Missing locale segment.', { status: 400 });
 }
 
-const page = await fetchPage(locale, path ?? '');
+const tenant = Astro.locals.tenant;
+const page = await fetchPage(locale, path ?? '', tenant.website.slug);
 if (!page) {
     return new Response('Not found', { status: 404 });
 }
+
+const theme = getTheme(tenant.template);
+const { Layout, Block, LocaleSwitcher, Markdown } = theme;
 
 const t = page.translation;
 const title = t?.meta_title ?? t?.title ?? 'Untitled';
 const description = t?.meta_description ?? t?.snippet ?? null;
 ---
 
-<BaseLayout title={title} description={description} locale={locale}>
+<Layout title={title} description={description} locale={locale}>
+    <LocaleSwitcher
+        slot="locale-switcher"
+        currentLocale={locale}
+        websiteLocales={tenant.locales}
+        pageLocales={page.available_locales}
+    />
+
     <header class="mb-10 border-b border-gray-200 pb-6">
         {t?.eyebrow && (
             <p class="mb-2 text-sm font-medium uppercase tracking-wide text-indigo-600">
@@ -39,11 +49,7 @@ const description = t?.meta_description ?? t?.snippet ?? null;
             {t?.title ?? 'Untitled'}
         </h1>
         {t?.subtitle && <p class="mt-3 text-xl text-gray-600">{t.subtitle}</p>}
-        {t?.intro && (
-            <div class="mt-6 whitespace-pre-wrap text-lg leading-relaxed text-gray-700">
-                {t.intro}
-            </div>
-        )}
+        {t?.intro && <Markdown text={t.intro} size="lg" class="mt-6 text-gray-700" />}
     </header>
 
     {page.blocks.length > 0 ? (
@@ -55,8 +61,8 @@ const description = t?.meta_description ?? t?.snippet ?? null;
     )}
 
     {t?.conclusion && (
-        <footer class="mt-12 border-t border-gray-200 pt-6 whitespace-pre-wrap text-gray-700">
-            {t.conclusion}
+        <footer class="mt-12 border-t border-gray-200 pt-6">
+            <Markdown text={t.conclusion} class="text-gray-700" />
         </footer>
     )}
 
@@ -99,4 +105,4 @@ const description = t?.meta_description ?? t?.snippet ?? null;
             )}
         </nav>
     )}
-</BaseLayout>
+</Layout>

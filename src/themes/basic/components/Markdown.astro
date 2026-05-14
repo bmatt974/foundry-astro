@@ -1,0 +1,27 @@
+---
+/**
+ * Render a markdown string to HTML through `marked` and wrap it in a
+ * Tailwind `prose` container. Content is trusted (authored in the
+ * Foundry CMS), so no sanitizer is applied — flip to a sanitizer like
+ * DOMPurify if the source becomes user-generated.
+ *
+ * Pass `size="sm"` for embedded contexts (FAQ answers, key facts) where
+ * the default `prose` typography is too large.
+ */
+import { marked } from 'marked';
+
+interface Props {
+    text: string | null | undefined;
+    size?: 'sm' | 'base' | 'lg';
+    class?: string;
+}
+
+const { text, size = 'base', class: className = '' } = Astro.props;
+
+const proseSize = size === 'base' ? '' : `prose-${size}`;
+const html = text ? marked.parse(text, { async: false, breaks: false, gfm: true }) : '';
+---
+
+{html && (
+    <div class:list={['prose max-w-none', proseSize, className]} set:html={html} />
+)}

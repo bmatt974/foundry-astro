@@ -3,9 +3,9 @@
  * Fallback renderer for block types that don't have a dedicated component
  * yet. Dumps the raw payload as JSON so it's visible during development
  * what data the backend is sending. Replace by registering a real
- * component in `src/components/Block.astro` once you build it.
+ * component in this theme's `components/Block.astro` once you build it.
  */
-import type { PageBlock } from '../../lib/foundry';
+import type { PageBlock } from '../../../lib/foundry';
 
 interface Props {
     block: PageBlock;

@@ -1,0 +1,50 @@
+---
+/**
+ * Renders a hierarchical navigation tree from a flat list of nodes
+ * returned by /pages?tree=1. Each node carries a `parent_id` field;
+ * we group by it once and recurse via the nested `<SitemapTree>` slot.
+ *
+ * `nodes` is the *children* slice; for top-level use, pass the full
+ * list and the component filters to roots itself.
+ */
+import type { SitemapNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    nodes: SitemapNode[];
+    /** Internal recursion: parent_id of the slice being rendered. `null` = roots. */
+    parentId?: number | null;
+    depth?: number;
+}
+
+const { locale, nodes, parentId = null, depth = 0 } = Astro.props;
+
+const children = nodes
+    .filter((n) => n.parent_id === parentId)
+    .sort((a, b) => a.position - b.position);
+
+const hasChildren = (id: number) => nodes.some((n) => n.parent_id === id);
+---
+
+{children.length > 0 && (
+    <ul class:list={['space-y-1', depth === 0 ? '' : 'mt-1 ml-4 border-l border-gray-200 pl-4']}>
+        {children.map((node) => (
+            <li>
+                <div class="flex items-baseline justify-between gap-3 py-1">
+                    <a
+                        href={`/${locale}/${node.slug ?? ''}`}
+                        class="text-indigo-600 hover:underline"
+                    >
+                        {node.title}
+                    </a>
+                    <span class="text-xs uppercase tracking-wide text-gray-400">
+                        {node.page_type}
+                    </span>
+                </div>
+                {hasChildren(node.id) && (
+                    <Astro.self locale={locale} nodes={nodes} parentId={node.id} depth={depth + 1} />
+                )}
+            </li>
+        ))}
+    </ul>
+)}

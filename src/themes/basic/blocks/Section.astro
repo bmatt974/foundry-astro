@@ -1,6 +1,7 @@
 ---
-import type { PageBlock } from '../../lib/foundry';
-import Block from '../Block.astro';
+import type { PageBlock } from '../../../lib/foundry';
+import Block from '../components/Block.astro';
+import Markdown from '../components/Markdown.astro';
 
 interface Props {
     block: PageBlock;
@@ -12,7 +13,7 @@ const content = (block.content ?? {}) as { title?: string; body?: string };
 
 <section class="my-12 border-t border-gray-200 pt-8">
     {content.title && <h2 class="text-3xl font-semibold mb-4">{content.title}</h2>}
-    {content.body && <div class="whitespace-pre-wrap text-gray-800 mb-6">{content.body}</div>}
+    {content.body && <Markdown text={content.body} class="text-gray-800 mb-6" />}
     {block.children.length > 0 && (
         <div class="space-y-6">
             {block.children.map((child) => <Block block={child} />)}

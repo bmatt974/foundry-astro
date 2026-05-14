@@ -1,0 +1,52 @@
+---
+/**
+ * Locale landing page. The Foundry CMS has no built-in "homepage" concept,
+ * so this renders a navigable sitemap of every page that has a
+ * translation in the requested locale. A real site would either pick one
+ * page as the homepage via env / config or render a curated block tree.
+ */
+export const prerender = false;
+
+import { fetchSitemap } from '../../lib/foundry';
+import { getTheme } from '../../themes/registry';
+
+const { locale } = Astro.params;
+if (!locale) {
+    return new Response('Missing locale segment.', { status: 400 });
+}
+
+const tenant = Astro.locals.tenant;
+const website = tenant.website;
+const sitemap = await fetchSitemap(locale, website.slug);
+
+const theme = getTheme(tenant.template);
+const { Layout, LocaleSwitcher, SitemapTree } = theme;
+---
+
+<Layout title={`${website.name} — ${locale}`} locale={locale}>
+    <LocaleSwitcher
+        slot="locale-switcher"
+        currentLocale={locale}
+        websiteLocales={tenant.locales}
+    />
+
+    <header class="mb-10 border-b border-gray-200 pb-6">
+        <h1 class="text-4xl font-bold tracking-tight">{website.name}</h1>
+        <p class="mt-2 text-sm text-gray-500">
+            Locale: <code class="rounded bg-gray-100 px-1.5 py-0.5">{locale}</code>
+            {tenant.defaultLocale === locale && <span class="ml-2 text-xs">(default)</span>}
+            · {sitemap.length} pages
+        </p>
+    </header>
+
+    {sitemap.length > 0 ? (
+        <section>
+            <h2 class="text-lg font-semibold mb-4">Sitemap</h2>
+            <SitemapTree locale={locale} nodes={sitemap} />
+        </section>
+    ) : (
+        <p class="rounded-md border border-yellow-300 bg-yellow-50 p-4 text-yellow-800">
+            No pages with a <code>{locale}</code> translation found for this website.
+        </p>
+    )}
+</Layout>

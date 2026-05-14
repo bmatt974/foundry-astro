@@ -1,53 +1,58 @@
 ---
+/**
+ * Tenant root. By default redirects to `/{default_locale}/`. Append
+ * `?debug=1` to render a small inspector showing the resolved tenant
+ * context — useful when seeding a new site to confirm the middleware
+ * matched the expected website + theme.
+ */
 export const prerender = false;
 
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { fetchWebsite, websiteSlug } from '../lib/foundry';
+import { getTheme, listThemes } from '../themes/registry';
 
-const slug = websiteSlug();
-const website = await fetchWebsite(slug);
+const tenant = Astro.locals.tenant;
+const defaultLocale = tenant.defaultLocale ?? tenant.locales[0]?.locale ?? 'en';
+
+if (Astro.url.searchParams.get('debug') !== '1') {
+    return Astro.redirect(`/${defaultLocale}/`, 302);
+}
+
+const theme = getTheme(tenant.template);
+const { Layout } = theme;
+const registeredThemes = listThemes();
 ---
 
-<BaseLayout title={website?.name ?? 'Foundry frontend'}>
+<Layout title={`${tenant.website.name} — debug`} locale={defaultLocale}>
     <h1 class="text-3xl font-bold mb-6">Foundry frontend — debug</h1>
 
-    {website ? (
-        <section class="space-y-4">
-            <p>
-                Connected to <code class="rounded bg-gray-100 px-1.5 py-0.5">{slug}</code> —
-                <strong>{website.name}</strong>
-            </p>
-            <p class="text-sm text-gray-600">
-                Type: <code>{website.type ?? '—'}</code> · theme:{' '}
-                <code>{website.theme ?? '—'}</code> · default locale:{' '}
-                <code>{website.default_locale ?? '—'}</code>
-            </p>
+    <section class="space-y-2 text-sm">
+        <p>
+            Resolved website: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.slug}</code> —
+            <strong>{tenant.website.name}</strong>
+        </p>
+        <p>
+            Active template: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.template}</code>
+            {!tenant.website.template && (
+                <span class="ml-2 text-xs text-gray-500">(fallback — `Website.template` is null)</span>
+            )}
+        </p>
+        <p>
+            Registered themes: {registeredThemes.map((t) => <code class="mr-2 rounded bg-gray-100 px-1.5 py-0.5">{t}</code>)}
+        </p>
+        <p>
+            Default locale: <code class="rounded bg-gray-100 px-1.5 py-0.5">{defaultLocale}</code>
+        </p>
+    </section>
 
-            <h2 class="mt-6 text-lg font-semibold">Locales</h2>
-            <ul class="list-disc pl-5 text-sm">
-                {website.locales.map((l) => (
-                    <li>
-                        <a href={`/${l.locale}/`} class="text-indigo-600 hover:underline">
-                            {l.locale}
-                        </a>
-                        {l.is_default && <span class="ml-2 text-xs text-gray-500">(default)</span>}
-                        <span class="ml-2 text-xs text-gray-500">— {l.base_url}</span>
-                    </li>
-                ))}
-            </ul>
-
-            <p class="mt-6 text-sm text-gray-500">
-                Try a page: <code class="bg-gray-100 px-1.5 py-0.5">/{website.default_locale ?? 'fr'}/&lt;slug&gt;</code>
-            </p>
-        </section>
-    ) : (
-        <section class="rounded-md border border-red-200 bg-red-50 p-4 text-red-700">
-            <p class="font-medium">Could not reach the Foundry API.</p>
-            <p class="mt-2 text-sm">
-                Check that <code>FOUNDRY_API_URL</code> in <code>.env</code> points at a running
-                Laravel instance, and that the website slug <code>{slug}</code> exists and is
-                published.
-            </p>
-        </section>
-    )}
-</BaseLayout>
+    <h2 class="mt-8 text-lg font-semibold">Locales</h2>
+    <ul class="list-disc pl-5 text-sm">
+        {tenant.locales.map((l) => (
+            <li>
+                <a href={`/${l.locale}/`} class="text-indigo-600 hover:underline">
+                    {l.locale}
+                </a>
+                {l.is_default && <span class="ml-2 text-xs text-gray-500">(default)</span>}
+                <span class="ml-2 text-xs text-gray-500">— {l.base_url}</span>
+            </li>
+        ))}
+    </ul>
+</Layout>
