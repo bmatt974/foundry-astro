@@ -15,6 +15,7 @@ import KeyFacts from '../blocks/KeyFacts.astro';
 import Faq from '../blocks/Faq.astro';
 import Cta from '../blocks/Cta.astro';
 import Section from '../blocks/Section.astro';
+import TopList from '../blocks/TopList.astro';
 import Default from '../blocks/Default.astro';
 
 interface Props {
@@ -30,6 +31,7 @@ const blockComponents: Partial<Record<string, any>> = {
     faq: Faq,
     cta: Cta,
     section: Section,
+    top_list: TopList,
 };
 
 const Component = blockComponents[block.block_type] ?? Default;
