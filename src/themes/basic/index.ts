@@ -13,6 +13,7 @@ import Block from './components/Block.astro';
 import LocaleSwitcher from './components/LocaleSwitcher.astro';
 import Markdown from './components/Markdown.astro';
 import SitemapTree from './components/SitemapTree.astro';
+import { css } from './tokens';
 
 const theme: Theme = {
     Layout,
@@ -20,9 +21,7 @@ const theme: Theme = {
     LocaleSwitcher,
     SitemapTree,
     Markdown,
-    // Phase 3 will wire theme_config → CSS custom properties; for now
-    // the theme is fully Tailwind-driven and ignores `themeConfig`.
-    css: () => '',
+    css,
 };
 
 export default theme;

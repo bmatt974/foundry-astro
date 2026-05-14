@@ -41,7 +41,7 @@ const description = t?.meta_description ?? t?.snippet ?? null;
 
     <header class="mb-10 border-b border-gray-200 pb-6">
         {t?.eyebrow && (
-            <p class="mb-2 text-sm font-medium uppercase tracking-wide text-indigo-600">
+            <p class="brand-text-primary mb-2 text-sm font-medium uppercase tracking-wide">
                 {t.eyebrow}
             </p>
         )}
@@ -70,7 +70,7 @@ const description = t?.meta_description ?? t?.snippet ?? null;
         <nav class="mt-16 border-t border-gray-200 pt-6 text-sm text-gray-600">
             {page.nav.parent && (
                 <p class="mb-2">
-                    ↑ <a href={`/${locale}/${page.nav.parent.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                    ↑ <a href={`/${locale}/${page.nav.parent.slug ?? ''}`} class="brand-link">
                         {page.nav.parent.title}
                     </a>
                 </p>
@@ -81,7 +81,7 @@ const description = t?.meta_description ?? t?.snippet ?? null;
                     <ul class="list-disc pl-5">
                         {page.nav.children.map((c) => (
                             <li>
-                                <a href={`/${locale}/${c.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                                <a href={`/${locale}/${c.slug ?? ''}`} class="brand-link">
                                     {c.title}
                                 </a>
                             </li>
@@ -95,7 +95,7 @@ const description = t?.meta_description ?? t?.snippet ?? null;
                     <ul class="list-disc pl-5">
                         {page.nav.siblings.map((s) => (
                             <li>
-                                <a href={`/${locale}/${s.slug ?? ''}`} class="text-indigo-600 hover:underline">
+                                <a href={`/${locale}/${s.slug ?? ''}`} class="brand-link">
                                     {s.title}
                                 </a>
                             </li>

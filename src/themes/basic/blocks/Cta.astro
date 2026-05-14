@@ -13,14 +13,14 @@ const content = (block.content ?? {}) as {
 };
 ---
 
-<section class="my-8 rounded-lg bg-indigo-50 p-6 text-center">
+<section class="my-8 rounded-lg p-6 text-center" style="background: color-mix(in srgb, var(--brand-primary) 8%, transparent);">
     {content.description && (
-        <p class="mb-4 text-gray-700">{content.description}</p>
+        <p class="brand-text-muted mb-4">{content.description}</p>
     )}
     {content.url && content.label && (
         <a
             href={content.url}
-            class="inline-block rounded-md bg-indigo-600 px-6 py-3 font-medium text-white hover:bg-indigo-700"
+            class="brand-bg-primary inline-block rounded-md px-6 py-3 font-medium text-white hover:opacity-90"
         >
             {content.label}
         </a>

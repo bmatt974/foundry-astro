@@ -33,7 +33,7 @@ const hasChildren = (id: number) => nodes.some((n) => n.parent_id === id);
                 <div class="flex items-baseline justify-between gap-3 py-1">
                     <a
                         href={`/${locale}/${node.slug ?? ''}`}
-                        class="text-indigo-600 hover:underline"
+                        class="brand-link"
                     >
                         {node.title}
                     </a>

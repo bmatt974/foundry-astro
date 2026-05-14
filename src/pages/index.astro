@@ -47,7 +47,7 @@ const registeredThemes = listThemes();
     <ul class="list-disc pl-5 text-sm">
         {tenant.locales.map((l) => (
             <li>
-                <a href={`/${l.locale}/`} class="text-indigo-600 hover:underline">
+                <a href={`/${l.locale}/`} class="brand-link">
                     {l.locale}
                 </a>
                 {l.is_default && <span class="ml-2 text-xs text-gray-500">(default)</span>}

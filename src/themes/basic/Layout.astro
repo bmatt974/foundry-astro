@@ -1,5 +1,6 @@
 ---
 import './styles.css';
+import { css } from './tokens';
 
 interface Props {
     title: string;
@@ -8,28 +9,33 @@ interface Props {
 }
 
 const { title, description, locale = 'en' } = Astro.props;
+// Pull theme tokens from the tenant context populated by middleware.
+// Set as an inline `style` on <html> so its specificity beats the
+// `:root` defaults from styles.css even when Vite's bundled stylesheet
+// lands later in the cascade.
+const themeConfig = Astro.locals.tenant?.themeConfig ?? {};
+const inlineTokens = css(themeConfig);
 ---
 
 <!doctype html>
-<html lang={locale}>
+<html lang={locale} style={inlineTokens || undefined}>
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="generator" content={Astro.generator} />
         {description && <meta name="description" content={description} />}
         <title>{title}</title>
     </head>
-    <body class="bg-white text-gray-900 antialiased">
-        <header class="border-b border-gray-200">
-            <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-                <a href="/" class="text-sm font-medium text-gray-700 hover:text-gray-900">
+    <body class="antialiased">
+        <header class="brand-border border-b">
+            <div class="brand-container flex items-center justify-between px-4 py-4">
+                <a href="/" class="brand-text-muted text-sm font-medium hover:opacity-70">
                     ← All locales
                 </a>
                 <slot name="locale-switcher" />
             </div>
         </header>
 
-        <main class="mx-auto max-w-3xl px-4 py-12">
+        <main class="brand-container px-4 py-12">
             <slot />
         </main>
     </body>
