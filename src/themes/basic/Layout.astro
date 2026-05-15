@@ -1,5 +1,8 @@
 ---
+import { fetchMenu } from '../../lib/foundry';
 import './styles.css';
+import SiteFooter from './components/SiteFooter.astro';
+import SiteHeader from './components/SiteHeader.astro';
 import { css } from './tokens';
 
 interface Props {
@@ -9,12 +12,21 @@ interface Props {
 }
 
 const { title, description, locale = 'en' } = Astro.props;
+
 // Pull theme tokens from the tenant context populated by middleware.
 // Set as an inline `style` on <html> so its specificity beats the
 // `:root` defaults from styles.css even when Vite's bundled stylesheet
 // lands later in the cascade.
-const themeConfig = Astro.locals.tenant?.themeConfig ?? {};
+const tenant = Astro.locals.tenant;
+const themeConfig = tenant?.themeConfig ?? {};
 const inlineTokens = css(themeConfig);
+
+// Pre-fetch the footer menu — memoised 60s per (host, locale,
+// location) so every page render isn't a fresh round-trip.
+const footerItems = tenant
+    ? await fetchMenu('footer', locale, tenant.website.slug)
+    : [];
+const websiteName = tenant?.website.name ?? '';
 ---
 
 <!doctype html>
@@ -29,17 +41,14 @@ const inlineTokens = css(themeConfig);
         )}
     </head>
     <body class="antialiased">
-        <header class="brand-border border-b">
-            <div class="brand-container flex items-center justify-between px-4 py-4">
-                <a href="/" class="brand-text-muted text-sm font-medium hover:opacity-70">
-                    ← All locales
-                </a>
-                <slot name="locale-switcher" />
-            </div>
-        </header>
+        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+            <slot name="locale-switcher" />
+        </SiteHeader>
 
         <main class="brand-container px-4 py-12">
             <slot />
         </main>
+
+        <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
     </body>
 </html>

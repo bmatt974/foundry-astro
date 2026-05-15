@@ -1,0 +1,23 @@
+---
+/**
+ * Top header for the basic theme. Site name on the left links back to
+ * the locale root. Locale switcher slot on the right is forwarded by
+ * the Layout (the page renders <LocaleSwitcher slot="locale-switcher" />
+ * directly on the Layout; Layout reroutes it here as the default slot).
+ */
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+}
+
+const { websiteName, currentLocale } = Astro.props;
+---
+
+<header class="brand-border border-b">
+    <div class="brand-container flex items-center justify-between gap-4 px-4 py-4">
+        <a href={`/${currentLocale}/`} class="text-base font-semibold tracking-tight hover:opacity-70">
+            {websiteName}
+        </a>
+        <slot />
+    </div>
+</header>

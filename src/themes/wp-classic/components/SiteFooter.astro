@@ -1,0 +1,27 @@
+---
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+    items: MenuItem[];
+}
+
+const { websiteName, currentLocale, items } = Astro.props;
+const year = new Date().getUTCFullYear();
+---
+
+<footer class="wp-site-footer">
+    <div class="wp-block-group">
+        <p class="wp-site-credit">
+            <a href={`/${currentLocale}/`} class="wp-site-credit__name">{websiteName}</a>
+            <span class="wp-site-credit__year">© {year}</span>
+        </p>
+        {items.length > 0 && (
+            <nav class="wp-block-navigation wp-block-navigation--footer" aria-label="Site links">
+                <Menu items={items} />
+            </nav>
+        )}
+    </div>
+</footer>

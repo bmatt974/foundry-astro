@@ -1,0 +1,37 @@
+---
+/**
+ * Bottom footer for the basic theme. Renders the website's footer
+ * menu (auto-seeded with utility pages by UtilityPagesScaffolder)
+ * plus a copyright line.
+ *
+ * Pre-menu-system iterations filtered root pages by `page_type ∈
+ * utility` — that logic moved to the backend's
+ * UtilityPagesScaffolder + bootstrap command, so this component just
+ * renders what the API returns.
+ */
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+    items: MenuItem[];
+}
+
+const { websiteName, currentLocale, items } = Astro.props;
+const year = new Date().getUTCFullYear();
+---
+
+<footer class="brand-border brand-text-muted mt-20 border-t">
+    <div class="brand-container flex flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p>
+            <a href={`/${currentLocale}/`} class="font-medium hover:opacity-70">{websiteName}</a>
+            <span class="ml-2 text-xs">© {year}</span>
+        </p>
+        {items.length > 0 && (
+            <nav aria-label="Site links">
+                <Menu items={items} class="flex flex-wrap gap-x-4 gap-y-2" />
+            </nav>
+        )}
+    </div>
+</footer>

@@ -1,5 +1,8 @@
 ---
+import { fetchMenu } from '../../lib/foundry';
 import './styles.css';
+import SiteFooter from './components/SiteFooter.astro';
+import SiteHeader from './components/SiteHeader.astro';
 import { css } from './tokens';
 
 interface Props {
@@ -9,8 +12,14 @@ interface Props {
 }
 
 const { title, description, locale = 'en' } = Astro.props;
-const themeConfig = Astro.locals.tenant?.themeConfig ?? {};
+const tenant = Astro.locals.tenant;
+const themeConfig = tenant?.themeConfig ?? {};
 const inlineTokens = css(themeConfig);
+
+const footerItems = tenant
+    ? await fetchMenu('footer', locale, tenant.website.slug)
+    : [];
+const websiteName = tenant?.website.name ?? '';
 ---
 
 <!doctype html>
@@ -25,15 +34,14 @@ const inlineTokens = css(themeConfig);
         )}
     </head>
     <body class="wp-site">
-        <header class="wp-site-header">
-            <div class="wp-block-group">
-                <a href="/" class="wp-site-blog">All locales</a>
-                <slot name="locale-switcher" />
-            </div>
-        </header>
+        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+            <slot name="locale-switcher" />
+        </SiteHeader>
 
         <main class="wp-site-main">
             <slot />
         </main>
+
+        <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
     </body>
 </html>

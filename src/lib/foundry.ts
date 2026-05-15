@@ -240,18 +240,61 @@ export async function fetchWebsiteByHost(host: string): Promise<TenantResolution
     return fetchJson<TenantResolution>(`/resolve?host=${encodeURIComponent(host)}`);
 }
 
+/**
+ * Module-scope cache for root pages — called on every article render by
+ * the Layout's header/footer. Without this, a typical page does an
+ * extra round-trip just to redraw the same site nav. 60s TTL matches
+ * the middleware's tenant cache.
+ */
+const rootPagesCache = new Map<string, { data: NavNode[]; expiresAt: number }>();
+const ROOT_PAGES_TTL_MS = 60_000;
+
 export async function fetchRootPages(
     locale: string,
     slug: string,
 ): Promise<NavNode[]> {
+    const key = `${slug}::${locale}`;
+    const cached = rootPagesCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.data;
+    }
+
     const list = await fetchJson<NavNode[]>(
         `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages`,
     );
-    return list ?? [];
+    const data = list ?? [];
+    rootPagesCache.set(key, { data, expiresAt: Date.now() + ROOT_PAGES_TTL_MS });
+
+    return data;
 }
 
 export interface SitemapNode extends NavNode {
     parent_id: number | null;
+}
+
+export type MenuItemType =
+    | 'page'
+    | 'page_slug'
+    | 'external'
+    | 'heading'
+    | 'spacer'
+    | 'divider';
+
+export interface MenuItem {
+    id: number;
+    type: MenuItemType;
+    parent_id: number | null;
+    position: number;
+    label: string | null;
+    href: string | null;
+    title_attribute: string | null;
+    css_class: string | null;
+    icon: string | null;
+    open_in_new_tab: boolean;
+    /** Forwarded untouched from the backend; the frontend evaluates them
+     *  against the current page context. Null = always visible. */
+    visibility_rules: Record<string, unknown> | null;
+    children: MenuItem[];
 }
 
 export async function fetchSitemap(
@@ -262,6 +305,33 @@ export async function fetchSitemap(
         `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages?tree=1`,
     );
     return list ?? [];
+}
+
+/**
+ * Per-(host, locale, location) cache for menus — called by the Layout
+ * on every page render. Hits the API at most once per minute per key.
+ */
+const menuCache = new Map<string, { data: MenuItem[]; expiresAt: number }>();
+const MENU_TTL_MS = 60_000;
+
+export async function fetchMenu(
+    location: string,
+    locale: string,
+    slug: string,
+): Promise<MenuItem[]> {
+    const key = `${slug}::${locale}::${location}`;
+    const cached = menuCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+        return cached.data;
+    }
+
+    const list = await fetchJson<MenuItem[]>(
+        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/menus/${encodeURIComponent(location)}`,
+    );
+    const data = list ?? [];
+    menuCache.set(key, { data, expiresAt: Date.now() + MENU_TTL_MS });
+
+    return data;
 }
 
 export async function fetchPageById(

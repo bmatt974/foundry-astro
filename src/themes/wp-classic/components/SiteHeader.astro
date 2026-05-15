@@ -1,0 +1,15 @@
+---
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+}
+
+const { websiteName, currentLocale } = Astro.props;
+---
+
+<header class="wp-site-header">
+    <div class="wp-block-group">
+        <a href={`/${currentLocale}/`} class="wp-site-blog-title">{websiteName}</a>
+        <slot />
+    </div>
+</header>

@@ -26,6 +26,26 @@ export interface Theme {
     /** Page shell with header / footer / styles. Receives `title`, `description`, `locale`. */
     Layout: AstroComponent;
 
+    /**
+     * Top header — site name/logo and locale switcher (received as
+     * default slot). Receives `websiteName: string`, `currentLocale:
+     * string`. Rendered inside the Layout shell.
+     */
+    SiteHeader: AstroComponent;
+
+    /**
+     * Bottom footer — copyright + footer menu (already resolved
+     * server-side). Receives `websiteName: string`, `currentLocale:
+     * string`, `items: MenuItem[]`.
+     */
+    SiteFooter: AstroComponent;
+
+    /**
+     * Generic nested menu renderer. Receives `items: MenuItem[]` (a
+     * tree pre-built by the API). Theme decides layout / class names.
+     */
+    Menu: AstroComponent;
+
     /** Block dispatcher — receives a `block` prop and routes to the per-type renderer. */
     Block: AstroComponent;
 

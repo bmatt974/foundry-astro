@@ -14,17 +14,23 @@ import Hero from './components/Hero.astro';
 import LocaleLanding from './components/LocaleLanding.astro';
 import LocaleSwitcher from './components/LocaleSwitcher.astro';
 import Markdown from './components/Markdown.astro';
+import Menu from './components/Menu.astro';
 import PageBlocks from './components/PageBlocks.astro';
 import PageFooter from './components/PageFooter.astro';
 import PageHeader from './components/PageHeader.astro';
 import PageNav from './components/PageNav.astro';
 import PreviewBanner from './components/PreviewBanner.astro';
 import Seo from './components/Seo.astro';
+import SiteFooter from './components/SiteFooter.astro';
+import SiteHeader from './components/SiteHeader.astro';
 import SitemapTree from './components/SitemapTree.astro';
 import { css } from './tokens';
 
 const theme: Theme = {
     Layout,
+    SiteHeader,
+    SiteFooter,
+    Menu,
     Block,
     LocaleSwitcher,
     SitemapTree,
