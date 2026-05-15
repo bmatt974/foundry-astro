@@ -5,139 +5,74 @@
  * which aggregates Viator + GetYourGuide listings into a handful of
  * groups per page.
  *
- * Two layouts: a stacked card list on mobile (one card per group), a
- * full table from `sm:` upward. The desktop table is the SEO-relevant
- * shape — readers scanning a "best Colosseum tickets" page expect a
- * matrix.
+ * Parsing + label translation + formatting live in
+ * `src/lib/blocks/comparison.ts` — shared with wp-classic so a bug
+ * fix or a new field flows to both themes at once. This file owns
+ * only the Tailwind markup (responsive card-stack on mobile, table
+ * on `sm:` upward).
  */
 import type { PageBlock } from '../../../lib/foundry';
-import { formatPrice, formatRating } from '../../../lib/format';
+import { parseComparison } from '../../../lib/blocks/comparison';
 import { imageSrcset, imageUrl } from '../../../lib/image';
-
-interface Group {
-    key?: string;
-    label?: string;
-    title?: string;
-    total_count?: number;
-    duration_minutes?: number | null;
-    display_features?: {
-        coupe_file?: boolean;
-        audio_guide?: boolean;
-        live_guide?: boolean;
-        free_cancellation?: boolean;
-    };
-    provider_label?: string;
-    price_eur?: number | null;
-    rating?: number | null;
-    review_count?: number | null;
-    partner_url?: string;
-    image_url?: string | null;
-}
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { heading?: string; groups?: Group[] };
-const groups = (content.groups ?? []).filter((g) => g && (g.label || g.title));
-
-// Locale-aware labels — only fr/en bootstrapped for now. Extending
-// to other locales is one map entry each. The current locale is set
-// once in middleware so deep components don't re-parse the URL.
 const locale = Astro.locals.locale ?? 'en';
-const lang = locale.split('-')[0];
-
-interface Labels {
-    headers: { type: string; coupe_file: string; audio_guide: string; live_guide: string; free_cancellation: string; price: string; cta: string };
-    cta: string;
-    more_options: (n: number) => string;
-}
-
-const labels: Record<string, Labels> = {
-    fr: {
-        headers: {
-            type: 'Type',
-            coupe_file: 'Coupe-file',
-            audio_guide: 'Audio guide',
-            live_guide: 'Guide live',
-            free_cancellation: 'Annulation',
-            price: 'Prix',
-            cta: 'Action',
-        },
-        cta: 'Réserver',
-        more_options: (n) => `+${n} autres options`,
-    },
-    en: {
-        headers: {
-            type: 'Type',
-            coupe_file: 'Skip the line',
-            audio_guide: 'Audio guide',
-            live_guide: 'Live guide',
-            free_cancellation: 'Free cancel.',
-            price: 'Price',
-            cta: 'Action',
-        },
-        cta: 'Book',
-        more_options: (n) => `+${n} more options`,
-    },
-};
-const l = labels[lang] ?? labels.en;
+const { heading, rows, labels } = parseComparison(block.content, locale);
 ---
 
-{groups.length > 0 && (
+{rows.length > 0 && (
     <section class="my-10">
-        {content.heading && (
+        {heading && (
             <h2 class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
-                {content.heading}
+                {heading}
             </h2>
         )}
 
         {/* Mobile / narrow: card stack */}
         <ul class="space-y-4 sm:hidden">
-            {groups.map((g) => {
-                const price = formatPrice(g.price_eur, locale);
-                const rating = formatRating(g.rating, g.review_count, locale);
-                const extras = (g.total_count ?? 1) - 1;
-                const df = g.display_features ?? {};
-                return (
-                    <li class="brand-border overflow-hidden rounded-lg border bg-white">
-                        {g.image_url && (
-                            <img
-                                src={imageUrl(g.image_url, { width: 480 })}
-                                srcset={imageSrcset(g.image_url, [320, 480, 800])}
-                                sizes="100vw"
-                                alt={g.title ?? g.label ?? ''}
-                                loading="lazy"
-                                class="aspect-[16/9] w-full object-cover"
-                            />
+            {rows.map((row) => (
+                <li class="brand-border overflow-hidden rounded-lg border bg-white">
+                    {row.imageUrl && (
+                        <img
+                            src={imageUrl(row.imageUrl, { width: 480 })}
+                            srcset={imageSrcset(row.imageUrl, [320, 480, 800])}
+                            sizes="100vw"
+                            alt={row.title || row.label}
+                            loading="lazy"
+                            class="aspect-[16/9] w-full object-cover"
+                        />
+                    )}
+                    <div class="p-4">
+                        <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{row.label}</p>
+                        <h3 class="mt-1 text-sm font-semibold leading-snug">{row.title}</h3>
+                        {row.extras > 0 && (
+                            <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
                         )}
-                        <div class="p-4">
-                            <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{g.label}</p>
-                            <h3 class="mt-1 text-sm font-semibold leading-snug">{g.title}</h3>
-                            {extras > 0 && <p class="brand-text-muted mt-1 text-xs italic">{l.more_options(extras)}</p>}
-                            <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
-                                <li>{df.coupe_file ? '✅' : '❌'} {l.headers.coupe_file}</li>
-                                <li>{df.audio_guide ? '✅' : '❌'} {l.headers.audio_guide}</li>
-                                <li>{df.live_guide ? '✅' : '❌'} {l.headers.live_guide}</li>
-                                <li>{df.free_cancellation ? '✅' : '❌'} {l.headers.free_cancellation}</li>
-                            </ul>
-                            <div class="mt-4 flex items-center justify-between gap-3">
-                                <div>
-                                    {price && <p class="text-base font-semibold">{price}</p>}
-                                    {g.provider_label && <p class="brand-text-muted text-xs">{g.provider_label}</p>}
-                                    {rating && <p class="brand-text-muted text-xs">{rating}</p>}
-                                </div>
-                                {g.partner_url && (
-                                    <a href={g.partner_url} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
-                                        {l.cta}
-                                    </a>
-                                )}
+                        <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
+                            <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
+                            <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
+                            <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
+                            <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
+                        </ul>
+                        <div class="mt-4 flex items-center justify-between gap-3">
+                            <div>
+                                {row.priceText && <p class="text-base font-semibold">{row.priceText}</p>}
+                                {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
+                                {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
                             </div>
+                            {row.partnerUrl && (
+                                <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                    {labels.cta}
+                                </a>
+                            )}
                         </div>
-                    </li>
-                );
-            })}
+                    </div>
+                </li>
+            ))}
         </ul>
 
         {/* Desktop: table */}
@@ -145,47 +80,43 @@ const l = labels[lang] ?? labels.en;
             <table class="brand-border w-full border-collapse border text-sm">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{l.headers.type}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{l.headers.coupe_file}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{l.headers.audio_guide}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{l.headers.live_guide}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{l.headers.free_cancellation}</th>
-                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{l.headers.price}</th>
-                        <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{l.headers.cta}</th>
+                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{labels.headers.type}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.coupeFile}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.audioGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.liveGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.freeCancellation}</th>
+                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{labels.headers.price}</th>
+                        <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{labels.headers.cta}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {groups.map((g) => {
-                        const price = formatPrice(g.price_eur, locale);
-                        const rating = formatRating(g.rating, g.review_count, locale);
-                        const extras = (g.total_count ?? 1) - 1;
-                        const df = g.display_features ?? {};
-                        return (
-                            <tr class="brand-border border-t align-top">
-                                <td class="p-3">
-                                    <p class="font-semibold">{g.label}</p>
-                                    <p class="brand-text-muted mt-1 text-xs leading-snug">{g.title}</p>
-                                    {extras > 0 && <p class="brand-text-muted mt-1 text-xs italic">{l.more_options(extras)}</p>}
-                                </td>
-                                <td class="p-3 text-center">{df.coupe_file ? '✅' : '❌'}</td>
-                                <td class="p-3 text-center">{df.audio_guide ? '✅' : '❌'}</td>
-                                <td class="p-3 text-center">{df.live_guide ? '✅' : '❌'}</td>
-                                <td class="p-3 text-center">{df.free_cancellation ? '✅' : '❌'}</td>
-                                <td class="p-3 text-right">
-                                    {price && <p class="font-semibold">{price}</p>}
-                                    {g.provider_label && <p class="brand-text-muted text-xs">{g.provider_label}</p>}
-                                    {rating && <p class="brand-text-muted text-xs">{rating}</p>}
-                                </td>
-                                <td class="p-3">
-                                    {g.partner_url && (
-                                        <a href={g.partner_url} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
-                                            {l.cta}
-                                        </a>
-                                    )}
-                                </td>
-                            </tr>
-                        );
-                    })}
+                    {rows.map((row) => (
+                        <tr class="brand-border border-t align-top">
+                            <td class="p-3">
+                                <p class="font-semibold">{row.label}</p>
+                                <p class="brand-text-muted mt-1 text-xs leading-snug">{row.title}</p>
+                                {row.extras > 0 && (
+                                    <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
+                                )}
+                            </td>
+                            <td class="p-3 text-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            <td class="p-3 text-right">
+                                {row.priceText && <p class="font-semibold">{row.priceText}</p>}
+                                {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
+                                {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
+                            </td>
+                            <td class="p-3">
+                                {row.partnerUrl && (
+                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                        {labels.cta}
+                                    </a>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </div>

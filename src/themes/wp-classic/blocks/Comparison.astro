@@ -1,124 +1,61 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
-import { formatPrice, formatRating } from '../../../lib/format';
-
-interface Group {
-    key?: string;
-    label?: string;
-    title?: string;
-    total_count?: number;
-    duration_minutes?: number | null;
-    display_features?: {
-        coupe_file?: boolean;
-        audio_guide?: boolean;
-        live_guide?: boolean;
-        free_cancellation?: boolean;
-    };
-    provider_label?: string;
-    price_eur?: number | null;
-    rating?: number | null;
-    review_count?: number | null;
-    partner_url?: string;
-    image_url?: string | null;
-}
+import { parseComparison } from '../../../lib/blocks/comparison';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { heading?: string; groups?: Group[] };
-const groups = (content.groups ?? []).filter((g) => g && (g.label || g.title));
-
 const locale = Astro.locals.locale ?? 'en';
-const lang = locale.split('-')[0];
-
-interface Labels {
-    headers: { type: string; coupe_file: string; audio_guide: string; live_guide: string; free_cancellation: string; price: string; cta: string };
-    cta: string;
-    more_options: (n: number) => string;
-}
-
-const labels: Record<string, Labels> = {
-    fr: {
-        headers: {
-            type: 'Type',
-            coupe_file: 'Coupe-file',
-            audio_guide: 'Audio guide',
-            live_guide: 'Guide live',
-            free_cancellation: 'Annulation',
-            price: 'Prix',
-            cta: 'Action',
-        },
-        cta: 'Réserver',
-        more_options: (n) => `+${n} autres options`,
-    },
-    en: {
-        headers: {
-            type: 'Type',
-            coupe_file: 'Skip the line',
-            audio_guide: 'Audio guide',
-            live_guide: 'Live guide',
-            free_cancellation: 'Free cancel.',
-            price: 'Price',
-            cta: 'Action',
-        },
-        cta: 'Book',
-        more_options: (n) => `+${n} more options`,
-    },
-};
-const l = labels[lang] ?? labels.en;
+const { heading, rows, labels } = parseComparison(block.content, locale);
 ---
 
-{groups.length > 0 && (
+{rows.length > 0 && (
     <section class="wp-block-group wp-block-group--comparison">
-        {content.heading && <h2 class="wp-block-heading">{content.heading}</h2>}
+        {heading && <h2 class="wp-block-heading">{heading}</h2>}
 
         <figure class="wp-block-table wp-block-comparison-table">
             <table>
                 <thead>
                     <tr>
-                        <th scope="col">{l.headers.type}</th>
-                        <th scope="col" class="has-text-align-center">{l.headers.coupe_file}</th>
-                        <th scope="col" class="has-text-align-center">{l.headers.audio_guide}</th>
-                        <th scope="col" class="has-text-align-center">{l.headers.live_guide}</th>
-                        <th scope="col" class="has-text-align-center">{l.headers.free_cancellation}</th>
-                        <th scope="col" class="has-text-align-right">{l.headers.price}</th>
-                        <th scope="col">{l.headers.cta}</th>
+                        <th scope="col">{labels.headers.type}</th>
+                        <th scope="col" class="has-text-align-center">{labels.headers.coupeFile}</th>
+                        <th scope="col" class="has-text-align-center">{labels.headers.audioGuide}</th>
+                        <th scope="col" class="has-text-align-center">{labels.headers.liveGuide}</th>
+                        <th scope="col" class="has-text-align-center">{labels.headers.freeCancellation}</th>
+                        <th scope="col" class="has-text-align-right">{labels.headers.price}</th>
+                        <th scope="col">{labels.headers.cta}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {groups.map((g) => {
-                        const price = formatPrice(g.price_eur, locale);
-                        const rating = formatRating(g.rating, g.review_count, locale);
-                        const extras = (g.total_count ?? 1) - 1;
-                        const df = g.display_features ?? {};
-                        return (
-                            <tr>
-                                <td>
-                                    <strong>{g.label}</strong>
-                                    {g.title && <div class="wp-block-comparison-table__detail">{g.title}</div>}
-                                    {extras > 0 && <em class="wp-block-comparison-table__extras">{l.more_options(extras)}</em>}
-                                </td>
-                                <td class="has-text-align-center">{df.coupe_file ? '✅' : '❌'}</td>
-                                <td class="has-text-align-center">{df.audio_guide ? '✅' : '❌'}</td>
-                                <td class="has-text-align-center">{df.live_guide ? '✅' : '❌'}</td>
-                                <td class="has-text-align-center">{df.free_cancellation ? '✅' : '❌'}</td>
-                                <td class="has-text-align-right">
-                                    {price && <strong>{price}</strong>}
-                                    {g.provider_label && <div class="wp-block-comparison-table__provider">{g.provider_label}</div>}
-                                    {rating && <div class="wp-block-comparison-table__rating">{rating}</div>}
-                                </td>
-                                <td>
-                                    {g.partner_url && (
-                                        <a href={g.partner_url} target="_blank" rel="noopener noreferrer sponsored" class="wp-block-button__link">
-                                            {l.cta}
-                                        </a>
-                                    )}
-                                </td>
-                            </tr>
-                        );
-                    })}
+                    {rows.map((row) => (
+                        <tr>
+                            <td>
+                                <strong>{row.label}</strong>
+                                {row.title && <div class="wp-block-comparison-table__detail">{row.title}</div>}
+                                {row.extras > 0 && (
+                                    <em class="wp-block-comparison-table__extras">{labels.moreOptions(row.extras)}</em>
+                                )}
+                            </td>
+                            <td class="has-text-align-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                            <td class="has-text-align-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                            <td class="has-text-align-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                            <td class="has-text-align-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            <td class="has-text-align-right">
+                                {row.priceText && <strong>{row.priceText}</strong>}
+                                {row.providerLabel && <div class="wp-block-comparison-table__provider">{row.providerLabel}</div>}
+                                {row.ratingText && <div class="wp-block-comparison-table__rating">{row.ratingText}</div>}
+                            </td>
+                            <td>
+                                {row.partnerUrl && (
+                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="wp-block-button__link">
+                                        {labels.cta}
+                                    </a>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
                 </tbody>
             </table>
         </figure>

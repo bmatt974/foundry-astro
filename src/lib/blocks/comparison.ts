@@ -1,0 +1,160 @@
+/**
+ * Shared logic for the Comparison block.
+ *
+ * The block's raw `content` (groups[] of provider archetypes) and
+ * the locale-aware label maps + price/rating formatters used to live
+ * in two copies (one per theme). Now both `Comparison.astro` files
+ * just import `parseComparison()` and lay out the result with their
+ * own markup.
+ *
+ * Why this file but not Text/Cta/Section's: the logic-to-markup
+ * ratio here is high (~50 lines of parsing/formatting vs ~100 of
+ * markup). Trivial blocks stay inline in their `.astro` to avoid
+ * indirection that doesn't pay off — see docs/websites/cms/themes.md.
+ */
+
+import { formatPrice, formatRating } from '../format';
+
+interface RawDisplayFeatures {
+    coupe_file?: boolean;
+    audio_guide?: boolean;
+    live_guide?: boolean;
+    free_cancellation?: boolean;
+}
+
+interface RawGroup {
+    key?: string;
+    label?: string;
+    title?: string;
+    total_count?: number;
+    duration_minutes?: number | null;
+    features?: Record<string, boolean>;
+    display_features?: RawDisplayFeatures;
+    provider_label?: string;
+    price_eur?: number | null;
+    rating?: number | null;
+    review_count?: number | null;
+    partner_url?: string;
+    image_url?: string | null;
+}
+
+interface RawContent {
+    heading?: string;
+    groups?: RawGroup[];
+}
+
+export interface ComparisonFeatures {
+    coupeFile: boolean;
+    audioGuide: boolean;
+    liveGuide: boolean;
+    freeCancellation: boolean;
+}
+
+export interface ComparisonRow {
+    key: string | null;
+    label: string;
+    title: string;
+    /** `total_count - 1` — themes display "+N autres options" when > 0. */
+    extras: number;
+    features: ComparisonFeatures;
+    priceText: string | null;
+    ratingText: string | null;
+    providerLabel: string | null;
+    partnerUrl: string | null;
+    imageUrl: string | null;
+}
+
+export interface ComparisonLabels {
+    headers: {
+        type: string;
+        coupeFile: string;
+        audioGuide: string;
+        liveGuide: string;
+        freeCancellation: string;
+        price: string;
+        cta: string;
+    };
+    cta: string;
+    moreOptions: (count: number) => string;
+}
+
+export interface ParsedComparison {
+    heading: string | null;
+    rows: ComparisonRow[];
+    labels: ComparisonLabels;
+}
+
+const LABELS: Record<string, ComparisonLabels> = {
+    fr: {
+        headers: {
+            type: 'Type',
+            coupeFile: 'Coupe-file',
+            audioGuide: 'Audio guide',
+            liveGuide: 'Guide live',
+            freeCancellation: 'Annulation',
+            price: 'Prix',
+            cta: 'Action',
+        },
+        cta: 'Réserver',
+        moreOptions: (n) => `+${n} autres options`,
+    },
+    en: {
+        headers: {
+            type: 'Type',
+            coupeFile: 'Skip the line',
+            audioGuide: 'Audio guide',
+            liveGuide: 'Live guide',
+            freeCancellation: 'Free cancel.',
+            price: 'Price',
+            cta: 'Action',
+        },
+        cta: 'Book',
+        moreOptions: (n) => `+${n} more options`,
+    },
+};
+
+function pickLabels(locale: string): ComparisonLabels {
+    const lang = locale.split('-')[0];
+    return LABELS[lang] ?? LABELS.en;
+}
+
+function buildRow(group: RawGroup, locale: string): ComparisonRow {
+    const df = group.display_features ?? {};
+
+    return {
+        key: group.key ?? null,
+        label: group.label ?? '',
+        title: group.title ?? '',
+        extras: Math.max(0, (group.total_count ?? 1) - 1),
+        features: {
+            coupeFile: Boolean(df.coupe_file),
+            audioGuide: Boolean(df.audio_guide),
+            liveGuide: Boolean(df.live_guide),
+            freeCancellation: Boolean(df.free_cancellation),
+        },
+        priceText: formatPrice(group.price_eur, locale),
+        ratingText: formatRating(group.rating, group.review_count, locale),
+        providerLabel: group.provider_label?.trim() || null,
+        partnerUrl: group.partner_url || null,
+        imageUrl: group.image_url || null,
+    };
+}
+
+/**
+ * Parse a Comparison block's raw `content` payload into a
+ * presentation-ready shape — themes consume the result without
+ * touching parsing, label translation, or formatters.
+ *
+ * Empty / malformed groups (no label AND no title) are dropped so
+ * themes don't have to defend against bogus rows.
+ */
+export function parseComparison(content: unknown, locale: string): ParsedComparison {
+    const raw = (content ?? {}) as RawContent;
+    const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title));
+
+    return {
+        heading: raw.heading?.trim() || null,
+        rows: groups.map((g) => buildRow(g, locale)),
+        labels: pickLabels(locale),
+    };
+}
