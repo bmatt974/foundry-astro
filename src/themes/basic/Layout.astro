@@ -24,7 +24,7 @@ const inlineTokens = css(themeConfig);
 // Pre-fetch the footer menu — memoised 60s per (host, locale,
 // location) so every page render isn't a fresh round-trip.
 const footerItems = tenant
-    ? await fetchMenu('footer', locale, tenant.website.slug)
+    ? await fetchMenu('footer', locale, tenant.website.hostname)
     : [];
 const websiteName = tenant?.website.name ?? '';
 ---

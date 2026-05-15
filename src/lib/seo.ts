@@ -93,7 +93,7 @@ export interface JsonLdInput {
 export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
     const { tenant, locale, page, canonicalUrl, imageUrl } = input;
     const homepage = siteUrl(tenant, locale);
-    const websiteId = homepage ? `${homepage}#website` : `${tenant.website.slug}#website`;
+    const websiteId = homepage ? `${homepage}#website` : `${tenant.website.hostname}#website`;
 
     const graph: Record<string, unknown>[] = [
         {

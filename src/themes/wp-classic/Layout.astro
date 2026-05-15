@@ -17,7 +17,7 @@ const themeConfig = tenant?.themeConfig ?? {};
 const inlineTokens = css(themeConfig);
 
 const footerItems = tenant
-    ? await fetchMenu('footer', locale, tenant.website.slug)
+    ? await fetchMenu('footer', locale, tenant.website.hostname)
     : [];
 const websiteName = tenant?.website.name ?? '';
 ---

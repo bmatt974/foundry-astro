@@ -7,8 +7,9 @@ declare global {
         interface Locals {
             /**
              * Per-request tenant context populated by `src/middleware.ts` from
-             * the incoming `Host` header. Pages read this instead of the
-             * single-tenant `FOUNDRY_WEBSITE_SLUG` env var.
+             * the incoming `Host` header (or `WEBSITE_BUILD_HOSTNAME` env
+             * at build time). Pages read this rather than parsing env or
+             * headers themselves.
              */
             tenant: {
                 website: TenantResolution['website'];
@@ -33,6 +34,32 @@ declare global {
     interface ImportMetaEnv {
         readonly FOUNDRY_API_URL: string;
         readonly FOUNDRY_PREVIEW_TOKEN?: string;
+        /**
+         * Build-time tenant pin. Only consumed by `getStaticPaths` and
+         * the middleware's build-time fallback — at runtime the Host
+         * header drives tenant resolution. Pass any hostname registered
+         * for the website (per-locale or per-website level).
+         */
+        readonly WEBSITE_BUILD_HOSTNAME?: string;
+        /**
+         * Comma-separated locale filter (e.g. "fr" or "fr,en"). When set,
+         * `getStaticPaths` only emits paths for those locales. Designed
+         * for matrix parallelism at the 60-locale scale: each parallel
+         * job sets WEBSITE_BUILD_LOCALES to a single locale and builds
+         * only that subtree.
+         */
+        readonly WEBSITE_BUILD_LOCALES?: string;
+        /**
+         * Comma-separated surgical-regen filter (e.g. "fr/colisee,en/colosseum,fr/").
+         * Each entry is a `locale/path` or `locale/` (locale landing).
+         * When set, only those entries are emitted by `getStaticPaths`.
+         *
+         * Astro still wipes `dist/` on each build, so the resulting tree
+         * contains only the filtered pages. The deploy step merges them
+         * into the long-lived target (CDN bucket) via `rclone copy` — a
+         * non-deleting overlay — so other pages stay intact at the edge.
+         */
+        readonly WEBSITE_BUILD_PATHS?: string;
     }
 }
 

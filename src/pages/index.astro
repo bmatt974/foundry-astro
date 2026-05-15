@@ -26,7 +26,8 @@ const registeredThemes = listThemes();
 
     <section class="space-y-2 text-sm">
         <p>
-            Resolved website: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.slug}</code> —
+            Resolved website: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.hostname}</code>
+            <span class="ml-2 text-xs text-gray-500">(slug: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.slug}</code>)</span> —
             <strong>{tenant.website.name}</strong>
         </p>
         <p>

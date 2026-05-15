@@ -130,11 +130,21 @@ export interface Page {
     available_locales: AvailableLocale[];
 }
 
+export type DeployProvider =
+    | 'cloudflare_pages'
+    | 'netlify'
+    | 'vercel'
+    | 'bucket_s3';
+
 export interface WebsiteLocale {
     locale: string;
     is_default: boolean;
     enabled: boolean;
     hostname: string;
+    /** Where this locale's static output should be deployed. Null when
+     *  the editor hasn't picked a target yet (the regen worker logs and
+     *  skips deployment in that case). */
+    deploy_provider: DeployProvider | null;
     path_prefix: string | null;
     base_url: string;
     site_name: string | null;
@@ -162,11 +172,16 @@ export interface Website {
  * the Astro middleware. Only the fields the middleware / pages actually
  * read on every request — keep it small because every response is
  * cached per host.
+ *
+ * `website.hostname` is injected client-side (the resolved hostname,
+ * either from the Host header at runtime or from WEBSITE_BUILD_HOSTNAME
+ * at build time). It is what subsequent fetch calls use to key API URLs.
  */
 export interface TenantResolution {
     website: {
         id: number;
         slug: string;
+        hostname: string;
         name: string;
         template: string | null;
         theme_config: Record<string, unknown>;
@@ -231,8 +246,8 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 // Public API
 // ──────────────────────────────────────────────
 
-export async function fetchWebsite(slug: string): Promise<Website | null> {
-    return fetchJson<Website>(`/websites/${encodeURIComponent(slug)}`);
+export async function fetchWebsite(hostname: string): Promise<Website | null> {
+    return fetchJson<Website>(`/websites/${encodeURIComponent(hostname)}`);
 }
 
 /**
@@ -246,6 +261,83 @@ export async function fetchWebsiteByHost(host: string): Promise<TenantResolution
 }
 
 /**
+ * Optional surgical-regen filter, sourced from the env at build time.
+ * When set, `getStaticPaths()` in the prerendered routes will only
+ * emit the matching entries — everything else is skipped, so a build
+ * with this env touches only the listed HTML files on disk.
+ *
+ * Format: comma-separated list of keys, where each key is:
+ *   - "locale/path"  → matches `/[locale]/[...path]` (e.g. "fr/colisee")
+ *   - "locale/"      → matches `/[locale]/` landing (e.g. "fr/")
+ *
+ * Returns `null` when the env is unset (full build).
+ */
+export function buildPathsFilter(): Set<string> | null {
+    const raw = import.meta.env.WEBSITE_BUILD_PATHS;
+    if (!raw) {
+        return null;
+    }
+    const entries = raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+    return entries.length > 0 ? new Set(entries) : null;
+}
+
+/**
+ * Optional locale filter, sourced from the env at build time. When set,
+ * `getStaticPaths()` only emits paths for those locales — the unlisted
+ * locales' subtrees are skipped entirely.
+ *
+ * Designed for the 60-locale scale: a GitHub Actions matrix (or VPS
+ * worker pool) builds each locale in parallel via N jobs with
+ * `WEBSITE_BUILD_LOCALES=fr`, `WEBSITE_BUILD_LOCALES=en`, etc.
+ *
+ * Returns `null` when unset (= include every enabled locale of the
+ * website).
+ */
+export function buildLocalesFilter(): Set<string> | null {
+    const raw = import.meta.env.WEBSITE_BUILD_LOCALES;
+    if (!raw) {
+        return null;
+    }
+    const entries = raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+    return entries.length > 0 ? new Set(entries) : null;
+}
+
+/**
+ * Build-time tenant resolution. Used when prerendering routes:
+ * Astro synthesises a request context without a real Host header so
+ * `fetchWebsiteByHost` has nothing to resolve. Reading
+ * `WEBSITE_BUILD_HOSTNAME` from the env keeps each static build
+ * scoped to exactly one website (one build = one site).
+ *
+ * Returns the same shape as `fetchWebsiteByHost` — the hostname from
+ * the env is injected on the resolved `website.hostname` so downstream
+ * fetch calls use the same key.
+ */
+export async function resolveTenantForBuild(): Promise<TenantResolution | null> {
+    const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
+    if (!hostname) {
+        return null;
+    }
+
+    const resolution = await fetchWebsiteByHost(hostname);
+    if (!resolution) {
+        return null;
+    }
+
+    resolution.website.hostname = hostname;
+
+    return resolution;
+}
+
+/**
  * Module-scope cache for root pages — called on every article render by
  * the Layout's header/footer. Without this, a typical page does an
  * extra round-trip just to redraw the same site nav. 60s TTL matches
@@ -256,16 +348,16 @@ const ROOT_PAGES_TTL_MS = 60_000;
 
 export async function fetchRootPages(
     locale: string,
-    slug: string,
+    hostname: string,
 ): Promise<NavNode[]> {
-    const key = `${slug}::${locale}`;
+    const key = `${hostname}::${locale}`;
     const cached = rootPagesCache.get(key);
     if (cached && cached.expiresAt > Date.now()) {
         return cached.data;
     }
 
     const list = await fetchJson<NavNode[]>(
-        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages`,
     );
     const data = list ?? [];
     rootPagesCache.set(key, { data, expiresAt: Date.now() + ROOT_PAGES_TTL_MS });
@@ -304,10 +396,10 @@ export interface MenuItem {
 
 export async function fetchSitemap(
     locale: string,
-    slug: string,
+    hostname: string,
 ): Promise<SitemapNode[]> {
     const list = await fetchJson<SitemapNode[]>(
-        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages?tree=1`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages?tree=1`,
     );
     return list ?? [];
 }
@@ -322,16 +414,16 @@ const MENU_TTL_MS = 60_000;
 export async function fetchMenu(
     location: string,
     locale: string,
-    slug: string,
+    hostname: string,
 ): Promise<MenuItem[]> {
-    const key = `${slug}::${locale}::${location}`;
+    const key = `${hostname}::${locale}::${location}`;
     const cached = menuCache.get(key);
     if (cached && cached.expiresAt > Date.now()) {
         return cached.data;
     }
 
     const list = await fetchJson<MenuItem[]>(
-        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/menus/${encodeURIComponent(location)}`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/menus/${encodeURIComponent(location)}`,
     );
     const data = list ?? [];
     menuCache.set(key, { data, expiresAt: Date.now() + MENU_TTL_MS });
@@ -342,17 +434,17 @@ export async function fetchMenu(
 export async function fetchPageById(
     locale: string,
     id: number | string,
-    slug: string,
+    hostname: string,
 ): Promise<Page | null> {
     return fetchJson<Page>(
-        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/preview/${encodeURIComponent(String(id))}`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/preview/${encodeURIComponent(String(id))}`,
     );
 }
 
 export async function fetchPage(
     locale: string,
     path: string,
-    slug: string,
+    hostname: string,
 ): Promise<Page | null> {
     // Path may contain slashes ("destinations/italie/rome"); each segment is
     // URL-encoded independently so accented characters survive.
@@ -363,6 +455,6 @@ export async function fetchPage(
         .join('/');
 
     return fetchJson<Page>(
-        `/websites/${encodeURIComponent(slug)}/${encodeURIComponent(locale)}/pages/${encodedPath}`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages/${encodedPath}`,
     );
 }

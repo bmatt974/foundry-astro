@@ -3,11 +3,37 @@
  * Locale landing page. Hands the sitemap to the active theme's
  * LocaleLanding component — no markup or class names live in the
  * page itself.
+ *
+ * Prerendered at build time when `WEBSITE_BUILD_HOSTNAME` is set —
+ * one HTML file per enabled locale. In `astro dev` we keep SSR
+ * (prerender = false) so the middleware resolves the tenant from
+ * the Host header.
  */
-export const prerender = false;
+export const prerender = true;
 
-import { fetchSitemap } from '../../lib/foundry';
+import { buildLocalesFilter, buildPathsFilter, fetchSitemap, fetchWebsite } from '../../lib/foundry';
 import { getTheme } from '../../themes/registry';
+
+export async function getStaticPaths() {
+    const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
+    if (!hostname) {
+        return [];
+    }
+
+    const website = await fetchWebsite(hostname);
+    if (!website) {
+        throw new Error(`Unknown WEBSITE_BUILD_HOSTNAME: ${hostname}`);
+    }
+
+    const localesFilter = buildLocalesFilter();
+    const pathsFilter = buildPathsFilter();
+
+    return website.locales
+        .filter((l) => l.enabled)
+        .filter((l) => !localesFilter || localesFilter.has(l.locale))
+        .filter((l) => !pathsFilter || pathsFilter.has(`${l.locale}/`))
+        .map((l) => ({ params: { locale: l.locale } }));
+}
 
 const { locale } = Astro.params;
 if (!locale) {
@@ -15,7 +41,7 @@ if (!locale) {
 }
 
 const tenant = Astro.locals.tenant;
-const sitemap = await fetchSitemap(locale, tenant.website.slug);
+const sitemap = await fetchSitemap(locale, tenant.website.hostname);
 
 const theme = getTheme(tenant.template);
 const { Layout, LocaleSwitcher, LocaleLanding, Seo } = theme;
