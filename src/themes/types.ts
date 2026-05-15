@@ -27,6 +27,18 @@ export interface Theme {
     Layout: AstroComponent;
 
     /**
+     * Per-page-type article dispatcher. Owns the order and presence
+     * of Hero / Breadcrumb / PageHeader / SourceableInfo / PageBlocks
+     * / PageFooter / PageNav for the active page. Pages call it once
+     * and stay out of layout decisions.
+     *
+     * Receives `page: Page`, `locale: string`, optional
+     * `fallbackTitle: string` (preview routes with a missing
+     * translation title).
+     */
+    Article: AstroComponent;
+
+    /**
      * Top header — site name/logo and locale switcher (received as
      * default slot). Receives `websiteName: string`, `currentLocale:
      * string`. Rendered inside the Layout shell.
@@ -91,6 +103,15 @@ export interface Theme {
      * Renders nothing when breadcrumb is empty (root pages).
      */
     Breadcrumb: AstroComponent;
+
+    /**
+     * Infobox surfacing high-signal metadata from the page's source
+     * entity — type, country (flag emoji + name), coordinates, Google
+     * Maps link, website (Place), population (Destination). Receives
+     * `sourceable: Sourceable | null` and `locale: string`. Renders
+     * nothing when sourceable is null or has no useful fields.
+     */
+    SourceableInfo: AstroComponent;
 
     /**
      * Article header — eyebrow + title + subtitle + intro. Receives:

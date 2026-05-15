@@ -24,22 +24,13 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Hero, Breadcrumb, PageHeader, PageBlocks, PageFooter, PreviewBanner, Seo } = theme;
+const { Layout, LocaleSwitcher, Seo, PreviewBanner, Article } = theme;
 
 const t = page.translation;
-// Page-level translation may be absent on work-in-progress pages (the
-// pipeline emits blocks before the meta). Fall back to the source
-// entity's name so the preview still has something useful at the top.
 const sourceName = page.sourceable && 'name' in page.sourceable ? page.sourceable.name : null;
 const title = t?.meta_title ?? t?.title ?? sourceName ?? `Preview #${id}`;
 const description = t?.meta_description ?? t?.snippet ?? null;
 const fallbackTitle = sourceName ?? `Preview #${id}`;
-
-const heroImage = page.cover_image
-    ?? (page.sourceable && 'cover_image' in page.sourceable
-        ? page.sourceable.cover_image
-        : null);
-const heroAlt = t?.title ?? sourceName ?? '';
 ---
 
 <Layout title={title} description={description} locale={locale}>
@@ -53,14 +44,5 @@ const heroAlt = t?.title ?? sourceName ?? '';
     />
 
     <PreviewBanner id={id} liveSlug={t?.slug ?? null} locale={locale} />
-    <Hero image={heroImage} alt={heroAlt} />
-    <Breadcrumb
-        locale={locale}
-        breadcrumb={page.nav.breadcrumb}
-        currentTitle={t?.title ?? fallbackTitle}
-        websiteName={tenant.website.name}
-    />
-    <PageHeader translation={t} fallbackTitle={fallbackTitle} />
-    <PageBlocks blocks={page.blocks} />
-    {t && <PageFooter translation={t} />}
+    <Article page={page} locale={locale} fallbackTitle={fallbackTitle} />
 </Layout>

@@ -8,6 +8,7 @@
  */
 
 import type { Theme } from '../types';
+import Article from './Article.astro';
 import Layout from './Layout.astro';
 import Block from './components/Block.astro';
 import Breadcrumb from './components/Breadcrumb.astro';
@@ -25,10 +26,12 @@ import Seo from './components/Seo.astro';
 import SiteFooter from './components/SiteFooter.astro';
 import SiteHeader from './components/SiteHeader.astro';
 import SitemapTree from './components/SitemapTree.astro';
+import SourceableInfo from './components/SourceableInfo.astro';
 import { css } from './tokens';
 
 const theme: Theme = {
     Layout,
+    Article,
     SiteHeader,
     SiteFooter,
     Menu,
@@ -39,6 +42,7 @@ const theme: Theme = {
     Hero,
     Seo,
     Breadcrumb,
+    SourceableInfo,
     PageHeader,
     PageBlocks,
     PageFooter,

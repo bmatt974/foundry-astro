@@ -2,8 +2,8 @@
 /**
  * Catch-all page route. Hits the Foundry headless API for the
  * (website, locale, path) tuple and hands the result off to the
- * active theme's components — no markup or class names live here,
- * so themes are free to render however they want.
+ * active theme's Article dispatcher, which decides per-page-type
+ * which chrome sections to render.
  */
 export const prerender = false;
 
@@ -22,21 +22,11 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Hero, Breadcrumb, PageHeader, PageBlocks, PageFooter, PageNav, Seo } = theme;
+const { Layout, LocaleSwitcher, Seo, Article } = theme;
 
 const t = page.translation;
 const title = t?.meta_title ?? t?.title ?? 'Untitled';
 const description = t?.meta_description ?? t?.snippet ?? null;
-
-// Prefer the page-level cover image, fall back to the source entity's
-// own cover image (Place / Destination). Render nothing if neither.
-const heroImage = page.cover_image
-    ?? (page.sourceable && 'cover_image' in page.sourceable
-        ? page.sourceable.cover_image
-        : null);
-const heroAlt = t?.title
-    ?? (page.sourceable && 'name' in page.sourceable ? page.sourceable.name : '')
-    ?? '';
 ---
 
 <Layout title={title} description={description} locale={locale}>
@@ -49,15 +39,5 @@ const heroAlt = t?.title
         pageLocales={page.available_locales}
     />
 
-    <Hero image={heroImage} alt={heroAlt} />
-    <Breadcrumb
-        locale={locale}
-        breadcrumb={page.nav.breadcrumb}
-        currentTitle={t?.title ?? undefined}
-        websiteName={tenant.website.name}
-    />
-    <PageHeader translation={t} />
-    <PageBlocks blocks={page.blocks} />
-    {t && <PageFooter translation={t} />}
-    <PageNav locale={locale} nav={page.nav} />
+    <Article page={page} locale={locale} />
 </Layout>

@@ -78,6 +78,7 @@ export type Sourceable =
           destination_type: string | null;
           coordinates: { lat: number; lon: number } | null;
           country: { iso_code: string; name: string } | null;
+          population: number | null;
           cover_image: string | null;
       }
     | {
@@ -88,6 +89,7 @@ export type Sourceable =
           place_type: string | null;
           coordinates: { lat: number; lon: number } | null;
           country_code: string | null;
+          website: string | null;
           cover_image: string | null;
       }
     | {

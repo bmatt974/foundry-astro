@@ -1,0 +1,125 @@
+---
+/**
+ * Infobox displayed below the article header on pages anchored on a
+ * geographic entity (Place / Destination / DestinationCountry).
+ * Surfaces the high-signal fields readers expect: type, country,
+ * coordinates, and a Google Maps shortcut.
+ *
+ * Renders nothing when:
+ *   - sourceable is null (utility / hub pages with no entity)
+ *   - the entity has no useful metadata (no coords, no country, …)
+ *
+ * Each row is its own optional block — empty fields just disappear,
+ * which keeps the card tight on incomplete data.
+ */
+import type { Sourceable } from '../../../lib/foundry';
+import {
+    formatCoordinates,
+    formatPopulation,
+    googleMapsUrl,
+    isoToCountryName,
+    isoToFlag,
+} from '../../../lib/geo';
+
+interface Props {
+    sourceable: Sourceable | null;
+    locale: string;
+}
+
+const { sourceable, locale } = Astro.props;
+
+interface Row {
+    label: string;
+    value: string;
+    href?: string | null;
+}
+
+function buildRows(s: Sourceable, loc: string): Row[] {
+    const rows: Row[] = [];
+
+    if (s.type === 'place') {
+        if (s.place_type) {
+            rows.push({ label: 'Type', value: s.place_type.replace(/_/g, ' ') });
+        }
+        if (s.country_code) {
+            const flag = isoToFlag(s.country_code);
+            const name = isoToCountryName(s.country_code, loc) ?? s.country_code;
+            rows.push({ label: 'Country', value: `${flag ?? ''} ${name}`.trim() });
+        }
+        const coords = formatCoordinates(s.coordinates);
+        if (coords && s.coordinates) {
+            rows.push({
+                label: 'Map',
+                value: coords,
+                href: googleMapsUrl(s.coordinates.lat, s.coordinates.lon),
+            });
+        }
+        if (s.website) {
+            // Show a trimmed display form (no protocol, no trailing slash) for
+            // readability; href keeps the full URL.
+            const display = s.website
+                .replace(/^https?:\/\//, '')
+                .replace(/\/+$/, '');
+            rows.push({ label: 'Website', value: display, href: s.website });
+        }
+        return rows;
+    }
+
+    if (s.type === 'destination') {
+        if (s.destination_type) {
+            rows.push({ label: 'Type', value: s.destination_type.replace(/_/g, ' ') });
+        }
+        if (s.country) {
+            const flag = isoToFlag(s.country.iso_code);
+            rows.push({ label: 'Country', value: `${flag ?? ''} ${s.country.name}`.trim() });
+        }
+        const population = formatPopulation(s.population, loc);
+        if (population) {
+            rows.push({ label: 'Population', value: population });
+        }
+        const coords = formatCoordinates(s.coordinates);
+        if (coords && s.coordinates) {
+            rows.push({
+                label: 'Map',
+                value: coords,
+                href: googleMapsUrl(s.coordinates.lat, s.coordinates.lon),
+            });
+        }
+        return rows;
+    }
+
+    if (s.type === 'destination_country') {
+        const flag = isoToFlag(s.iso_code);
+        rows.push({ label: 'Country', value: `${flag ?? ''} ${s.name}`.trim() });
+        if (s.continent) {
+            rows.push({ label: 'Continent', value: s.continent.replace(/_/g, ' ') });
+        }
+        return rows;
+    }
+
+    return rows;
+}
+
+const rows = sourceable ? buildRows(sourceable, locale) : [];
+---
+
+{rows.length > 0 && (
+    <aside class="brand-border my-8 rounded-lg border bg-gray-50 p-5">
+        <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+            {rows.map((row) => (
+                <>
+                    <dt class="brand-text-muted font-medium uppercase tracking-wide text-xs">{row.label}</dt>
+                    <dd>
+                        {row.href ? (
+                            <a href={row.href} class="brand-link" target="_blank" rel="noopener noreferrer">
+                                {row.value}
+                            </a>
+                        ) : (
+                            row.value
+                        )}
+                    </dd>
+                </>
+            ))}
+        </dl>
+    </aside>
+)}
