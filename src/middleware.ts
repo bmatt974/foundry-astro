@@ -64,5 +64,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
         themeConfig: resolved.website.theme_config ?? {},
     };
 
+    // Make the request locale globally available so deep components
+    // (Comparison block, formatters, etc.) don't need to parse the
+    // URL themselves. Falls back to the website default when the
+    // route has no locale segment (e.g. /).
+    const firstSegment = context.url.pathname.split('/').filter(Boolean)[0];
+    const looksLikeLocale = firstSegment !== undefined
+        && /^[a-z]{2}(-[a-zA-Z]{2,4})?$/.test(firstSegment);
+    context.locals.locale = looksLikeLocale && firstSegment !== undefined
+        ? firstSegment
+        : (resolved.default_locale ?? 'en');
+
     return next();
 });

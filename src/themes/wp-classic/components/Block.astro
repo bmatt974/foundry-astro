@@ -5,6 +5,7 @@
  * which dumps the raw payload for editorial review.
  */
 import type { PageBlock } from '../../../lib/foundry';
+import Comparison from '../blocks/Comparison.astro';
 import Cta from '../blocks/Cta.astro';
 import Default from '../blocks/Default.astro';
 import Faq from '../blocks/Faq.astro';
@@ -25,6 +26,7 @@ const blockComponents: Partial<Record<string, any>> = {
     faq: Faq,
     cta: Cta,
     section: Section,
+    comparison: Comparison,
 };
 
 const Component = blockComponents[block.block_type] ?? Default;

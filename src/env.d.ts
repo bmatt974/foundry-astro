@@ -19,6 +19,14 @@ declare global {
                 /** Free-form per-site overrides — see `Website.themeConfig()` on the backend. */
                 themeConfig: Record<string, unknown>;
             };
+            /**
+             * Locale segment from the URL (e.g. 'fr', 'fr-FR') so deep
+             * components can format numbers / dates / strings without
+             * having to re-parse the path. Falls back to the website's
+             * default locale on the few routes that have no locale
+             * segment (root, debug index).
+             */
+            locale: string;
         }
     }
 

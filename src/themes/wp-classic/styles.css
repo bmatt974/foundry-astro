@@ -171,6 +171,56 @@ body.wp-site {
     pointer-events: none;
 }
 
+/* ─── Comparison block (tickets table) ───────────────────────── */
+
+.wp-block-group--comparison {
+    margin: 2rem 0;
+}
+.wp-block-comparison-table {
+    margin: 1rem 0 0 0;
+    overflow-x: auto;
+}
+.wp-block-comparison-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.wp-block-comparison-table th,
+.wp-block-comparison-table td {
+    border: 1px solid var(--wp--preset--color--accent);
+    padding: 0.625rem 0.75rem;
+    vertical-align: top;
+}
+.wp-block-comparison-table th {
+    background: color-mix(in srgb, var(--wp--preset--color--neutral) 6%, transparent);
+    color: var(--wp--preset--color--contrast);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.wp-block-comparison-table .has-text-align-center { text-align: center; }
+.wp-block-comparison-table .has-text-align-right { text-align: right; }
+.wp-block-comparison-table__detail {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+.wp-block-comparison-table__extras {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    font-style: italic;
+    display: block;
+    margin-top: 0.25rem;
+}
+.wp-block-comparison-table__provider,
+.wp-block-comparison-table__rating {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
+}
+
 /* ─── Sourceable infobox ─────────────────────────────────────── */
 
 .wp-block-table-of-facts {
