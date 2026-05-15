@@ -35,9 +35,9 @@ const title = t?.meta_title ?? t?.title ?? sourceName ?? `Preview #${id}`;
 const description = t?.meta_description ?? t?.snippet ?? null;
 const fallbackTitle = sourceName ?? `Preview #${id}`;
 
-const heroImage = page.featured_image
-    ?? (page.sourceable && 'featured_image_url' in page.sourceable
-        ? page.sourceable.featured_image_url
+const heroImage = page.cover_image
+    ?? (page.sourceable && 'cover_image' in page.sourceable
+        ? page.sourceable.cover_image
         : null);
 const heroAlt = t?.title ?? sourceName ?? '';
 ---

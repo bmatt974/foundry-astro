@@ -28,11 +28,11 @@ const t = page.translation;
 const title = t?.meta_title ?? t?.title ?? 'Untitled';
 const description = t?.meta_description ?? t?.snippet ?? null;
 
-// Prefer the page-level featured image, fall back to the source entity's
-// own featured image (Place / Destination). Render nothing if neither.
-const heroImage = page.featured_image
-    ?? (page.sourceable && 'featured_image_url' in page.sourceable
-        ? page.sourceable.featured_image_url
+// Prefer the page-level cover image, fall back to the source entity's
+// own cover image (Place / Destination). Render nothing if neither.
+const heroImage = page.cover_image
+    ?? (page.sourceable && 'cover_image' in page.sourceable
+        ? page.sourceable.cover_image
         : null);
 const heroAlt = t?.title
     ?? (page.sourceable && 'name' in page.sourceable ? page.sourceable.name : '')

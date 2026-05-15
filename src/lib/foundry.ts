@@ -78,7 +78,7 @@ export type Sourceable =
           destination_type: string | null;
           coordinates: { lat: number; lon: number } | null;
           country: { iso_code: string; name: string } | null;
-          featured_image_url: string | null;
+          cover_image: string | null;
       }
     | {
           type: 'place';
@@ -88,7 +88,7 @@ export type Sourceable =
           place_type: string | null;
           coordinates: { lat: number; lon: number } | null;
           country_code: string | null;
-          featured_image_url: string | null;
+          cover_image: string | null;
       }
     | {
           type: 'destination_country';
@@ -109,7 +109,7 @@ export interface Page {
     page_type: string | null;
     template: string | null;
     is_indexable: boolean;
-    featured_image: string | null;
+    cover_image: string | null;
     position: number;
     published_at: string | null;
     seo: Record<string, unknown> | null;

@@ -4,10 +4,10 @@
  * when no image is available — the page falls back to the bare
  * <PageHeader />.
  *
- * The image source is decided upstream by the page (page.featured_image
- * first, then sourceable.featured_image_url) and passed here as a
- * string. Resized via lib/image.ts so we don't ship the 4 MB original
- * from Wikimedia / TripAdvisor.
+ * The image source is decided upstream by the page (page.cover_image
+ * first, then sourceable.cover_image) and passed here as a string.
+ * Resized via lib/image.ts so we don't ship the 4 MB original from
+ * Wikimedia / TripAdvisor.
  */
 import { imageSrcset, imageUrl } from '../../../lib/image';
 

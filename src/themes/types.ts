@@ -42,8 +42,8 @@ export interface Theme {
      * Optional full-width image rendered above the article header.
      * Receives `image: string | null` (URL) and `alt: string`. Themes
      * should render nothing when image is null. Image URLs are
-     * already resolved upstream (page.featured_image first, falling
-     * back to sourceable.featured_image_url).
+     * already resolved upstream (page.cover_image first, falling
+     * back to sourceable.cover_image).
      */
     Hero: AstroComponent;
 
