@@ -1,0 +1,34 @@
+---
+import type { NavNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    breadcrumb: NavNode[];
+    currentTitle?: string;
+    websiteName?: string;
+}
+
+const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
+---
+
+{breadcrumb.length > 0 && (
+    <nav class="wp-block-post-breadcrumbs" aria-label="Breadcrumb">
+        <ol class="wp-block-post-breadcrumbs__list">
+            {websiteName && (
+                <li class="wp-block-post-breadcrumbs__item">
+                    <a href={`/${locale}/`} class="wp-block-link">{websiteName}</a>
+                </li>
+            )}
+            {breadcrumb.map((node) => (
+                <li class="wp-block-post-breadcrumbs__item">
+                    <a href={`/${locale}/${node.slug ?? ''}`} class="wp-block-link">{node.title}</a>
+                </li>
+            ))}
+            {currentTitle && (
+                <li class="wp-block-post-breadcrumbs__item wp-block-post-breadcrumbs__item--current" aria-current="page">
+                    <span>{currentTitle}</span>
+                </li>
+            )}
+        </ol>
+    </nav>
+)}

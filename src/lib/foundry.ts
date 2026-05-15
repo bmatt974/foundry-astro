@@ -119,6 +119,9 @@ export interface Page {
     sourceable: Sourceable | null;
     nav: {
         parent: NavNode | null;
+        /** Full ancestor chain ordered root → direct parent (excludes
+         *  current page). Empty when the page is itself a root. */
+        breadcrumb: NavNode[];
         children: NavNode[];
         siblings: NavNode[];
     };

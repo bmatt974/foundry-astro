@@ -22,7 +22,7 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PageNav, Seo } = theme;
+const { Layout, LocaleSwitcher, Hero, Breadcrumb, PageHeader, PageBlocks, PageFooter, PageNav, Seo } = theme;
 
 const t = page.translation;
 const title = t?.meta_title ?? t?.title ?? 'Untitled';
@@ -50,6 +50,12 @@ const heroAlt = t?.title
     />
 
     <Hero image={heroImage} alt={heroAlt} />
+    <Breadcrumb
+        locale={locale}
+        breadcrumb={page.nav.breadcrumb}
+        currentTitle={t?.title ?? undefined}
+        websiteName={tenant.website.name}
+    />
     <PageHeader translation={t} />
     <PageBlocks blocks={page.blocks} />
     {t && <PageFooter translation={t} />}

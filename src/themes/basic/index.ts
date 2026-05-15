@@ -10,6 +10,7 @@
 import type { Theme } from '../types';
 import Layout from './Layout.astro';
 import Block from './components/Block.astro';
+import Breadcrumb from './components/Breadcrumb.astro';
 import Hero from './components/Hero.astro';
 import LocaleLanding from './components/LocaleLanding.astro';
 import LocaleSwitcher from './components/LocaleSwitcher.astro';
@@ -37,6 +38,7 @@ const theme: Theme = {
     Markdown,
     Hero,
     Seo,
+    Breadcrumb,
     PageHeader,
     PageBlocks,
     PageFooter,

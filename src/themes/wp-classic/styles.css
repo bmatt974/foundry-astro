@@ -171,6 +171,31 @@ body.wp-site {
     pointer-events: none;
 }
 
+/* ─── Breadcrumbs ─────────────────────────────────────────────── */
+
+.wp-block-post-breadcrumbs {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+.wp-block-post-breadcrumbs__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+}
+.wp-block-post-breadcrumbs__item:not(:first-child)::before {
+    content: '›';
+    margin-right: 0.5rem;
+    opacity: 0.5;
+}
+.wp-block-post-breadcrumbs__item--current span {
+    color: var(--wp--preset--color--contrast);
+}
+
 /* ─── Entry header ─────────────────────────────────────────────── */
 
 .entry-header {

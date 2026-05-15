@@ -121,32 +121,37 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         });
     }
 
-    if (page?.nav?.parent && t) {
-        const parentUrl = pageUrl(tenant, locale, page.nav.parent.slug);
+    const breadcrumb = page?.nav?.breadcrumb ?? [];
+    if (page && t && breadcrumb.length > 0) {
+        const itemListElement: Record<string, unknown>[] = [
+            {
+                '@type': 'ListItem',
+                position: 1,
+                name: tenant.website.name,
+                item: homepage ?? undefined,
+            },
+        ];
+
+        for (const node of breadcrumb) {
+            const href = pageUrl(tenant, locale, node.slug);
+            itemListElement.push({
+                '@type': 'ListItem',
+                position: itemListElement.length + 1,
+                name: node.title,
+                item: href ?? undefined,
+            });
+        }
+
+        itemListElement.push({
+            '@type': 'ListItem',
+            position: itemListElement.length + 1,
+            name: t.title,
+            item: canonicalUrl ?? undefined,
+        });
+
         graph.push({
             '@type': 'BreadcrumbList',
-            itemListElement: [
-                {
-                    '@type': 'ListItem',
-                    position: 1,
-                    name: tenant.website.name,
-                    item: homepage ?? undefined,
-                },
-                parentUrl
-                    ? {
-                          '@type': 'ListItem',
-                          position: 2,
-                          name: page.nav.parent.title,
-                          item: parentUrl,
-                      }
-                    : null,
-                {
-                    '@type': 'ListItem',
-                    position: parentUrl ? 3 : 2,
-                    name: t.title,
-                    item: canonicalUrl ?? undefined,
-                },
-            ].filter((x) => x !== null),
+            itemListElement,
         });
     }
 

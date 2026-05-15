@@ -81,6 +81,18 @@ export interface Theme {
     Seo: AstroComponent;
 
     /**
+     * Ancestor trail rendered above the article header. Receives:
+     *   - locale: string
+     *   - breadcrumb: NavNode[] (root → direct parent)
+     *   - currentTitle?: string (rendered as plain text after the
+     *     last separator so the trail mirrors the JSON-LD)
+     *   - websiteName?: string (used as the leading "Home" entry)
+     *
+     * Renders nothing when breadcrumb is empty (root pages).
+     */
+    Breadcrumb: AstroComponent;
+
+    /**
      * Article header — eyebrow + title + subtitle + intro. Receives:
      *   - translation: PageTranslation | null
      *   - fallbackTitle?: string (used when translation lacks a title,
