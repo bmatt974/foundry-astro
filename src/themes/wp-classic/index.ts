@@ -11,6 +11,7 @@
 import type { Theme } from '../types';
 import Layout from './Layout.astro';
 import Block from './components/Block.astro';
+import Hero from './components/Hero.astro';
 import LocaleLanding from './components/LocaleLanding.astro';
 import LocaleSwitcher from './components/LocaleSwitcher.astro';
 import Markdown from './components/Markdown.astro';
@@ -28,6 +29,7 @@ const theme: Theme = {
     LocaleSwitcher,
     SitemapTree,
     Markdown,
+    Hero,
     PageHeader,
     PageBlocks,
     PageFooter,

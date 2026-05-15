@@ -299,6 +299,20 @@ body.wp-site {
     padding: 0 1rem 1rem 1rem;
 }
 
+/* Hero image at the top of the article. */
+.wp-block-cover--hero {
+    margin: 0 0 2rem 0;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+}
+.wp-block-cover--hero .wp-block-cover__image-background {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+
 /* Call to action. */
 .wp-block-cover {
     background: color-mix(in srgb, var(--wp--preset--color--primary) 12%, transparent);

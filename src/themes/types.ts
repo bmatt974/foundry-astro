@@ -39,6 +39,15 @@ export interface Theme {
     Markdown: AstroComponent;
 
     /**
+     * Optional full-width image rendered above the article header.
+     * Receives `image: string | null` (URL) and `alt: string`. Themes
+     * should render nothing when image is null. Image URLs are
+     * already resolved upstream (page.featured_image first, falling
+     * back to sourceable.featured_image_url).
+     */
+    Hero: AstroComponent;
+
+    /**
      * Article header — eyebrow + title + subtitle + intro. Receives:
      *   - translation: PageTranslation | null
      *   - fallbackTitle?: string (used when translation lacks a title,

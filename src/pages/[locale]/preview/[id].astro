@@ -24,7 +24,7 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, PageHeader, PageBlocks, PageFooter, PreviewBanner } = theme;
+const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PreviewBanner } = theme;
 
 const t = page.translation;
 // Page-level translation may be absent on work-in-progress pages (the
@@ -34,6 +34,12 @@ const sourceName = page.sourceable && 'name' in page.sourceable ? page.sourceabl
 const title = t?.meta_title ?? t?.title ?? sourceName ?? `Preview #${id}`;
 const description = t?.meta_description ?? t?.snippet ?? null;
 const fallbackTitle = sourceName ?? `Preview #${id}`;
+
+const heroImage = page.featured_image
+    ?? (page.sourceable && 'featured_image_url' in page.sourceable
+        ? page.sourceable.featured_image_url
+        : null);
+const heroAlt = t?.title ?? sourceName ?? '';
 ---
 
 <Layout title={title} description={description} locale={locale}>
@@ -45,6 +51,7 @@ const fallbackTitle = sourceName ?? `Preview #${id}`;
     />
 
     <PreviewBanner id={id} liveSlug={t?.slug ?? null} locale={locale} />
+    <Hero image={heroImage} alt={heroAlt} />
     <PageHeader translation={t} fallbackTitle={fallbackTitle} />
     <PageBlocks blocks={page.blocks} />
     {t && <PageFooter translation={t} />}
