@@ -20,6 +20,7 @@ import PageFooter from './components/PageFooter.astro';
 import PageHeader from './components/PageHeader.astro';
 import PageNav from './components/PageNav.astro';
 import PreviewBanner from './components/PreviewBanner.astro';
+import Seo from './components/Seo.astro';
 import SitemapTree from './components/SitemapTree.astro';
 import { css } from './tokens';
 
@@ -30,6 +31,7 @@ const theme: Theme = {
     SitemapTree,
     Markdown,
     Hero,
+    Seo,
     PageHeader,
     PageBlocks,
     PageFooter,

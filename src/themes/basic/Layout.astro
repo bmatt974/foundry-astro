@@ -22,8 +22,11 @@ const inlineTokens = css(themeConfig);
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        {description && <meta name="description" content={description} />}
         <title>{title}</title>
+        <slot name="head" />
+        {!Astro.slots.has('head') && description && (
+            <meta name="description" content={description} />
+        )}
     </head>
     <body class="antialiased">
         <header class="brand-border border-b">

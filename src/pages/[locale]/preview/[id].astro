@@ -24,7 +24,7 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PreviewBanner } = theme;
+const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PreviewBanner, Seo } = theme;
 
 const t = page.translation;
 // Page-level translation may be absent on work-in-progress pages (the
@@ -43,6 +43,8 @@ const heroAlt = t?.title ?? sourceName ?? '';
 ---
 
 <Layout title={title} description={description} locale={locale}>
+    <Seo slot="head" page={page} locale={locale} type="article" noindex={true} />
+
     <LocaleSwitcher
         slot="locale-switcher"
         currentLocale={locale}

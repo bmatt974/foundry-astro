@@ -18,10 +18,12 @@ const tenant = Astro.locals.tenant;
 const sitemap = await fetchSitemap(locale, tenant.website.slug);
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, LocaleLanding } = theme;
+const { Layout, LocaleSwitcher, LocaleLanding, Seo } = theme;
 ---
 
 <Layout title={`${tenant.website.name} — ${locale}`} locale={locale}>
+    <Seo slot="head" page={null} locale={locale} type="website" />
+
     <LocaleSwitcher
         slot="locale-switcher"
         currentLocale={locale}

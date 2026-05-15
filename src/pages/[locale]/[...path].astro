@@ -22,7 +22,7 @@ if (!page) {
 }
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PageNav } = theme;
+const { Layout, LocaleSwitcher, Hero, PageHeader, PageBlocks, PageFooter, PageNav, Seo } = theme;
 
 const t = page.translation;
 const title = t?.meta_title ?? t?.title ?? 'Untitled';
@@ -40,6 +40,8 @@ const heroAlt = t?.title
 ---
 
 <Layout title={title} description={description} locale={locale}>
+    <Seo slot="head" page={page} locale={locale} type="article" />
+
     <LocaleSwitcher
         slot="locale-switcher"
         currentLocale={locale}

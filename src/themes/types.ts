@@ -48,6 +48,19 @@ export interface Theme {
     Hero: AstroComponent;
 
     /**
+     * Head meta tags (Open Graph, Twitter Card, canonical, hreflang,
+     * robots) + JSON-LD graph. Rendered into the Layout's `head` slot.
+     * Receives:
+     *   - page: Page | null
+     *   - locale: string
+     *   - type?: 'article' | 'website'
+     *   - title?: string (override of meta_title)
+     *   - description?: string (override of meta_description)
+     *   - noindex?: boolean (force robots noindex, used for preview routes)
+     */
+    Seo: AstroComponent;
+
+    /**
      * Article header — eyebrow + title + subtitle + intro. Receives:
      *   - translation: PageTranslation | null
      *   - fallbackTitle?: string (used when translation lacks a title,
