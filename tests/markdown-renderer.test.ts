@@ -87,3 +87,62 @@ test('renderer instance is shared across calls (module-scoped, no per-request re
     const { wpMarked: again } = await import('../src/themes/wp-classic/lib/markdown-renderer.ts');
     assert.strictEqual(again, wpMarked, 'wpMarked must be a singleton');
 });
+
+// ─── basic theme — vanilla marked, Tailwind .prose handles styling ──
+
+import { basicMarked } from '../src/themes/basic/lib/markdown-renderer.ts';
+
+function renderBasic(input: string): string {
+    return basicMarked.parse(input, { async: false }) as string;
+}
+
+test('basic renderer emits vanilla <p> with no class', () => {
+    const html = renderBasic('Hello world.');
+    assert.match(html, /<p>Hello world\.<\/p>/);
+    assert.doesNotMatch(html, /class="/, 'basic theme should not emit class names');
+});
+
+test('basic renderer emits vanilla headings without class', () => {
+    const html = renderBasic('# H1\n\n## H2');
+    assert.match(html, /<h1>H1<\/h1>/);
+    assert.match(html, /<h2>H2<\/h2>/);
+    assert.doesNotMatch(html, /wp-block|text-formatted/);
+});
+
+// ─── drupal-bartik theme — plain marked, styles via .text-formatted ──
+
+import { drupalMarked } from '../src/themes/drupal-bartik/lib/markdown-renderer.ts';
+
+function renderDrupal(input: string): string {
+    return drupalMarked.parse(input, { async: false }) as string;
+}
+
+test('drupal renderer emits vanilla HTML (no per-element classes)', () => {
+    const html = renderDrupal('## Title\n\nA paragraph.');
+    assert.match(html, /<h2>Title<\/h2>/);
+    assert.match(html, /<p>A paragraph\.<\/p>/);
+    assert.doesNotMatch(html, /wp-block/);
+});
+
+test('drupal renderer is its own Marked instance (isolated from basic)', async () => {
+    const { drupalMarked: again } = await import('../src/themes/drupal-bartik/lib/markdown-renderer.ts');
+    assert.strictEqual(again, drupalMarked, 'drupalMarked must be a singleton');
+    assert.notStrictEqual(drupalMarked as unknown, basicMarked as unknown, 'drupal and basic renderers must be different instances');
+});
+
+test('the three renderers produce structurally different output for the same input', () => {
+    const input = '# Title\n\nParagraph with [link](https://example.com).';
+    const basicHtml = renderBasic(input);
+    const wpHtml = render(input);
+    const drupalHtml = renderDrupal(input);
+
+    // wp-classic adds class names everywhere
+    assert.match(wpHtml, /wp-block-heading/);
+    assert.match(wpHtml, /wp-block-paragraph/);
+    assert.match(wpHtml, /wp-block-link/);
+
+    // basic and drupal-bartik don't
+    for (const html of [basicHtml, drupalHtml]) {
+        assert.doesNotMatch(html, /wp-block/, 'only wp-classic should emit wp-block-* classes');
+    }
+});

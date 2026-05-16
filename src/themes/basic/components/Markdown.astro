@@ -8,7 +8,7 @@
  * Pass `size="sm"` for embedded contexts (FAQ answers, key facts) where
  * the default `prose` typography is too large.
  */
-import { marked } from 'marked';
+import { basicMarked } from '../lib/markdown-renderer';
 
 interface Props {
     text: string | null | undefined;
@@ -19,7 +19,7 @@ interface Props {
 const { text, size = 'base', class: className = '' } = Astro.props;
 
 const proseSize = size === 'base' ? '' : `prose-${size}`;
-const html = text ? marked.parse(text, { async: false, breaks: false, gfm: true }) : '';
+const html = text ? (basicMarked.parse(text, { async: false }) as string) : '';
 ---
 
 {html && (
