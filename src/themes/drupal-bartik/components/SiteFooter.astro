@@ -1,0 +1,27 @@
+---
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+    items: MenuItem[];
+}
+
+const { websiteName, currentLocale, items } = Astro.props;
+const year = new Date().getUTCFullYear();
+---
+
+<footer class="layout-footer" role="contentinfo">
+    <div class="region region--footer">
+        <div class="block block--system-powered-by">
+            <a href={`/${currentLocale}/`} class="site-credit__link">{websiteName}</a>
+            <span class="site-credit__year">© {year}</span>
+        </div>
+        {items.length > 0 && (
+            <nav class="block block--system-menu-footer" aria-label="Site links">
+                <Menu items={items} class="menu--footer" />
+            </nav>
+        )}
+    </div>
+</footer>

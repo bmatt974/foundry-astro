@@ -1,0 +1,49 @@
+---
+import type { AvailableLocale, WebsiteLocale } from '../../../lib/foundry';
+
+interface Props {
+    currentLocale: string;
+    websiteLocales: WebsiteLocale[];
+    pageLocales?: AvailableLocale[];
+}
+
+const { currentLocale, websiteLocales, pageLocales } = Astro.props;
+const enabled = websiteLocales.filter((l) => l.enabled);
+const pageLocaleMap = new Map((pageLocales ?? []).map((p) => [p.locale, p.slug ?? '']));
+---
+
+{enabled.length > 1 && (
+    <nav class="block block--language-switcher" aria-label="Language">
+        <ul class="menu menu--language">
+            {enabled.map((l) => {
+                const isCurrent = l.locale === currentLocale;
+                const pageSlug = pageLocaleMap.get(l.locale);
+                const hasPage = pageLocales === undefined || pageLocaleMap.has(l.locale);
+
+                if (isCurrent) {
+                    return (
+                        <li class="menu-item menu-item--current">
+                            <span>{l.locale}</span>
+                        </li>
+                    );
+                }
+
+                if (!hasPage) {
+                    return (
+                        <li class="menu-item menu-item--unavailable">
+                            <span title={`Not available in ${l.locale}`}>{l.locale}</span>
+                        </li>
+                    );
+                }
+
+                const href = pageSlug !== undefined ? `/${l.locale}/${pageSlug}` : `/${l.locale}/`;
+
+                return (
+                    <li class="menu-item">
+                        <a href={href} class="menu-item__link">{l.locale}</a>
+                    </li>
+                );
+            })}
+        </ul>
+    </nav>
+)}

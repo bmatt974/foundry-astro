@@ -1,0 +1,63 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import { parseComparison } from '../../../lib/blocks/comparison';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const { heading, rows, labels } = parseComparison(block.content, locale);
+---
+
+{rows.length > 0 && (
+    <div class="block block--type-comparison">
+        {heading && <h2 class="block__title">{heading}</h2>}
+
+        <div class="views-table view view--comparison">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">{labels.headers.type}</th>
+                        <th scope="col" class="views-align-center">{labels.headers.coupeFile}</th>
+                        <th scope="col" class="views-align-center">{labels.headers.audioGuide}</th>
+                        <th scope="col" class="views-align-center">{labels.headers.liveGuide}</th>
+                        <th scope="col" class="views-align-center">{labels.headers.freeCancellation}</th>
+                        <th scope="col" class="views-align-right">{labels.headers.price}</th>
+                        <th scope="col">{labels.headers.cta}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr class="views-row">
+                            <td class="views-field views-field--label">
+                                <strong>{row.label}</strong>
+                                {row.title && <div class="views-field__detail">{row.title}</div>}
+                                {row.extras > 0 && (
+                                    <em class="views-field__extras">{labels.moreOptions(row.extras)}</em>
+                                )}
+                            </td>
+                            <td class="views-field views-field--coupe-file views-align-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                            <td class="views-field views-field--audio-guide views-align-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                            <td class="views-field views-field--live-guide views-align-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                            <td class="views-field views-field--free-cancellation views-align-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            <td class="views-field views-field--price views-align-right">
+                                {row.priceText && <strong>{row.priceText}</strong>}
+                                {row.providerLabel && <div class="views-field__provider">{row.providerLabel}</div>}
+                                {row.ratingText && <div class="views-field__rating">{row.ratingText}</div>}
+                            </td>
+                            <td class="views-field views-field--cta">
+                                {row.partnerUrl && (
+                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="button button--primary">
+                                        {labels.cta}
+                                    </a>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    </div>
+)}
