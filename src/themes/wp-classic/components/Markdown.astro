@@ -1,52 +1,11 @@
 ---
 /**
- * Markdown rendering for wp-classic — uses a custom marked Renderer that
- * decorates every output element with WordPress block-editor class
- * names (.wp-block-paragraph, .wp-block-heading, .wp-block-list, …).
- *
- * Important: the renderer instance is module-scoped and lives for the
- * Node process lifetime (no new Marked() per request).
+ * Markdown rendering for wp-classic — uses a custom marked Renderer
+ * (extracted to `lib/markdown-renderer.ts` so it can be unit-tested
+ * without running Astro) that decorates every output element with
+ * WordPress block-editor class names.
  */
-import { Marked, Renderer, type Tokens } from 'marked';
-
-class WpRenderer extends Renderer {
-    paragraph({ tokens }: Tokens.Paragraph): string {
-        return `<p class="wp-block-paragraph">${this.parser.parseInline(tokens)}</p>\n`;
-    }
-
-    heading({ tokens, depth }: Tokens.Heading): string {
-        const inner = this.parser.parseInline(tokens);
-
-        return `<h${depth} class="wp-block-heading">${inner}</h${depth}>\n`;
-    }
-
-    list(token: Tokens.List): string {
-        const tag = token.ordered ? 'ol' : 'ul';
-        const start = token.ordered && token.start !== 1 ? ` start="${token.start}"` : '';
-        let body = '';
-        for (const item of token.items) {
-            body += this.listitem(item);
-        }
-
-        return `<${tag} class="wp-block-list"${start}>\n${body}</${tag}>\n`;
-    }
-
-    blockquote({ tokens }: Tokens.Blockquote): string {
-        return `<blockquote class="wp-block-quote">${this.parser.parse(tokens)}</blockquote>\n`;
-    }
-
-    link(token: Tokens.Link): string {
-        const title = token.title ? ` title="${token.title.replace(/"/g, '&quot;')}"` : '';
-
-        return `<a class="wp-block-link" href="${token.href}"${title}>${this.parser.parseInline(token.tokens)}</a>`;
-    }
-
-    codespan({ text }: Tokens.Codespan): string {
-        return `<code class="wp-inline-code">${text}</code>`;
-    }
-}
-
-const wpMarked = new Marked({ renderer: new WpRenderer(), gfm: true });
+import { wpMarked } from '../lib/markdown-renderer';
 
 interface Props {
     text: string | null | undefined;
