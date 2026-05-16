@@ -221,6 +221,102 @@ body.wp-site {
     margin-top: 0.125rem;
 }
 
+/* ─── Top list (places grid) ─────────────────────────────────── */
+
+.wp-block-group--top-list {
+    margin: 2.5rem 0;
+}
+.wp-block-group--top-list > .wp-block-heading {
+    margin: 0 0 1.25rem 0;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+}
+.wp-block-post-template--top-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+}
+@media (min-width: 640px) {
+    .wp-block-post-template--top-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (min-width: 1024px) {
+    .wp-block-post-template--top-list {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+.wp-block-post--place {
+    border: 1px solid var(--wp--preset--color--accent);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--wp--preset--color--base);
+    transition: box-shadow 0.2s ease;
+}
+.wp-block-post--place:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.wp-block-post-featured-image {
+    margin: 0;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--wp--preset--color--neutral) 8%, transparent);
+}
+.wp-block-post-featured-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.wp-block-post--place:hover .wp-block-post-featured-image img {
+    transform: scale(1.04);
+}
+.wp-block-post-featured-image--placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--wp--preset--color--accent);
+}
+.wp-block-post-featured-image--placeholder span {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.wp-block-post__body {
+    padding: 1rem;
+}
+.wp-block-post-terms {
+    margin: 0 0 0.25rem 0;
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.wp-block-post-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+.wp-block-post-title__link {
+    color: var(--wp--preset--color--primary);
+    text-decoration: none;
+}
+.wp-block-post-title__link:hover {
+    text-decoration: underline;
+}
+.wp-block-post-excerpt {
+    margin: 0.5rem 0 0 0;
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+
 /* ─── Sourceable infobox ─────────────────────────────────────── */
 
 .wp-block-table-of-facts {

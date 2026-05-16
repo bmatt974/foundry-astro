@@ -12,6 +12,7 @@ import Faq from '../blocks/Faq.astro';
 import KeyFacts from '../blocks/KeyFacts.astro';
 import Section from '../blocks/Section.astro';
 import Text from '../blocks/Text.astro';
+import TopList from '../blocks/TopList.astro';
 
 interface Props {
     block: PageBlock;
@@ -26,6 +27,7 @@ const blockComponents: Partial<Record<string, any>> = {
     faq: Faq,
     cta: Cta,
     section: Section,
+    top_list: TopList,
     comparison: Comparison,
 };
 
