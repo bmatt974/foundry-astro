@@ -1,0 +1,25 @@
+---
+import { imageSrcset, imageUrl } from '../../../lib/image';
+
+interface Props {
+    image: string | null;
+    alt: string;
+}
+
+const { image, alt } = Astro.props;
+---
+
+{image && (
+    <div class="field field--name-field-cover-image field--type-image field--label-hidden">
+        <figure>
+            <img
+                src={imageUrl(image, { width: 1200 })}
+                srcset={imageSrcset(image, [640, 960, 1200, 1600])}
+                sizes="(min-width: 768px) 768px, 100vw"
+                alt={alt}
+                width="1200"
+                height="675"
+            />
+        </figure>
+    </div>
+)}

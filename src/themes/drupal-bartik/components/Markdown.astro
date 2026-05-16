@@ -1,0 +1,24 @@
+---
+/**
+ * Markdown rendering for drupal-bartik. Wraps the parsed HTML in a
+ * `.text-formatted` container; the per-element styling is scoped via
+ * descendant selectors in styles.css, mirroring how Drupal's
+ * text-formatted field output is themed (no per-paragraph class).
+ *
+ * The renderer instance is module-scoped — no new Marked() per request.
+ */
+import { Marked } from 'marked';
+
+const drupalMarked = new Marked({ gfm: true });
+
+interface Props {
+    text: string | null | undefined;
+    size?: 'sm' | 'base' | 'lg';
+    class?: string;
+}
+
+const { text, class: className = '' } = Astro.props;
+const html = text ? (drupalMarked.parse(text, { async: false }) as string) : '';
+---
+
+{html && <div class:list={['text-formatted', className]} set:html={html} />}

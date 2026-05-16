@@ -1,0 +1,48 @@
+---
+import type { NavNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    nav: {
+        parent: NavNode | null;
+        children: NavNode[];
+        siblings: NavNode[];
+    };
+}
+
+const { locale, nav } = Astro.props;
+const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+---
+
+{hasContent && (
+    <nav class="block block--system-page-navigation" aria-label="Page navigation">
+        {nav.parent && (
+            <div class="block--system-page-navigation__group">
+                <p class="block--system-page-navigation__heading">↑ Parent</p>
+                <p>
+                    <a href={`/${locale}/${nav.parent.slug ?? ''}`}>{nav.parent.title}</a>
+                </p>
+            </div>
+        )}
+        {nav.children.length > 0 && (
+            <div class="block--system-page-navigation__group">
+                <p class="block--system-page-navigation__heading">Sous-pages</p>
+                <ul class="block--system-page-navigation__list">
+                    {nav.children.map((c) => (
+                        <li><a href={`/${locale}/${c.slug ?? ''}`}>{c.title}</a></li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        {nav.siblings.length > 0 && (
+            <div class="block--system-page-navigation__group">
+                <p class="block--system-page-navigation__heading">À voir aussi</p>
+                <ul class="block--system-page-navigation__list">
+                    {nav.siblings.map((s) => (
+                        <li><a href={`/${locale}/${s.slug ?? ''}`}>{s.title}</a></li>
+                    ))}
+                </ul>
+            </div>
+        )}
+    </nav>
+)}

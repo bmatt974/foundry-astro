@@ -1,0 +1,25 @@
+---
+/**
+ * Fallback renderer for unmapped block types in drupal-bartik. Dumps
+ * the payload as JSON in a styled box. Replace by registering a real
+ * component in `components/Block.astro` once you build it.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+---
+
+<div class="block block--type-default">
+    <p class="block--type-default__label">
+        Unsupported block type: <code>{block.block_type}</code>
+        {block.cluster_block_key && <> (<code>{block.cluster_block_key}</code>)</>}
+    </p>
+    <pre class="block--type-default__payload">{JSON.stringify(block.content, null, 2)}</pre>
+    {block.children.length > 0 && (
+        <p class="block--type-default__label">…and {block.children.length} nested children</p>
+    )}
+</div>

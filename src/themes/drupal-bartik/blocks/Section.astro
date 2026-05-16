@@ -1,0 +1,22 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
+import Block from '../components/Block.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as { title?: string; body?: string };
+---
+
+<section class="block block--type-section">
+    {content.title && <h2 class="block__title">{content.title}</h2>}
+    {content.body && <Markdown text={content.body} />}
+    {block.children.length > 0 && (
+        <div class="block--type-section__children">
+            {block.children.map((child) => <Block block={child} />)}
+        </div>
+    )}
+</section>

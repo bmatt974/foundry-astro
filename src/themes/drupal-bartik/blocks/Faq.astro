@@ -1,0 +1,30 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Markdown from '../components/Markdown.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    title?: string;
+    questions?: Array<{ question: string; answer: string }>;
+    items?: Array<{ question: string; answer: string }>;
+};
+const questions = content.questions ?? content.items ?? [];
+---
+
+<div class="block block--type-faq">
+    {content.title && <h2 class="block__title">{content.title}</h2>}
+    <div class="field field--name-field-faq-items">
+        {questions.map((qa) => (
+            <details class="paragraph paragraph--type-faq-item">
+                <summary>{qa.question}</summary>
+                <div class="paragraph__answer">
+                    <Markdown text={qa.answer} />
+                </div>
+            </details>
+        ))}
+    </div>
+</div>

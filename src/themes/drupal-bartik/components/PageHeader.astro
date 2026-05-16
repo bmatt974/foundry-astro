@@ -1,0 +1,19 @@
+---
+import type { PageTranslation } from '../../../lib/foundry';
+import Markdown from './Markdown.astro';
+
+interface Props {
+    translation: PageTranslation | null;
+    fallbackTitle?: string;
+}
+
+const { translation: t, fallbackTitle } = Astro.props;
+const title = t?.title ?? fallbackTitle ?? 'Untitled';
+---
+
+<header class="node__header">
+    {t?.eyebrow && <p class="node__eyebrow">{t.eyebrow}</p>}
+    <h1 class="node__title">{title}</h1>
+    {t?.subtitle && <p class="node__subtitle">{t.subtitle}</p>}
+    {t?.intro && <div class="node__intro"><Markdown text={t.intro} /></div>}
+</header>

@@ -1,0 +1,13 @@
+---
+interface Props {
+    id: string;
+    liveSlug: string | null;
+    locale: string;
+}
+
+const { id, liveSlug, locale } = Astro.props;
+---
+
+<div class="messages messages--status" role="status">
+    Preview mode — page id <code>{id}</code>{liveSlug && <> · live slug: <code>/{locale}/{liveSlug}</code></>}
+</div>

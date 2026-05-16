@@ -1,0 +1,17 @@
+---
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+}
+
+const { websiteName, currentLocale } = Astro.props;
+---
+
+<header class="layout-header" role="banner">
+    <div class="region region--header">
+        <div class="block block--system-branding">
+            <a href={`/${currentLocale}/`} class="site-branding__name">{websiteName}</a>
+        </div>
+        <slot />
+    </div>
+</header>

@@ -1,0 +1,64 @@
+---
+import type { Page } from '../../lib/foundry';
+import Breadcrumb from './components/Breadcrumb.astro';
+import Hero from './components/Hero.astro';
+import PageBlocks from './components/PageBlocks.astro';
+import PageFooter from './components/PageFooter.astro';
+import PageHeader from './components/PageHeader.astro';
+import PageNav from './components/PageNav.astro';
+import SourceableInfo from './components/SourceableInfo.astro';
+import { pickLayout } from './layouts';
+
+interface Props {
+    page: Page;
+    locale: string;
+    fallbackTitle?: string;
+}
+
+const { page, locale, fallbackTitle } = Astro.props;
+const tenant = Astro.locals.tenant;
+
+const t = page.translation;
+const sourceName = page.sourceable && 'name' in page.sourceable
+    ? page.sourceable.name
+    : null;
+
+const heroImage = page.cover_image
+    ?? (page.sourceable && 'cover_image' in page.sourceable
+        ? page.sourceable.cover_image
+        : null);
+const heroAlt = t?.title ?? sourceName ?? '';
+const breadcrumbCurrentTitle = t?.title ?? fallbackTitle;
+
+const sections = pickLayout(page.page_type);
+---
+
+<article class="node node--type-article node--view-mode-full">
+    {sections.map((section) => {
+        switch (section) {
+            case 'hero':
+                return <Hero image={heroImage} alt={heroAlt} />;
+            case 'breadcrumb':
+                return (
+                    <Breadcrumb
+                        locale={locale}
+                        breadcrumb={page.nav.breadcrumb}
+                        currentTitle={breadcrumbCurrentTitle}
+                        websiteName={tenant.website.name}
+                    />
+                );
+            case 'page_header':
+                return <PageHeader translation={t} fallbackTitle={fallbackTitle} />;
+            case 'sourceable_info':
+                return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
+            case 'page_blocks':
+                return <PageBlocks blocks={page.blocks} />;
+            case 'page_footer':
+                return t ? <PageFooter translation={t} /> : null;
+            case 'page_nav':
+                return <PageNav locale={locale} nav={page.nav} />;
+            default:
+                return null;
+        }
+    })}
+</article>

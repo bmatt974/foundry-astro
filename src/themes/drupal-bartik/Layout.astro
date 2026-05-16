@@ -1,0 +1,47 @@
+---
+import { fetchMenu } from '../../lib/foundry';
+import './styles.css';
+import SiteFooter from './components/SiteFooter.astro';
+import SiteHeader from './components/SiteHeader.astro';
+import { css } from './tokens';
+
+interface Props {
+    title: string;
+    description?: string | null;
+    locale?: string;
+}
+
+const { title, description, locale = 'en' } = Astro.props;
+const tenant = Astro.locals.tenant;
+const themeConfig = tenant?.themeConfig ?? {};
+const inlineTokens = css(themeConfig);
+
+const footerItems = tenant
+    ? await fetchMenu('footer', locale, tenant.website.hostname)
+    : [];
+const websiteName = tenant?.website.name ?? '';
+---
+
+<!doctype html>
+<html lang={locale} style={inlineTokens || undefined}>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>{title}</title>
+        <slot name="head" />
+        {!Astro.slots.has('head') && description && (
+            <meta name="description" content={description} />
+        )}
+    </head>
+    <body class="layout-container">
+        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+            <slot name="locale-switcher" />
+        </SiteHeader>
+
+        <main class="layout-content" role="main">
+            <slot />
+        </main>
+
+        <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
+    </body>
+</html>

@@ -1,0 +1,20 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Block from './Block.astro';
+
+interface Props {
+    blocks: PageBlock[];
+}
+
+const { blocks } = Astro.props;
+---
+
+{blocks.length > 0 ? (
+    <div class="field field--name-body field--type-text-with-summary field--label-hidden">
+        <div class="field__items">
+            {blocks.map((block) => <Block block={block} />)}
+        </div>
+    </div>
+) : (
+    <p class="field field--name-body field--empty">No blocks on this page.</p>
+)}
