@@ -73,11 +73,42 @@ export const onRequest = defineMiddleware(async (context, next) => {
         resolved.website.hostname = host;
     }
 
+    let template = resolved.website.template ?? DEFAULT_TEMPLATE;
+
+    // Dev-only theme override: `?theme=<name>` sets the active theme
+    // for this request and persists via a session cookie so links on
+    // the page keep the chosen theme. `?theme=` (empty) clears it and
+    // reverts to the website's configured template. Unknown names
+    // silently fall back to `basic` via the registry. Gated on DEV so
+    // production builds ignore the param entirely — `astro dev` runs
+    // even prerendered routes on demand, so the override reaches every
+    // page locally.
+    if (import.meta.env.DEV) {
+        const queryOverride = context.url.searchParams.get('theme');
+        if (queryOverride !== null) {
+            if (queryOverride === '') {
+                context.cookies.delete('foundry_dev_theme', { path: '/' });
+            } else {
+                context.cookies.set('foundry_dev_theme', queryOverride, {
+                    path: '/',
+                    httpOnly: false,
+                    sameSite: 'lax',
+                });
+                template = queryOverride;
+            }
+        } else {
+            const cookieOverride = context.cookies.get('foundry_dev_theme')?.value;
+            if (cookieOverride) {
+                template = cookieOverride;
+            }
+        }
+    }
+
     context.locals.tenant = {
         website: resolved.website,
         locales: resolved.locales,
         defaultLocale: resolved.default_locale,
-        template: resolved.website.template ?? DEFAULT_TEMPLATE,
+        template,
         themeConfig: resolved.website.theme_config ?? {},
     };
 
@@ -85,11 +116,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // (Comparison block, formatters, etc.) don't need to parse the
     // URL themselves. Falls back to the website default when the
     // route has no locale segment (e.g. /).
-    const firstSegment = context.url.pathname.split('/').filter(Boolean)[0];
-    const looksLikeLocale = firstSegment !== undefined
-        && /^[a-z]{2}(-[a-zA-Z]{2,4})?$/.test(firstSegment);
-    context.locals.locale = looksLikeLocale && firstSegment !== undefined
-        ? firstSegment
+    //
+    // The dev preview route prefixes URLs with `/preview/<locale>/…`,
+    // so skip that leading segment when probing for the locale.
+    const segments = context.url.pathname.split('/').filter(Boolean);
+    const localeIdx = segments[0] === 'preview' ? 1 : 0;
+    const candidateLocale = segments[localeIdx];
+    const looksLikeLocale = candidateLocale !== undefined
+        && /^[a-z]{2}(-[a-zA-Z]{2,4})?$/.test(candidateLocale);
+    context.locals.locale = looksLikeLocale && candidateLocale !== undefined
+        ? candidateLocale
         : (resolved.default_locale ?? 'en');
 
     return next();
