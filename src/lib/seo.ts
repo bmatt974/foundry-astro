@@ -212,6 +212,19 @@ export function serializeJsonLd(obj: unknown): string {
     return JSON.stringify(obj).replace(/</g, '\\u003c');
 }
 
+/**
+ * Theme-specific additions to the shared SEO head. Each theme wraps
+ * `SeoCore` and passes its own `extras` so the rendered <head> can
+ * leak signatures characteristic of the engine the theme mimics
+ * (WordPress generator + pingback, Drupal capital-G Generator, etc.).
+ */
+export interface SeoExtras {
+    /** Extra <meta> tags rendered after the standard set. */
+    extraMeta?: Array<{ name?: string; property?: string; content: string }>;
+    /** Extra <link> tags rendered alongside canonical/alternates. */
+    extraLinks?: Array<{ rel: string; href: string; type?: string; title?: string }>;
+}
+
 /** Convenience re-export for consumer types. */
 export type { Page, TenantResolution, WebsiteLocale };
 export type { TenantContext };

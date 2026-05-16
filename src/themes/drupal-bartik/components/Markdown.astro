@@ -5,11 +5,11 @@
  * descendant selectors in styles.css, mirroring how Drupal's
  * text-formatted field output is themed (no per-paragraph class).
  *
- * The renderer instance is module-scoped — no new Marked() per request.
+ * The renderer instance lives in `lib/markdown-renderer.ts` so it can
+ * be unit-tested without spinning up Astro — same layout as wp-classic
+ * and basic.
  */
-import { Marked } from 'marked';
-
-const drupalMarked = new Marked({ gfm: true });
+import { drupalMarked } from '../lib/markdown-renderer';
 
 interface Props {
     text: string | null | undefined;

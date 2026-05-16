@@ -12,6 +12,7 @@
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
     "preview:static": "node scripts/preview-site.mjs",
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
     "astro": "astro"
   },
   "dependencies": {

@@ -1,10 +1,13 @@
 /**
- * Per-`page_type` layout map. Drives the `Article` dispatcher: each
- * page type resolves to an ordered list of section keys that the
- * theme's components render.
+ * Per-page_type section recipe — picks which Article sections (hero,
+ * breadcrumb, header, sourceable info, blocks, footer, nav) render
+ * for a given page type. Theme-agnostic: every Article.astro consumes
+ * this so adding a new page_type or tweaking a recipe only happens in
+ * one place.
  *
- * Three buckets — easy to extend later. Adding a new section name
- * means adding a row in Article's switch *and* listing it here.
+ * A theme that wants to diverge (e.g. a magazine theme that omits Hero
+ * on hub pages) is free to stop importing this and write its own
+ * picker — the Theme contract is the only thing pages care about.
  */
 
 export type Section =
@@ -26,7 +29,6 @@ const FULL: readonly Section[] = [
     'page_nav',
 ];
 
-/** Listing / hub pages: Hero + header + blocks + nav, no infobox. */
 const COMPACT: readonly Section[] = [
     'hero',
     'breadcrumb',
@@ -36,7 +38,6 @@ const COMPACT: readonly Section[] = [
     'page_nav',
 ];
 
-/** Utility (about, contact, legal, …): minimal — no Hero, no nav, no infobox. */
 const UTILITY: readonly Section[] = [
     'breadcrumb',
     'page_header',
@@ -80,11 +81,6 @@ const COMPACT_TYPES = new Set([
     'theme_destination',
 ]);
 
-/**
- * Pick the section list for a given page_type. Returns FULL when
- * page_type is null or unknown — a page with content but no declared
- * type still renders all useful chrome rather than missing pieces.
- */
 export function pickLayout(pageType: string | null | undefined): readonly Section[] {
     if (pageType && UTILITY_TYPES.has(pageType)) {
         return UTILITY;
