@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "astro dev --host 0.0.0.0 --port 4321",
     "build": "astro build",
+    "build:site": "node scripts/build-site.mjs",
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
+    "preview:static": "node scripts/preview-site.mjs",
     "astro": "astro"
   },
   "dependencies": {

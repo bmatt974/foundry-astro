@@ -12,15 +12,34 @@ const HMR_CLIENT_PORT = process.env.HMR_CLIENT_PORT
     ? Number.parseInt(process.env.HMR_CLIENT_PORT, 10)
     : undefined;
 
+// `prerender` exports in pages must resolve to a literal boolean. Vite
+// `define` replaces `__ASTRO_PRERENDER__` *before* Astro analyses the
+// frontmatter, so pages can flip behaviour per-environment.
+//
+// Driven by the ASTRO_PRERENDER env var:
+//   - `npm run build` / `npm run build:site <hostname>` set it to "true"
+//     → pages are statically prerendered into dist/client/**.html
+//   - `npm run dev` leaves it unset → false → every route runs SSR, the
+//     middleware sees real query params + cookies, so `?theme=…`
+//     overrides work on every page locally.
+// Multi-tenant builds drop each website's artefacts under
+// `dist/<hostname>/` so successive `build:site` runs don't overwrite
+// each other and several sites can be served in parallel locally.
+// Falls back to plain `dist/` when WEBSITE_BUILD_HOSTNAME isn't set
+// (e.g. running `astro build` directly without targeting a site).
+const buildHostname = process.env.WEBSITE_BUILD_HOSTNAME;
+const outDir = buildHostname ? `./dist/${buildHostname}` : './dist';
+
 // https://astro.build/config
 export default defineConfig({
     // SSR everywhere — every page hits the headless API per request,
     // there's no static content worth prerendering. Build output is
-    // a standalone Node server (`dist/server/entry.mjs`) launched
-    // with `node ./dist/server/entry.mjs` and reads HOST / PORT env
+    // a standalone Node server (`<outDir>/server/entry.mjs`) launched
+    // with `node <outDir>/server/entry.mjs` and reads HOST / PORT env
     // vars at boot.
     output: 'server',
     adapter: node({ mode: 'standalone' }),
+    outDir,
 
     // We don't use Astro's <Image> component — remote images go
     // through `lib/image.ts` which rewrites CDN URLs at template
