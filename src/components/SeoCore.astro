@@ -1,0 +1,112 @@
+---
+/**
+ * Shared SEO head — Open Graph + Twitter Card + canonical + hreflang +
+ * robots + JSON-LD. Theme-agnostic, but accepts an `extras` prop so
+ * each theme can layer engine-specific signatures (WordPress generator
+ * + pingback, Drupal capital-G Generator, etc.) without duplicating
+ * the common emission.
+ *
+ * Themes don't import this directly — they expose a thin wrapper as
+ * `theme.Seo` (see e.g. `src/themes/wp-classic/components/Seo.astro`)
+ * that hard-codes the family-specific extras. Pages keep calling
+ * `theme.Seo` and stay theme-agnostic.
+ */
+import type { Page } from '../lib/foundry';
+import { imageUrl } from '../lib/image';
+import {
+    alternateUrls,
+    buildJsonLd,
+    pageUrl,
+    serializeJsonLd,
+    siteUrl,
+    type SeoExtras,
+    type TenantContext,
+} from '../lib/seo';
+
+interface Props {
+    page: Page | null;
+    locale: string;
+    type?: 'article' | 'website';
+    title?: string;
+    description?: string;
+    noindex?: boolean;
+    extras?: SeoExtras;
+}
+
+const { page, locale, type, title, description, noindex = false, extras } = Astro.props;
+const tenant = Astro.locals.tenant as TenantContext;
+
+const t = page?.translation ?? null;
+const resolvedTitle = title ?? t?.meta_title ?? t?.title ?? tenant.website.name;
+const resolvedDescription = description
+    ?? t?.meta_description
+    ?? t?.snippet
+    ?? null;
+const resolvedType = type ?? (page ? 'article' : 'website');
+
+const canonicalSlug = t?.slug ?? null;
+const canonicalUrl = page ? pageUrl(tenant, locale, canonicalSlug) : siteUrl(tenant, locale);
+
+// hreflang only emitted when the API provided per-locale slugs — that's
+// `page.available_locales`. Locale landing has none, so we skip them
+// there (a global website-locale map could be built later if useful).
+const alternates = page ? alternateUrls(tenant, page.available_locales) : [];
+
+// Image used for og:image / twitter:image. Same fallback chain as the
+// Hero so the social preview matches what shoppers see in the SERP.
+const rawImage = page?.cover_image
+    ?? (page?.sourceable && 'cover_image' in page.sourceable
+        ? page.sourceable.cover_image
+        : null);
+const socialImage = rawImage ? imageUrl(rawImage, { width: 1200 }) : null;
+
+const robotsContent = (noindex || (page && page.is_indexable === false))
+    ? 'noindex, follow'
+    : null;
+
+const ogLocale = locale.replace('-', '_');
+const websiteLocale = tenant.locales.find((l) => l.locale === locale);
+
+const jsonLd = serializeJsonLd(
+    buildJsonLd({
+        tenant,
+        locale,
+        page,
+        canonicalUrl,
+        imageUrl: socialImage,
+    }),
+);
+---
+
+{resolvedDescription && <meta name="description" content={resolvedDescription} />}
+{robotsContent && <meta name="robots" content={robotsContent} />}
+{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+{alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+
+<meta property="og:type" content={resolvedType} />
+<meta property="og:title" content={resolvedTitle} />
+{resolvedDescription && <meta property="og:description" content={resolvedDescription} />}
+{canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+<meta property="og:site_name" content={websiteLocale?.site_name ?? tenant.website.name} />
+<meta property="og:locale" content={ogLocale} />
+{tenant.locales
+    .filter((l) => l.enabled && l.locale !== locale)
+    .map((l) => <meta property="og:locale:alternate" content={l.locale.replace('-', '_')} />)}
+{socialImage && <meta property="og:image" content={socialImage} />}
+{socialImage && <meta property="og:image:width" content="1200" />}
+{socialImage && <meta property="og:image:height" content="675" />}
+
+<meta name="twitter:card" content={socialImage ? 'summary_large_image' : 'summary'} />
+<meta name="twitter:title" content={resolvedTitle} />
+{resolvedDescription && <meta name="twitter:description" content={resolvedDescription} />}
+{socialImage && <meta name="twitter:image" content={socialImage} />}
+
+{extras?.extraMeta?.map((m) => (
+    <meta name={m.name} property={m.property} content={m.content} />
+))}
+{extras?.extraLinks?.map((l) => (
+    <link rel={l.rel} href={l.href} type={l.type} title={l.title} />
+))}
+
+<script type="application/ld+json" is:inline set:html={jsonLd} />

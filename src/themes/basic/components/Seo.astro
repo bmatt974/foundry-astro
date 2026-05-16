@@ -1,23 +1,12 @@
 ---
 /**
- * SEO head — Open Graph + Twitter Card + canonical + hreflang +
- * robots + JSON-LD. Rendered into Layout's `head` slot.
- *
- * Theme-owned because the *set* of tags a theme wants to leak is a
- * fingerprinting choice. The basic theme emits a vanilla, generic set
- * — wp-classic could later add `<link rel="https://api.w.org/" ...>`
- * etc. to mimic WordPress.
+ * SEO head for the basic theme — vanilla pass-through of `SeoCore`
+ * with no engine-specific extras. The wrapper exists for symmetry
+ * with the other themes (each exposes `theme.Seo`); the actual
+ * emission is in `src/components/SeoCore.astro`.
  */
 import type { Page } from '../../../lib/foundry';
-import { imageUrl } from '../../../lib/image';
-import {
-    alternateUrls,
-    buildJsonLd,
-    pageUrl,
-    serializeJsonLd,
-    siteUrl,
-    type TenantContext,
-} from '../../../lib/seo';
+import SeoCore from '../../../components/SeoCore.astro';
 
 interface Props {
     page: Page | null;
@@ -27,74 +16,6 @@ interface Props {
     description?: string;
     noindex?: boolean;
 }
-
-const { page, locale, type, title, description, noindex = false } = Astro.props;
-const tenant = Astro.locals.tenant as TenantContext;
-
-const t = page?.translation ?? null;
-const resolvedTitle = title ?? t?.meta_title ?? t?.title ?? tenant.website.name;
-const resolvedDescription = description
-    ?? t?.meta_description
-    ?? t?.snippet
-    ?? null;
-const resolvedType = type ?? (page ? 'article' : 'website');
-
-const canonicalSlug = t?.slug ?? null;
-const canonicalUrl = page ? pageUrl(tenant, locale, canonicalSlug) : siteUrl(tenant, locale);
-
-// hreflang only emitted when the API provided per-locale slugs — that's
-// `page.available_locales`. Locale landing has none, so we skip them
-// there (a global website-locale map could be built later if useful).
-const alternates = page ? alternateUrls(tenant, page.available_locales) : [];
-
-// Image used for og:image / twitter:image. Same fallback chain as the
-// Hero so the social preview matches what shoppers see in the SERP.
-const rawImage = page?.cover_image
-    ?? (page?.sourceable && 'cover_image' in page.sourceable
-        ? page.sourceable.cover_image
-        : null);
-const socialImage = rawImage ? imageUrl(rawImage, { width: 1200 }) : null;
-
-const robotsContent = (noindex || (page && page.is_indexable === false))
-    ? 'noindex, follow'
-    : null;
-
-const ogLocale = locale.replace('-', '_');
-const websiteLocale = tenant.locales.find((l) => l.locale === locale);
-
-const jsonLd = serializeJsonLd(
-    buildJsonLd({
-        tenant,
-        locale,
-        page,
-        canonicalUrl,
-        imageUrl: socialImage,
-    }),
-);
 ---
 
-{resolvedDescription && <meta name="description" content={resolvedDescription} />}
-{robotsContent && <meta name="robots" content={robotsContent} />}
-{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
-
-{alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
-
-<meta property="og:type" content={resolvedType} />
-<meta property="og:title" content={resolvedTitle} />
-{resolvedDescription && <meta property="og:description" content={resolvedDescription} />}
-{canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
-<meta property="og:site_name" content={websiteLocale?.site_name ?? tenant.website.name} />
-<meta property="og:locale" content={ogLocale} />
-{tenant.locales
-    .filter((l) => l.enabled && l.locale !== locale)
-    .map((l) => <meta property="og:locale:alternate" content={l.locale.replace('-', '_')} />)}
-{socialImage && <meta property="og:image" content={socialImage} />}
-{socialImage && <meta property="og:image:width" content="1200" />}
-{socialImage && <meta property="og:image:height" content="675" />}
-
-<meta name="twitter:card" content={socialImage ? 'summary_large_image' : 'summary'} />
-<meta name="twitter:title" content={resolvedTitle} />
-{resolvedDescription && <meta name="twitter:description" content={resolvedDescription} />}
-{socialImage && <meta name="twitter:image" content={socialImage} />}
-
-<script type="application/ld+json" is:inline set:html={jsonLd} />
+<SeoCore {...Astro.props} />
