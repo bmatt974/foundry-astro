@@ -59,7 +59,13 @@ const sections = pickLayout(page.page_type);
                 />
             );
         case 'page_header':
-            return <PageHeader translation={t} fallbackTitle={fallbackTitle} />;
+            return (
+                <PageHeader
+                    translation={t}
+                    publishedAt={page.published_at ?? t?.published_at ?? null}
+                    fallbackTitle={fallbackTitle}
+                />
+            );
         case 'sourceable_info':
             return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
         case 'page_blocks':

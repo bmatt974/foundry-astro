@@ -405,6 +405,14 @@ body.wp-site {
     margin: 1rem 0 0 0;
     font-style: italic;
 }
+.entry-meta {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.875rem;
+    margin: 1rem 0 0 0;
+}
+.entry-date--updated {
+    font-style: italic;
+}
 .entry-intro {
     margin-top: 1.5rem;
     font-size: 1.125rem;
