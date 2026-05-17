@@ -284,6 +284,12 @@ body.layout-container {
     margin: 0.75rem 0 0 0;
     font-style: italic;
 }
+.node__submitted {
+    color: var(--color-muted);
+    font-size: 0.8125rem;
+    margin: 0.75rem 0 0 0;
+    font-style: italic;
+}
 .node__intro {
     margin-top: 1.25rem;
     font-size: 1.0625rem;

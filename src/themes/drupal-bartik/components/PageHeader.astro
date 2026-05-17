@@ -1,19 +1,31 @@
 ---
 import type { PageTranslation } from '../../../lib/foundry';
+import { formatDate, formatRelativeDate } from '../../../lib/format';
 import Markdown from './Markdown.astro';
 
 interface Props {
     translation: PageTranslation | null;
+    publishedAt?: string | null;
     fallbackTitle?: string;
 }
 
-const { translation: t, fallbackTitle } = Astro.props;
+const { translation: t, publishedAt = null, fallbackTitle } = Astro.props;
 const title = t?.title ?? fallbackTitle ?? 'Untitled';
+const locale = Astro.locals.locale ?? 'en';
+const relative = formatRelativeDate(publishedAt, locale);
+const absolute = formatDate(publishedAt, locale);
 ---
 
 <header class="node__header">
     {t?.eyebrow && <p class="node__eyebrow">{t.eyebrow}</p>}
     <h1 class="node__title">{title}</h1>
     {t?.subtitle && <p class="node__subtitle">{t.subtitle}</p>}
+    {relative && publishedAt && (
+        <p class="node__submitted">
+            <time datetime={publishedAt} title={absolute ?? undefined}>
+                {relative}
+            </time>
+        </p>
+    )}
     {t?.intro && <div class="node__intro"><Markdown text={t.intro} /></div>}
 </header>
