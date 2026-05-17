@@ -161,8 +161,9 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
             '@type': 'TouristAttraction',
             name: place.name,
         };
-        if (place.country_code) {
-            node.address = { '@type': 'PostalAddress', addressCountry: place.country_code };
+        const address = buildPostalAddress(place.address, place.country_code);
+        if (address) {
+            node.address = address;
         }
         if (place.coordinates) {
             node.geo = {
@@ -201,6 +202,46 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         '@context': 'https://schema.org',
         '@graph': graph,
     };
+}
+
+/**
+ * Build a schema.org `PostalAddress` from a Place's `address` field
+ * (synthesised backend-side by `PlaceAddressResolver`), with the
+ * place's `country_code` as a country fallback. Returns null when no
+ * field at all can be filled — caller can then skip the address
+ * block entirely.
+ */
+export function buildPostalAddress(
+    address:
+        | {
+              street?: string;
+              locality?: string;
+              region?: string;
+              postal_code?: string;
+              country?: string;
+          }
+        | null
+        | undefined,
+    countryFallback: string | null,
+): Record<string, string> | null {
+    const street = address?.street?.trim();
+    const locality = address?.locality?.trim();
+    const region = address?.region?.trim();
+    const postalCode = address?.postal_code?.trim();
+    const country = address?.country?.trim() || countryFallback?.trim() || null;
+
+    if (!street && !locality && !region && !postalCode && !country) {
+        return null;
+    }
+
+    const node: Record<string, string> = { '@type': 'PostalAddress' };
+    if (street) node.streetAddress = street;
+    if (locality) node.addressLocality = locality;
+    if (region) node.addressRegion = region;
+    if (postalCode) node.postalCode = postalCode;
+    if (country) node.addressCountry = country;
+
+    return node;
 }
 
 /**

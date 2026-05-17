@@ -91,6 +91,20 @@ export type Sourceable =
           country_code: string | null;
           website: string | null;
           cover_image: string | null;
+          /**
+           * Structured address synthesised on the backend by
+           * `PlaceAddressResolver` from whichever of the place's
+           * sources have address data (Viator metadata.address,
+           * OSM raw_data.tags.addr:*). `country` is always present
+           * (falls back to `country_code`); the rest is best-effort.
+           */
+          address: {
+              street?: string;
+              locality?: string;
+              region?: string;
+              postal_code?: string;
+              country?: string;
+          } | null;
       }
     | {
           type: 'destination_country';
