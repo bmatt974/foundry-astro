@@ -155,47 +155,22 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         });
     }
 
-    if (page?.sourceable?.type === 'place') {
-        const place = page.sourceable;
-        const node: Record<string, unknown> = {
-            '@type': 'TouristAttraction',
-            name: place.name,
-        };
-        if (place.country_code) {
-            node.address = { '@type': 'PostalAddress', addressCountry: place.country_code };
-        }
-        if (place.coordinates) {
-            node.geo = {
-                '@type': 'GeoCoordinates',
-                latitude: place.coordinates.lat,
-                longitude: place.coordinates.lon,
-            };
-        }
-        if (place.cover_image) {
-            node.image = place.cover_image;
-        }
-        graph.push(node);
-    } else if (page?.sourceable?.type === 'destination') {
-        const dest = page.sourceable;
-        const node: Record<string, unknown> = {
-            '@type': 'TouristDestination',
-            name: dest.name,
-        };
-        if (dest.country?.name) {
-            node.containedInPlace = { '@type': 'Country', name: dest.country.name };
-        }
-        if (dest.coordinates) {
-            node.geo = {
-                '@type': 'GeoCoordinates',
-                latitude: dest.coordinates.lat,
-                longitude: dest.coordinates.lon,
-            };
-        }
-        if (dest.cover_image) {
-            node.image = dest.cover_image;
-        }
-        graph.push(node);
-    }
+    // TouristAttraction / TouristDestination intentionally NOT emitted.
+    //
+    // SERP audit on 15 ranking pages for "Colisée" / "Colosseum" topic
+    // (Wikipedia, Lonely Planet, Michelin Guide, local blogs,
+    // official site, etc.) found:
+    //   - 0/15 pages emit TouristAttraction or TouristDestination
+    //   - blog/editorial sites emit only Article (+ chrome)
+    //   - the only platform that emits TouristAttraction is Lonely Planet
+    //     (a travel-attraction platform, not a content site)
+    //
+    // Emitting it on every page would be a single-bit fingerprint
+    // identifying our network as "not real content sites" since the
+    // SERP norm for editorial pages is Article-only. The entity-level
+    // data we have (address, geo, sameAs) will resurface via the
+    // jsonld_level variance (next commit) on the ~5% of websites that
+    // are configured to mimic a travel platform.
 
     return {
         '@context': 'https://schema.org',
