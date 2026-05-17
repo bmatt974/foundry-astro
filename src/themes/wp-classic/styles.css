@@ -220,6 +220,13 @@ body.wp-site {
     font-size: 0.75rem;
     margin-top: 0.125rem;
 }
+.wp-block-comparison-table__updated {
+    color: var(--wp--preset--color--neutral);
+    font-size: 0.75rem;
+    font-style: italic;
+    text-align: right;
+    margin: 0.5rem 0 0 0;
+}
 
 /* ─── Top list (places grid) ─────────────────────────────────── */
 

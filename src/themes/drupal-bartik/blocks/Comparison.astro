@@ -1,6 +1,7 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
 import { parseComparison } from '../../../lib/blocks/comparison';
+import { formatDate, formatRelativeDate } from '../../../lib/format';
 
 interface Props {
     block: PageBlock;
@@ -9,6 +10,9 @@ interface Props {
 const { block } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const { heading, rows, labels } = parseComparison(block.content, locale);
+const publishedAt = Astro.locals.pagePublishedAt ?? null;
+const relativeUpdated = formatRelativeDate(publishedAt, locale);
+const absoluteUpdated = formatDate(publishedAt, locale);
 ---
 
 {rows.length > 0 && (
@@ -58,6 +62,14 @@ const { heading, rows, labels } = parseComparison(block.content, locale);
                     ))}
                 </tbody>
             </table>
+            {relativeUpdated && publishedAt && (
+                <div class="views-table-caption">
+                    {labels.pricesUpdatedPrefix}{' '}
+                    <time datetime={publishedAt} title={absoluteUpdated ?? undefined}>
+                        {relativeUpdated}
+                    </time>
+                </div>
+            )}
         </div>
     </div>
 )}
