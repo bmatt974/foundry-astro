@@ -67,15 +67,18 @@ const robotsContent = (noindex || (page && page.is_indexable === false))
 const ogLocale = locale.replace('-', '_');
 const websiteLocale = tenant.locales.find((l) => l.locale === locale);
 
-const jsonLd = serializeJsonLd(
-    buildJsonLd({
-        tenant,
-        locale,
-        page,
-        canonicalUrl,
-        imageUrl: socialImage,
-    }),
-);
+// Returns null when the website's `experiments.jsonld_level` is set
+// to `none` — the `<script>` tag is then skipped entirely so the
+// page reads as "no JSON-LD" to crawlers (matching ~40% of editorial
+// pages in the SERP audit).
+const jsonLdGraph = buildJsonLd({
+    tenant,
+    locale,
+    page,
+    canonicalUrl,
+    imageUrl: socialImage,
+});
+const jsonLd = jsonLdGraph !== null ? serializeJsonLd(jsonLdGraph) : null;
 ---
 
 {resolvedDescription && <meta name="description" content={resolvedDescription} />}
@@ -109,4 +112,4 @@ const jsonLd = serializeJsonLd(
     <link rel={l.rel} href={l.href} type={l.type} title={l.title} />
 ))}
 
-<script type="application/ld+json" is:inline set:html={jsonLd} />
+{jsonLd && <script type="application/ld+json" is:inline set:html={jsonLd} />}

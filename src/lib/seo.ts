@@ -5,12 +5,13 @@
  * keeps full control over which meta tags it emits.
  */
 
-import type { Page, TenantResolution, WebsiteLocale } from './foundry';
+import type { JsonLdLevel, Page, TenantResolution, WebsiteLocale } from './foundry';
 
 type TenantContext = {
     website: TenantResolution['website'];
     locales: TenantResolution['locales'];
     defaultLocale: TenantResolution['default_locale'];
+    experiments: TenantResolution['experiments'];
 };
 
 /**
@@ -90,10 +91,46 @@ export interface JsonLdInput {
     imageUrl: string | null;
 }
 
-export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
+/**
+ * Build the JSON-LD graph for the page, modulated by the website's
+ * `experiments.jsonld_level` to match the distribution observed in
+ * the SERP (see `JsonLdLevel` doc on the backend). Returns null when
+ * the level is `none` — the caller should then skip the
+ * `<script type="application/ld+json">` block entirely so the page
+ * reads as "no JSON-LD" to crawlers, matching the ~40% of editorial
+ * pages in the wild that emit nothing.
+ */
+export function buildJsonLd(input: JsonLdInput): Record<string, unknown> | null {
     const { tenant, locale, page, canonicalUrl, imageUrl } = input;
+    const level: JsonLdLevel = tenant.experiments?.jsonld_level ?? 'cms_standard';
+
+    if (level === 'none') {
+        return null;
+    }
+
     const homepage = siteUrl(tenant, locale);
     const websiteId = homepage ? `${homepage}#website` : `${tenant.website.hostname}#website`;
+    const t = page?.translation;
+
+    // ArticleOnly: Wikipedia-style minimal — single Article node.
+    if (level === 'article_only') {
+        if (!page || !t) {
+            return null;
+        }
+
+        return {
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            '@id': canonicalUrl ? `${canonicalUrl}#article` : undefined,
+            headline: t.title,
+            description: t.meta_description ?? t.snippet ?? undefined,
+            image: imageUrl ?? undefined,
+            url: canonicalUrl ?? undefined,
+            datePublished: t.published_at ?? undefined,
+            dateModified: page.published_at ?? t.published_at ?? undefined,
+            inLanguage: locale,
+        };
+    }
 
     const graph: Record<string, unknown>[] = [
         {
@@ -105,9 +142,8 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         },
     ];
 
-    const t = page?.translation;
     if (page && t) {
-        graph.push({
+        const article: Record<string, unknown> = {
             '@type': 'Article',
             '@id': canonicalUrl ? `${canonicalUrl}#article` : undefined,
             headline: t.title,
@@ -118,7 +154,33 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
             dateModified: page.published_at ?? t.published_at ?? undefined,
             inLanguage: locale,
             isPartOf: { '@id': websiteId },
-        });
+        };
+
+        // WP/Yoast tells: wordCount + commentCount + articleSection.
+        // Real WordPress sites emit these consistently; matching the
+        // shape is what makes the JSON-LD read as "Yoast SEO output"
+        // rather than "custom Astro template".
+        if (level === 'wp_blog_full') {
+            const publisherId = `${websiteId}#publisher`;
+            article.publisher = { '@id': publisherId };
+            article.author = { '@id': publisherId };
+            article.wordCount = estimateWordCount(t.body ?? '');
+            article.commentCount = 0;
+            article.articleSection = page.page_type ?? undefined;
+            article.mainEntityOfPage = canonicalUrl ?? undefined;
+        }
+
+        graph.push(article);
+
+        if (level === 'wp_blog_full') {
+            const publisherId = `${websiteId}#publisher`;
+            graph.push({
+                '@type': 'Organization',
+                '@id': publisherId,
+                name: tenant.website.name,
+                url: homepage ?? undefined,
+            });
+        }
     }
 
     const breadcrumb = page?.nav?.breadcrumb ?? [];
@@ -155,27 +217,43 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         });
     }
 
-    // TouristAttraction / TouristDestination intentionally NOT emitted.
-    //
-    // SERP audit on 15 ranking pages for "Colisée" / "Colosseum" topic
-    // (Wikipedia, Lonely Planet, Michelin Guide, local blogs,
-    // official site, etc.) found:
-    //   - 0/15 pages emit TouristAttraction or TouristDestination
-    //   - blog/editorial sites emit only Article (+ chrome)
-    //   - the only platform that emits TouristAttraction is Lonely Planet
-    //     (a travel-attraction platform, not a content site)
-    //
-    // Emitting it on every page would be a single-bit fingerprint
-    // identifying our network as "not real content sites" since the
-    // SERP norm for editorial pages is Article-only. The entity-level
-    // data we have (address, geo, sameAs) will resurface via the
-    // jsonld_level variance (next commit) on the ~5% of websites that
-    // are configured to mimic a travel platform.
+    // TouristEntity level: re-introduce TouristAttraction (Lonely Planet
+    // style) ONLY for the small fraction of sites configured to mimic
+    // an attraction-platform. Stays minimal — name + url + description
+    // + address — to match the actual platform pattern rather than an
+    // over-marked-up custom build.
+    if (level === 'tourist_entity' && page?.sourceable?.type === 'place') {
+        const place = page.sourceable;
+        const node: Record<string, unknown> = {
+            '@type': 'TouristAttraction',
+            '@id': canonicalUrl ? `${canonicalUrl}#place` : undefined,
+            name: place.name,
+            url: canonicalUrl ?? undefined,
+            description: t?.meta_description ?? t?.snippet ?? undefined,
+        };
+        if (place.country_code) {
+            node.address = { '@type': 'PostalAddress', addressCountry: place.country_code };
+        }
+        graph.push(node);
+    }
 
     return {
         '@context': 'https://schema.org',
         '@graph': graph,
     };
+}
+
+/**
+ * Rough word count for a markdown / HTML string — strips tags + the
+ * markdown markers, splits on whitespace, drops empties. Good enough
+ * for the WP-mimic `wordCount` field (real WP sites' counts are also
+ * approximations of the visible body).
+ */
+function estimateWordCount(text: string): number {
+    if (!text) return 0;
+    const stripped = text.replace(/<[^>]*>/g, ' ').replace(/[#*_`\[\]()]/g, ' ');
+
+    return stripped.split(/\s+/).filter(Boolean).length;
 }
 
 /**

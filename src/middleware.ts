@@ -110,6 +110,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         defaultLocale: resolved.default_locale,
         template,
         themeConfig: resolved.website.theme_config ?? {},
+        experiments: resolved.experiments,
     };
 
     // Make the request locale globally available so deep components

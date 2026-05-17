@@ -177,6 +177,27 @@ export interface Website {
  * either from the Host header at runtime or from WEBSITE_BUILD_HOSTNAME
  * at build time). It is what subsequent fetch calls use to key API URLs.
  */
+export type Posture = 'whitehat' | 'greyhat' | 'blackhat';
+
+export type JsonLdLevel =
+    | 'none'
+    | 'article_only'
+    | 'cms_standard'
+    | 'wp_blog_full'
+    | 'tourist_entity';
+
+/**
+ * Experimental axes resolved server-side by `ExperimentsResolver`. Every
+ * axis carries a value (explicit override or per-posture default) so the
+ * Astro layer doesn't need to know defaults. Drives the per-site variance
+ * (JSON-LD shape, E-E-A-T depth, voice, …) that keeps the network from
+ * looking like 30 copies of the same template.
+ */
+export interface WebsiteExperiments {
+    posture: Posture;
+    jsonld_level: JsonLdLevel;
+}
+
 export interface TenantResolution {
     website: {
         id: number;
@@ -188,6 +209,7 @@ export interface TenantResolution {
     };
     locales: WebsiteLocale[];
     default_locale: string | null;
+    experiments: WebsiteExperiments;
 }
 
 // ──────────────────────────────────────────────
