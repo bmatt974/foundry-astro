@@ -76,6 +76,9 @@ export interface ComparisonLabels {
     };
     cta: string;
     moreOptions: (count: number) => string;
+    /** "Tarifs mis à jour …" / "Prices updated …" — the renderer
+     *  appends the locale-aware relative phrase ("il y a 2 jours"). */
+    pricesUpdatedPrefix: string;
 }
 
 export interface ParsedComparison {
@@ -97,6 +100,7 @@ const LABELS: Record<string, ComparisonLabels> = {
         },
         cta: 'Réserver',
         moreOptions: (n) => `+${n} autres options`,
+        pricesUpdatedPrefix: 'Tarifs mis à jour',
     },
     en: {
         headers: {
@@ -110,6 +114,7 @@ const LABELS: Record<string, ComparisonLabels> = {
         },
         cta: 'Book',
         moreOptions: (n) => `+${n} more options`,
+        pricesUpdatedPrefix: 'Prices updated',
     },
 };
 

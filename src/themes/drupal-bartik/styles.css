@@ -570,6 +570,13 @@ body.layout-container {
     font-size: 0.75rem;
     margin-top: 0.125rem;
 }
+.views-table-caption {
+    color: var(--color-muted);
+    font-size: 0.75rem;
+    font-style: italic;
+    text-align: right;
+    margin-top: 0.5rem;
+}
 
 /* ─── Block: Top list (views grid of nodes--teaser) ──────── */
 

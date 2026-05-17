@@ -22,6 +22,7 @@ const page = await fetchPageById(locale, id, tenant.website.hostname);
 if (!page) {
     return new Response('Not found', { status: 404 });
 }
+Astro.locals.pagePublishedAt = page.published_at ?? page.translation?.published_at ?? null;
 
 const theme = getTheme(tenant.template);
 const { Layout, LocaleSwitcher, Seo, PreviewBanner, Article } = theme;

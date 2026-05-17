@@ -28,6 +28,16 @@ declare global {
              * segment (root, debug index).
              */
             locale: string;
+            /**
+             * Page-level last-publish timestamp (ISO), set by the page
+             * route after fetching the current Page. Deep blocks like
+             * Comparison read it to render their own freshness signal
+             * ("Prices refreshed X ago") without prop-drilling through
+             * PageBlocks / Block dispatchers. Falls back to the
+             * translation-level published_at; null on routes that don't
+             * map to a single page (root, locale landing without a page).
+             */
+            pagePublishedAt?: string | null;
         }
     }
 
