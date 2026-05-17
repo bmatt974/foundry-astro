@@ -95,6 +95,20 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
     const homepage = siteUrl(tenant, locale);
     const websiteId = homepage ? `${homepage}#website` : `${tenant.website.hostname}#website`;
 
+    // Pre-compute the entity @id so the Article node can reference it
+    // via `mainEntity`. Resolves the Article.headline vs <Entity>.name
+    // mismatch (e.g. "Le Colisée" headline / "Colisée" entity name) by
+    // making the linkage explicit instead of leaving Google to guess
+    // whether the two nodes describe the same thing.
+    let entityId: string | null = null;
+    if (canonicalUrl && page?.sourceable) {
+        if (page.sourceable.type === 'place') {
+            entityId = `${canonicalUrl}#place`;
+        } else if (page.sourceable.type === 'destination') {
+            entityId = `${canonicalUrl}#destination`;
+        }
+    }
+
     const graph: Record<string, unknown>[] = [
         {
             '@type': 'WebSite',
@@ -118,6 +132,7 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
             dateModified: page.published_at ?? t.published_at ?? undefined,
             inLanguage: locale,
             isPartOf: { '@id': websiteId },
+            mainEntity: entityId ? { '@id': entityId } : undefined,
         });
     }
 
@@ -159,8 +174,12 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         const place = page.sourceable;
         const node: Record<string, unknown> = {
             '@type': 'TouristAttraction',
+            '@id': entityId ?? undefined,
             name: place.name,
         };
+        if (t && t.title !== place.name) {
+            node.alternateName = t.title;
+        }
         if (place.country_code) {
             node.address = { '@type': 'PostalAddress', addressCountry: place.country_code };
         }
@@ -179,8 +198,12 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         const dest = page.sourceable;
         const node: Record<string, unknown> = {
             '@type': 'TouristDestination',
+            '@id': entityId ?? undefined,
             name: dest.name,
         };
+        if (t && t.title !== dest.name) {
+            node.alternateName = t.title;
+        }
         if (dest.country?.name) {
             node.containedInPlace = { '@type': 'Country', name: dest.country.name };
         }
