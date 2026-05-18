@@ -18,6 +18,7 @@ import {
     sendClickEvent,
     type LinkEntry,
 } from '../src/lib/affiliate.ts';
+import { matchAffiliateClickPath } from '../src/lib/affiliate-redirect.ts';
 
 // ──────────────────────────────────────────────
 // getVisitorCountry
@@ -217,6 +218,46 @@ test('parseRefererHost: null on missing / malformed', () => {
 // ──────────────────────────────────────────────
 // sendClickEvent — beacon shape
 // ──────────────────────────────────────────────
+
+// ──────────────────────────────────────────────
+// matchAffiliateClickPath — middleware dispatcher matcher
+// ──────────────────────────────────────────────
+
+test('matchAffiliateClickPath: returns prefix+id for valid affiliate URL', () => {
+    assert.deepEqual(matchAffiliateClickPath('/view/abc123'), { prefix: 'view', id: 'abc123' });
+    assert.deepEqual(matchAffiliateClickPath('/go/edf0bf830883'), { prefix: 'go', id: 'edf0bf830883' });
+    assert.deepEqual(matchAffiliateClickPath('/details/x'), { prefix: 'details', id: 'x' });
+});
+
+test('matchAffiliateClickPath: accepts all six allow-listed prefixes', () => {
+    for (const prefix of ['view', 'details', 'info', 'visit', 'out', 'go']) {
+        const m = matchAffiliateClickPath(`/${prefix}/abc`);
+        assert.deepEqual(m, { prefix, id: 'abc' });
+    }
+});
+
+test('matchAffiliateClickPath: null on unknown prefix (locale segment, etc.)', () => {
+    // These would all fall through to the normal page routing.
+    assert.equal(matchAffiliateClickPath('/fr/le-colisee'), null);
+    assert.equal(matchAffiliateClickPath('/en/rome'), null);
+    assert.equal(matchAffiliateClickPath('/admin/dashboard'), null);
+});
+
+test('matchAffiliateClickPath: null on deeper URLs', () => {
+    // 3+ segments → never a click URL.
+    assert.equal(matchAffiliateClickPath('/view/abc/extra'), null);
+    assert.equal(matchAffiliateClickPath('/fr/visit/abc'), null);
+});
+
+test('matchAffiliateClickPath: null on missing id', () => {
+    assert.equal(matchAffiliateClickPath('/view/'), null);
+    assert.equal(matchAffiliateClickPath('/view'), null);
+});
+
+test('matchAffiliateClickPath: null on root and empty', () => {
+    assert.equal(matchAffiliateClickPath('/'), null);
+    assert.equal(matchAffiliateClickPath(''), null);
+});
 
 test('sendClickEvent: POSTs JSON with keepalive', async () => {
     const originalFetch = globalThis.fetch;

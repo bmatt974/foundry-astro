@@ -1,26 +1,25 @@
 /**
- * Shared SSR handler used by every per-site affiliate redirect
- * route (`/go/[id]`, `/visit/[id]`, `/details/[id]`, `/info/[id]`,
- * `/view/[id]`, `/out/[id]`). Each `src/pages/<prefix>/[id].ts`
- * re-exports `GET` from here — the actual logic lives once.
+ * Affiliate-click redirector. Dispatched from `src/middleware.ts`
+ * when the incoming URL matches an allow-listed prefix (see
+ * `AFFILIATE_PROXY_PREFIXES` below). The middleware-only routing
+ * keeps the affiliate dispatch in one place — no per-prefix page
+ * route file needed — and means adding a localised prefix later
+ * (`voir`, `infos`, `visite`, …) is a one-line change to the
+ * allow-list.
  *
- * Why one route file per prefix instead of a single catch-all
- * `/[prefix]/[id].ts`? Two reasons:
+ * The function reads the per-site `links.json` shipped at
+ * `public/_data/links.json`, looks up the click_id, applies geo-
+ * routing based on the visitor's country (from whichever header
+ * the current Astro adapter exposes), 302s to the resolved
+ * partner URL, and fires a fire-and-forget beacon to the Foundry
+ * collector before returning.
  *
- *   1. A catch-all would collide with `/[locale]/[...path]` (Astro
- *      routing priority would pick the wrong one for `/fr/anything`).
- *   2. Pre-compiled routes are faster than a runtime regex in the
- *      middleware. The set of allowed prefixes is small (6) and
- *      stable — listing them explicitly is a feature, not a
- *      maintenance cost.
- *
- * The CMS-side `ExperimentsResolver` picks one prefix per website
- * (`tenant.experiments.link_proxy_path`); the Comparison template
- * reads it to build the href. The 5 unused prefixes per site
- * 404 silently — they're never advertised in any markup the site
- * itself emits, only reachable to a scraper that guesses them.
+ * `Referrer-Policy: origin` on the 302 ensures the partner only
+ * sees the site's origin in `Referer`, not the `/{prefix}/{id}`
+ * path. `Cache-Control: no-store` keeps the 302 from being cached
+ * along the way — every click goes through the worker, not a
+ * cached redirect.
  */
-import type { APIRoute } from 'astro';
 import {
     getVisitorCountry,
     loadLinkMap,
@@ -28,15 +27,66 @@ import {
     parseUaFamily,
     pickTarget,
     sendClickEvent,
-} from './affiliate';
+} from './affiliate.ts';
 
-export const handleAffiliateRedirect: APIRoute = async ({ params, request, url }) => {
-    const id = params.id;
-    if (!id) {
-        return new Response('Missing click id', { status: 400 });
+/**
+ * Path segments that route to the affiliate redirector. Each is
+ * one of the values `LinkProxyPath` in the CMS picks per website
+ * — the middleware accepts any so a single site's HTML uses one
+ * of them, but the worker can resolve clicks for any prefix
+ * (useful when an editor changes the website's `link_proxy_path`
+ * mid-deploy: in-flight cached pages with the old prefix still
+ * work).
+ *
+ * Add localised variants here (`voir`, `infos`, `visite`,
+ * `sortir`, `aller` for French; `ver`, `detalles`, `enlace` for
+ * Spanish; …) when the CMS enum gains them.
+ */
+export const AFFILIATE_PROXY_PREFIXES = new Set([
+    'view',
+    'details',
+    'info',
+    'visit',
+    'out',
+    'go',
+] as const);
+
+/**
+ * Extract `(prefix, id)` from a URL pathname when it matches the
+ * affiliate redirect shape — exactly two path segments, the first
+ * being an allow-listed prefix.
+ *
+ * Returns null on every other URL shape so the middleware can fall
+ * through to the normal page routing.
+ */
+export function matchAffiliateClickPath(pathname: string): { prefix: string; id: string } | null {
+    const segments = pathname.split('/').filter(Boolean);
+    if (segments.length !== 2) {
+        return null;
     }
+    const [prefix, id] = segments;
+    if (!AFFILIATE_PROXY_PREFIXES.has(prefix as never)) {
+        return null;
+    }
+    if (!id || id.length === 0) {
+        return null;
+    }
+    return { prefix, id };
+}
 
-    const linkMap = await loadLinkMap(url.origin);
+/**
+ * Resolve a single click and produce the redirect Response.
+ * Caller (middleware) has already matched the URL shape via
+ * `matchAffiliateClickPath` and knows it has a valid `id`.
+ */
+export async function redirectClick(args: {
+    id: string;
+    request: Request;
+    origin: string;
+}): Promise<Response> {
+    const { id, request, origin } = args;
+
+    const linkMap = await loadLinkMap(origin);
     if (!linkMap) {
         return new Response('Link map unavailable', { status: 503 });
     }
@@ -72,4 +122,4 @@ export const handleAffiliateRedirect: APIRoute = async ({ params, request, url }
             'Cache-Control': 'no-store',
         },
     });
-};
+}
