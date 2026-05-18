@@ -135,7 +135,7 @@ function pickLabels(locale: string): ComparisonLabels {
     return LABELS[lang] ?? LABELS.en;
 }
 
-function buildRow(group: RawGroup, locale: string): ComparisonRow {
+function buildRow(group: RawGroup, locale: string, linkProxyPath: string): ComparisonRow {
     const df = group.display_features ?? {};
 
     return {
@@ -152,20 +152,24 @@ function buildRow(group: RawGroup, locale: string): ComparisonRow {
         priceText: formatPrice(group.price_eur, locale),
         ratingText: formatRating(group.rating, group.review_count, locale),
         providerLabel: group.provider_label?.trim() || null,
-        ctaHref: pickCtaHref(group),
+        ctaHref: pickCtaHref(group, linkProxyPath),
         imageUrl: group.image_url || null,
     };
 }
 
 /**
- * `/go/{click_id}` if the AffiliateLinkGenerator has minted a tracked
- * id, the raw partner_url otherwise. Same-origin path stays out of
- * the partner's Referer header (paired with `referrerpolicy="origin"`
- * on the link tag below), keeping the tracker invisible to crawlers.
+ * `/${linkProxyPath}/{click_id}` if the AffiliateLinkGenerator has
+ * minted a tracked id, the raw partner_url otherwise. The prefix
+ * varies per website (`visit` / `details` / `info` / `excursion` /
+ * `out` / `go`) — set by the CMS `ExperimentsResolver` and read
+ * from `tenant.experiments.link_proxy_path` by the calling theme.
+ * Same-origin path stays out of the partner's Referer header
+ * (paired with `referrerpolicy="origin"` on the link tag), keeping
+ * the tracker invisible to crawlers.
  */
-function pickCtaHref(group: RawGroup): string | null {
+function pickCtaHref(group: RawGroup, linkProxyPath: string): string | null {
     if (group.click_id) {
-        return `/go/${group.click_id}`;
+        return `/${linkProxyPath}/${group.click_id}`;
     }
     return group.partner_url || null;
 }
@@ -175,16 +179,25 @@ function pickCtaHref(group: RawGroup): string | null {
  * presentation-ready shape — themes consume the result without
  * touching parsing, label translation, or formatters.
  *
+ * `linkProxyPath` controls the URL prefix the CTA href uses for
+ * affiliate redirects (`'visit'` produces `/visit/{click_id}`, etc.).
+ * Default `'go'` matches the legacy single-prefix setup so
+ * deployments without the experiments framework still work.
+ *
  * Empty / malformed groups (no label AND no title) are dropped so
  * themes don't have to defend against bogus rows.
  */
-export function parseComparison(content: unknown, locale: string): ParsedComparison {
+export function parseComparison(
+    content: unknown,
+    locale: string,
+    linkProxyPath: string = 'go',
+): ParsedComparison {
     const raw = (content ?? {}) as RawContent;
     const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title));
 
     return {
         heading: raw.heading?.trim() || null,
-        rows: groups.map((g) => buildRow(g, locale)),
+        rows: groups.map((g) => buildRow(g, locale, linkProxyPath)),
         labels: pickLabels(locale),
     };
 }

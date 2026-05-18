@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { parseComparison } from '../src/lib/blocks/comparison.ts';
 
-test('ctaHref: routes through /go/{click_id} when present', () => {
+test('ctaHref: routes through /go/{click_id} by default (no proxy path)', () => {
     const out = parseComparison(
         {
             groups: [
@@ -29,6 +29,41 @@ test('ctaHref: routes through /go/{click_id} when present', () => {
         'fr',
     );
     assert.equal(out.rows[0].ctaHref, '/go/edf0bf830883');
+});
+
+test('ctaHref: honours tenant link_proxy_path override', () => {
+    const out = parseComparison(
+        {
+            groups: [
+                {
+                    key: 'standard',
+                    label: 'Standard',
+                    title: 'Colosseum',
+                    click_id: 'edf0bf830883',
+                },
+            ],
+        },
+        'fr',
+        'visit',
+    );
+    assert.equal(out.rows[0].ctaHref, '/visit/edf0bf830883');
+});
+
+test('ctaHref: any of the six allowed prefix values plug in', () => {
+    const cases: Array<['visit' | 'details' | 'info' | 'excursion' | 'out' | 'go', string]> = [
+        ['details', '/details/abc'],
+        ['info', '/info/abc'],
+        ['excursion', '/excursion/abc'],
+        ['out', '/out/abc'],
+    ];
+    for (const [prefix, expected] of cases) {
+        const out = parseComparison(
+            { groups: [{ key: 'k', label: 'l', title: 't', click_id: 'abc' }] },
+            'fr',
+            prefix,
+        );
+        assert.equal(out.rows[0].ctaHref, expected);
+    }
 });
 
 test('ctaHref: falls back to partner_url when click_id is absent (legacy content)', () => {

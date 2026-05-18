@@ -9,7 +9,8 @@ interface Props {
 
 const { block } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
-const { heading, rows, labels } = parseComparison(block.content, locale);
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath);
 const publishedAt = Astro.locals.pagePublishedAt ?? null;
 const relativeUpdated = formatRelativeDate(publishedAt, locale);
 const absoluteUpdated = formatDate(publishedAt, locale);
