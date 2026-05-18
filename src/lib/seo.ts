@@ -134,11 +134,19 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
 
         for (const node of breadcrumb) {
             const href = pageUrl(tenant, locale, node.slug);
+            // Skip ancestor nodes that resolve to no URL — Google's
+            // BreadcrumbList rich result drops entries without `item`
+            // anyway, and including them only fragments the displayed
+            // crumb path in the SERP. Container/hub pages without a
+            // translation (CMS data state) are the typical cause.
+            if (!href) {
+                continue;
+            }
             itemListElement.push({
                 '@type': 'ListItem',
                 position: itemListElement.length + 1,
                 name: node.title,
-                item: href ?? undefined,
+                item: href,
             });
         }
 
