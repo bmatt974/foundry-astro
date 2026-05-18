@@ -68,8 +68,8 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
                                 {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
                             </div>
-                            {row.partnerUrl && (
-                                <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                            {row.ctaHref && (
+                                <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
                                     {labels.cta}
                                 </a>
                             )}
@@ -113,8 +113,8 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
                             </td>
                             <td class="p-3">
-                                {row.partnerUrl && (
-                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="brand-bg-primary inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                {row.ctaHref && (
+                                    <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="brand-bg-primary inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
                                         {labels.cta}
                                     </a>
                                 )}

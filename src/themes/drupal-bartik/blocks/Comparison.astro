@@ -52,8 +52,8 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 {row.ratingText && <div class="views-field__rating">{row.ratingText}</div>}
                             </td>
                             <td class="views-field views-field--cta">
-                                {row.partnerUrl && (
-                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="button button--primary">
+                                {row.ctaHref && (
+                                    <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="button button--primary">
                                         {labels.cta}
                                     </a>
                                 )}

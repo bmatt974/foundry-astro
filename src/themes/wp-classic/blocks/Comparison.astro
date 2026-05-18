@@ -52,8 +52,8 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 {row.ratingText && <div class="wp-block-comparison-table__rating">{row.ratingText}</div>}
                             </td>
                             <td>
-                                {row.partnerUrl && (
-                                    <a href={row.partnerUrl} target="_blank" rel="noopener noreferrer sponsored" class="wp-block-button__link">
+                                {row.ctaHref && (
+                                    <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="wp-block-button__link">
                                         {labels.cta}
                                     </a>
                                 )}
