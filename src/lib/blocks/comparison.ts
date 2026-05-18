@@ -160,7 +160,7 @@ function buildRow(group: RawGroup, locale: string, linkProxyPath: string): Compa
 /**
  * `/${linkProxyPath}/{click_id}` if the AffiliateLinkGenerator has
  * minted a tracked id, the raw partner_url otherwise. The prefix
- * varies per website (`visit` / `details` / `info` / `excursion` /
+ * varies per website (`view` / `details` / `info` / `visit` /
  * `out` / `go`) — set by the CMS `ExperimentsResolver` and read
  * from `tenant.experiments.link_proxy_path` by the calling theme.
  * Same-origin path stays out of the partner's Referer header

@@ -179,7 +179,7 @@ export interface Website {
  */
 export type Posture = 'whitehat' | 'greyhat' | 'blackhat';
 export type JsonLdLevel = 'none' | 'article_only' | 'cms_standard' | 'wp_blog_full' | 'tourist_entity';
-export type LinkProxyPath = 'visit' | 'details' | 'info' | 'excursion' | 'out' | 'go';
+export type LinkProxyPath = 'view' | 'details' | 'info' | 'visit' | 'out' | 'go';
 
 /**
  * Per-website experimental axes resolved server-side by Foundry's

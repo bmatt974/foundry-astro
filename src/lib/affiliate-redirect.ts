@@ -1,7 +1,7 @@
 /**
  * Shared SSR handler used by every per-site affiliate redirect
  * route (`/go/[id]`, `/visit/[id]`, `/details/[id]`, `/info/[id]`,
- * `/excursion/[id]`, `/out/[id]`). Each `src/pages/<prefix>/[id].ts`
+ * `/view/[id]`, `/out/[id]`). Each `src/pages/<prefix>/[id].ts`
  * re-exports `GET` from here — the actual logic lives once.
  *
  * Why one route file per prefix instead of a single catch-all

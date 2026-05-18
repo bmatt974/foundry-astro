@@ -50,10 +50,10 @@ test('ctaHref: honours tenant link_proxy_path override', () => {
 });
 
 test('ctaHref: any of the six allowed prefix values plug in', () => {
-    const cases: Array<['visit' | 'details' | 'info' | 'excursion' | 'out' | 'go', string]> = [
+    const cases: Array<['view' | 'details' | 'info' | 'visit' | 'out' | 'go', string]> = [
         ['details', '/details/abc'],
         ['info', '/info/abc'],
-        ['excursion', '/excursion/abc'],
+        ['view', '/view/abc'],
         ['out', '/out/abc'],
     ];
     for (const [prefix, expected] of cases) {
