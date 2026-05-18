@@ -21,7 +21,9 @@ const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
             )}
             {breadcrumb.map((node) => (
                 <li class="wp-block-post-breadcrumbs__item">
-                    <a href={`/${locale}/${node.slug ?? ''}`} class="wp-block-link">{node.title}</a>
+                    {node.slug
+                        ? <a href={`/${locale}/${node.slug}`} class="wp-block-link">{node.title}</a>
+                        : <span>{node.title}</span>}
                 </li>
             ))}
             {currentTitle && (
