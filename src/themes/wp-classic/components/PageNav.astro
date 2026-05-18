@@ -11,37 +11,42 @@ interface Props {
 }
 
 const { locale, nav } = Astro.props;
-const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+
+const hasSlug = (n: NavNode): boolean => typeof n.slug === 'string' && n.slug.length > 0;
+const parent = nav.parent && hasSlug(nav.parent) ? nav.parent : null;
+const children = nav.children.filter(hasSlug);
+const siblings = nav.siblings.filter(hasSlug);
+const hasContent = parent !== null || children.length > 0 || siblings.length > 0;
 ---
 
 {hasContent && (
     <nav class="wp-block-post-navigation" aria-label="Page navigation">
-        {nav.parent && (
+        {parent && (
             <div class="wp-block-post-navigation__group">
                 <p class="wp-block-post-navigation__heading">↑ Parent</p>
                 <p>
-                    <a href={`/${locale}/${nav.parent.slug ?? ''}`} class="wp-block-link">
-                        {nav.parent.title}
+                    <a href={`/${locale}/${parent.slug}`} class="wp-block-link">
+                        {parent.title}
                     </a>
                 </p>
             </div>
         )}
-        {nav.children.length > 0 && (
+        {children.length > 0 && (
             <div class="wp-block-post-navigation__group">
                 <p class="wp-block-post-navigation__heading">Sous-pages</p>
                 <ul class="wp-block-post-navigation__list">
-                    {nav.children.map((c) => (
-                        <li><a href={`/${locale}/${c.slug ?? ''}`} class="wp-block-link">{c.title}</a></li>
+                    {children.map((c) => (
+                        <li><a href={`/${locale}/${c.slug}`} class="wp-block-link">{c.title}</a></li>
                     ))}
                 </ul>
             </div>
         )}
-        {nav.siblings.length > 0 && (
+        {siblings.length > 0 && (
             <div class="wp-block-post-navigation__group">
                 <p class="wp-block-post-navigation__heading">À voir aussi</p>
                 <ul class="wp-block-post-navigation__list">
-                    {nav.siblings.map((s) => (
-                        <li><a href={`/${locale}/${s.slug ?? ''}`} class="wp-block-link">{s.title}</a></li>
+                    {siblings.map((s) => (
+                        <li><a href={`/${locale}/${s.slug}`} class="wp-block-link">{s.title}</a></li>
                     ))}
                 </ul>
             </div>

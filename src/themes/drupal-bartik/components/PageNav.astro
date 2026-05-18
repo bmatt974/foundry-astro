@@ -11,35 +11,40 @@ interface Props {
 }
 
 const { locale, nav } = Astro.props;
-const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+
+const hasSlug = (n: NavNode): boolean => typeof n.slug === 'string' && n.slug.length > 0;
+const parent = nav.parent && hasSlug(nav.parent) ? nav.parent : null;
+const children = nav.children.filter(hasSlug);
+const siblings = nav.siblings.filter(hasSlug);
+const hasContent = parent !== null || children.length > 0 || siblings.length > 0;
 ---
 
 {hasContent && (
     <nav class="block block--system-page-navigation" aria-label="Page navigation">
-        {nav.parent && (
+        {parent && (
             <div class="block--system-page-navigation__group">
                 <p class="block--system-page-navigation__heading">↑ Parent</p>
                 <p>
-                    <a href={`/${locale}/${nav.parent.slug ?? ''}`}>{nav.parent.title}</a>
+                    <a href={`/${locale}/${parent.slug}`}>{parent.title}</a>
                 </p>
             </div>
         )}
-        {nav.children.length > 0 && (
+        {children.length > 0 && (
             <div class="block--system-page-navigation__group">
                 <p class="block--system-page-navigation__heading">Sous-pages</p>
                 <ul class="block--system-page-navigation__list">
-                    {nav.children.map((c) => (
-                        <li><a href={`/${locale}/${c.slug ?? ''}`}>{c.title}</a></li>
+                    {children.map((c) => (
+                        <li><a href={`/${locale}/${c.slug}`}>{c.title}</a></li>
                     ))}
                 </ul>
             </div>
         )}
-        {nav.siblings.length > 0 && (
+        {siblings.length > 0 && (
             <div class="block--system-page-navigation__group">
                 <p class="block--system-page-navigation__heading">À voir aussi</p>
                 <ul class="block--system-page-navigation__list">
-                    {nav.siblings.map((s) => (
-                        <li><a href={`/${locale}/${s.slug ?? ''}`}>{s.title}</a></li>
+                    {siblings.map((s) => (
+                        <li><a href={`/${locale}/${s.slug}`}>{s.title}</a></li>
                     ))}
                 </ul>
             </div>

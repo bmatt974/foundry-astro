@@ -1,4 +1,16 @@
 ---
+/**
+ * Sub-page navigation footer — parent, children, siblings of the
+ * current page. Drops any node whose slug is null/empty for the
+ * current locale: those pages are not navigable (no translation,
+ * or translation in draft) and surfacing them as broken links would
+ * funnel readers to `/{locale}/` (the home).
+ *
+ * Filtering policy differs from `Breadcrumb`: the breadcrumb keeps
+ * unreachable hubs visible as plain text so the structural chain is
+ * preserved for the reader; the nav-footer is purely a "where to go
+ * next" list, so unreachable entries have no place in it.
+ */
 import type { NavNode } from '../../../lib/foundry';
 
 interface Props {
@@ -11,35 +23,40 @@ interface Props {
 }
 
 const { locale, nav } = Astro.props;
-const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+
+const hasSlug = (n: NavNode): boolean => typeof n.slug === 'string' && n.slug.length > 0;
+const parent = nav.parent && hasSlug(nav.parent) ? nav.parent : null;
+const children = nav.children.filter(hasSlug);
+const siblings = nav.siblings.filter(hasSlug);
+const hasContent = parent !== null || children.length > 0 || siblings.length > 0;
 ---
 
 {hasContent && (
     <nav class="brand-border brand-text-muted mt-16 border-t pt-6 text-sm">
-        {nav.parent && (
+        {parent && (
             <p class="mb-2">
-                ↑ <a href={`/${locale}/${nav.parent.slug ?? ''}`} class="brand-link">{nav.parent.title}</a>
+                ↑ <a href={`/${locale}/${parent.slug}`} class="brand-link">{parent.title}</a>
             </p>
         )}
-        {nav.children.length > 0 && (
+        {children.length > 0 && (
             <div class="mb-4">
                 <p class="mb-2 font-medium">Sous-pages</p>
                 <ul class="list-disc pl-5">
-                    {nav.children.map((c) => (
+                    {children.map((c) => (
                         <li>
-                            <a href={`/${locale}/${c.slug ?? ''}`} class="brand-link">{c.title}</a>
+                            <a href={`/${locale}/${c.slug}`} class="brand-link">{c.title}</a>
                         </li>
                     ))}
                 </ul>
             </div>
         )}
-        {nav.siblings.length > 0 && (
+        {siblings.length > 0 && (
             <div>
                 <p class="mb-2 font-medium">À voir aussi</p>
                 <ul class="list-disc pl-5">
-                    {nav.siblings.map((s) => (
+                    {siblings.map((s) => (
                         <li>
-                            <a href={`/${locale}/${s.slug ?? ''}`} class="brand-link">{s.title}</a>
+                            <a href={`/${locale}/${s.slug}`} class="brand-link">{s.title}</a>
                         </li>
                     ))}
                 </ul>
