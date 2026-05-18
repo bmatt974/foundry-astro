@@ -22,3 +22,9 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# Per-site affiliate link map — generated at deploy time by the CMS
+# `affiliate:export-link-map` artisan command and copied into place
+# during the regen pipeline. Never committed (varies per environment
+# and per-site, and contains tracking sub-IDs).
+public/_data/links.json
