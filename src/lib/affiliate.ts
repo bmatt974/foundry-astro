@@ -127,3 +127,84 @@ export function pickTarget(entry: LinkEntry, country: string | null): ResolvedTa
     }
     return { ...entry.default, geo_rule_idx: -1 };
 }
+
+/**
+ * Best-effort UA family extraction. Avoids pulling a 500KB UA-parser
+ * dep into every worker — a handful of regex covers ~95% of real
+ * traffic, the long tail rolls up into "Other" without hurting the
+ * dashboard. Order matters: Edge ships a Chrome UA so it must match
+ * first.
+ */
+export function parseUaFamily(ua: string | null): string | null {
+    if (!ua) {
+        return null;
+    }
+    if (/EdgA?\//.test(ua)) {
+        return 'Edge';
+    }
+    if (/OPR\/|Opera\//.test(ua)) {
+        return 'Opera';
+    }
+    if (/Chrome\//.test(ua)) {
+        return 'Chrome';
+    }
+    if (/Firefox\//.test(ua)) {
+        return 'Firefox';
+    }
+    if (/Safari\//.test(ua)) {
+        return 'Safari';
+    }
+    if (/bot|crawl|spider|slurp/i.test(ua)) {
+        return 'Bot';
+    }
+    return 'Other';
+}
+
+/**
+ * Pull just the host from a Referer header value, dropping path /
+ * query. Returns null on missing / malformed referer — never throws.
+ * Stored alongside the click for "which sites send us traffic"
+ * dashboards without leaking the visitor's full browsing context.
+ */
+export function parseRefererHost(referer: string | null): string | null {
+    if (!referer) {
+        return null;
+    }
+    try {
+        return new URL(referer).host || null;
+    } catch {
+        return null;
+    }
+}
+
+export interface ClickEventPayload {
+    click_id: string;
+    website_id?: number | null;
+    platform_id?: number | null;
+    country?: string | null;
+    ua_family?: string | null;
+    referer_host?: string | null;
+    geo_rule_idx?: number | null;
+}
+
+/**
+ * Fire-and-forget beacon to the Foundry collector. Uses
+ * `keepalive: true` so the request survives the 302 navigation the
+ * worker is about to issue — even if the browser tears the page
+ * down right after the click. The promise is intentionally not
+ * awaited; the redirect must not wait on analytics.
+ *
+ * Returns the in-flight promise only so tests can verify the call
+ * shape — callers in production drop the return value with `void`.
+ */
+export function sendClickEvent(
+    collectorUrl: string,
+    payload: ClickEventPayload,
+): Promise<Response> {
+    return fetch(collectorUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+    });
+}

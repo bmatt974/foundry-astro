@@ -19,7 +19,14 @@
  * the click.
  */
 import type { APIRoute } from 'astro';
-import { getVisitorCountry, loadLinkMap, pickTarget } from '../../lib/affiliate';
+import {
+    getVisitorCountry,
+    loadLinkMap,
+    parseRefererHost,
+    parseUaFamily,
+    pickTarget,
+    sendClickEvent,
+} from '../../lib/affiliate';
 
 export const prerender = false;
 
@@ -42,12 +49,24 @@ export const GET: APIRoute = async ({ params, request, url }) => {
     const country = getVisitorCountry(request.headers);
     const target = pickTarget(entry, country);
 
-    // Fire-and-forget beacon to the collector. Stub for now — sprint 4
-    // will swap the body for the real envelope and the URL for the
-    // configured collector endpoint. Errors are swallowed so analytics
-    // never blocks the redirect.
-    //
-    // TODO(sprint 4): emitClickEvent({...});
+    // Fire-and-forget beacon to the Foundry collector. `keepalive: true`
+    // inside `sendClickEvent` keeps the request alive across the 302,
+    // and the `.catch()` keeps the redirect path immune to collector
+    // outages — analytics never blocks a click.
+    const collectorUrl = import.meta.env.FOUNDRY_API_URL
+        ? `${import.meta.env.FOUNDRY_API_URL}/events/clicks`
+        : null;
+    if (collectorUrl) {
+        sendClickEvent(collectorUrl, {
+            click_id: id,
+            website_id: linkMap.site.id,
+            platform_id: target.platform_id,
+            country,
+            ua_family: parseUaFamily(request.headers.get('user-agent')),
+            referer_host: parseRefererHost(request.headers.get('referer')),
+            geo_rule_idx: target.geo_rule_idx,
+        }).catch(() => { /* fire-and-forget */ });
+    }
 
     return new Response(null, {
         status: 302,

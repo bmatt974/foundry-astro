@@ -12,7 +12,10 @@ import {
     __resetLinkMapCache,
     getVisitorCountry,
     loadLinkMap,
+    parseRefererHost,
+    parseUaFamily,
     pickTarget,
+    sendClickEvent,
     type LinkEntry,
 } from '../src/lib/affiliate.ts';
 
@@ -154,6 +157,94 @@ test('loadLinkMap: returns null on network failure', async () => {
     try {
         const m = await loadLinkMap('http://example.test');
         assert.equal(m, null);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+// ──────────────────────────────────────────────
+// parseUaFamily — best-effort browser bucketing for the dashboard
+// ──────────────────────────────────────────────
+
+test('parseUaFamily: Chrome on macOS', () => {
+    const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    assert.equal(parseUaFamily(ua), 'Chrome');
+});
+
+test('parseUaFamily: Safari (no Chrome token)', () => {
+    const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
+    assert.equal(parseUaFamily(ua), 'Safari');
+});
+
+test('parseUaFamily: Firefox', () => {
+    const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0';
+    assert.equal(parseUaFamily(ua), 'Firefox');
+});
+
+test('parseUaFamily: Edge wins over Chrome token', () => {
+    const ua = 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0';
+    assert.equal(parseUaFamily(ua), 'Edge');
+});
+
+test('parseUaFamily: Bot detection', () => {
+    assert.equal(parseUaFamily('Googlebot/2.1 (+http://www.google.com/bot.html)'), 'Bot');
+    assert.equal(parseUaFamily('AhrefsBot/7.0'), 'Bot');
+});
+
+test('parseUaFamily: null / unknown UA', () => {
+    assert.equal(parseUaFamily(null), null);
+    assert.equal(parseUaFamily('curl/8.7.1'), 'Other');
+});
+
+// ──────────────────────────────────────────────
+// parseRefererHost — host-only extraction for technical analytics
+// ──────────────────────────────────────────────
+
+test('parseRefererHost: extracts host from valid URL', () => {
+    assert.equal(parseRefererHost('https://site-a.foundry-astro.test/fr/le-colisee'), 'site-a.foundry-astro.test');
+});
+
+test('parseRefererHost: keeps port if non-default', () => {
+    assert.equal(parseRefererHost('http://localhost:4321/page'), 'localhost:4321');
+});
+
+test('parseRefererHost: null on missing / malformed', () => {
+    assert.equal(parseRefererHost(null), null);
+    assert.equal(parseRefererHost(''), null);
+    assert.equal(parseRefererHost('not a url'), null);
+});
+
+// ──────────────────────────────────────────────
+// sendClickEvent — beacon shape
+// ──────────────────────────────────────────────
+
+test('sendClickEvent: POSTs JSON with keepalive', async () => {
+    const originalFetch = globalThis.fetch;
+    const captured: { url: string; init: RequestInit }[] = [];
+    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+        captured.push({ url: String(url), init: init ?? {} });
+        return new Response(null, { status: 204 });
+    }) as typeof fetch;
+
+    try {
+        const r = await sendClickEvent('http://cms.test/api/v1/events/clicks', {
+            click_id: 'abc123',
+            website_id: 3,
+            country: 'FR',
+            geo_rule_idx: -1,
+        });
+        assert.equal(r.status, 204);
+        assert.equal(captured.length, 1, 'fetch was called once');
+        const call = captured[0];
+        assert.equal(call.url, 'http://cms.test/api/v1/events/clicks');
+        assert.equal(call.init.method, 'POST');
+        assert.equal(call.init.keepalive, true, 'keepalive enabled for redirect survival');
+
+        const body = JSON.parse(String(call.init.body));
+        assert.equal(body.click_id, 'abc123');
+        assert.equal(body.website_id, 3);
+        assert.equal(body.country, 'FR');
+        assert.equal(body.geo_rule_idx, -1);
     } finally {
         globalThis.fetch = originalFetch;
     }
