@@ -330,31 +330,6 @@ export async function fetchWebsiteByHost(host: string): Promise<TenantResolution
 }
 
 /**
- * Optional surgical-regen filter, sourced from the env at build time.
- * When set, `getStaticPaths()` in the prerendered routes will only
- * emit the matching entries — everything else is skipped, so a build
- * with this env touches only the listed HTML files on disk.
- *
- * Format: comma-separated list of keys, where each key is:
- *   - "locale/path"  → matches `/[locale]/[...path]` (e.g. "fr/colisee")
- *   - "locale/"      → matches `/[locale]/` landing (e.g. "fr/")
- *
- * Returns `null` when the env is unset (full build).
- */
-export function buildPathsFilter(): Set<string> | null {
-    const raw = import.meta.env.WEBSITE_BUILD_PATHS;
-    if (!raw) {
-        return null;
-    }
-    const entries = raw
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
-    return entries.length > 0 ? new Set(entries) : null;
-}
-
-/**
  * Optional locale filter, sourced from the env at build time. When set,
  * `getStaticPaths()` only emits paths for those locales — the unlisted
  * locales' subtrees are skipped entirely.
@@ -366,40 +341,6 @@ export function buildPathsFilter(): Set<string> | null {
  * Returns `null` when unset (= include every enabled locale of the
  * website).
  */
-/**
- * Strip leading `/` from a path_prefix so route filenames + URLs
- * compose cleanly. Returns an empty string when null/empty —
- * caller checks for that to detect "mounted at root".
- */
-export function normalisedPathPrefix(locale: WebsiteLocale): string {
-    if (!locale.path_prefix) {
-        return '';
-    }
-
-    return locale.path_prefix.replace(/^\/+/, '').replace(/\/+$/, '');
-}
-
-/**
- * Locales that render WITHOUT a URL prefix — used by the root-level
- * route files (`src/pages/index.astro`, `src/pages/[...path].astro`,
- * etc.). Covers three routing modes: default-at-root, sub-domain
- * (each locale has its own hostname, no prefix), and different TLD.
- */
-export function localesAtRoot(locales: ReadonlyArray<WebsiteLocale>): WebsiteLocale[] {
-    return locales.filter((l) => l.enabled && normalisedPathPrefix(l) === '');
-}
-
-/**
- * Locales that render UNDER a `/{prefix}` URL segment — used by the
- * locale-prefixed route files (`src/pages/[locale]/...`). Together
- * with `localesAtRoot` they partition the enabled-locale set, so
- * the root-level and prefixed routes emit non-overlapping path
- * sets and never collide on the same URL.
- */
-export function localesWithPathPrefix(locales: ReadonlyArray<WebsiteLocale>): WebsiteLocale[] {
-    return locales.filter((l) => l.enabled && normalisedPathPrefix(l) !== '');
-}
-
 export function buildLocalesFilter(): Set<string> | null {
     const raw = import.meta.env.WEBSITE_BUILD_LOCALES;
     if (!raw) {
@@ -553,6 +494,126 @@ export async function fetchAuthorDetail(
     return fetchJson<AuthorDetail>(
         `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/authors/${encodeURIComponent(slug)}`,
     );
+}
+
+/**
+ * Entry from the sitemap-urls endpoint. Each row describes one
+ * public URL the website serves with everything the Astro catch-all
+ * route needs to dispatch rendering (no second round-trip per URL).
+ *
+ * `kind === 'redirect'` rows carry an extra `target` + `status` —
+ * the catch-all renders these as HTTP 301/302 via Astro.redirect()
+ * so existing inbound links to renamed pages keep working. Source:
+ * `page_translations.previous_slugs` + `authors.previous_slugs`,
+ * maintained by an Eloquent observer on slug rename.
+ */
+export interface SitemapUrl {
+    /** Leading slash, no host — e.g. `/fr/auteurs/sophie`. */
+    path: string;
+    kind: 'page' | 'author' | 'landing' | 'redirect';
+    locale: string;
+    /** `page:<id>` | `author:<slug>` | `landing:<locale>` | `redirect:page:<id>` | `redirect:author:<slug>`. */
+    ref: string;
+    /** Only set when `kind === 'redirect'` — the URL to redirect to. */
+    target?: string;
+    /** Only set when `kind === 'redirect'` — HTTP status (default 301). */
+    status?: 301 | 302 | 307 | 308;
+}
+
+/**
+ * Page through the sitemap-urls endpoint and return every entry as
+ * a flat list. Filters (refs, paths_glob, locale) are forwarded to
+ * the API. Pagination is invisible to callers — the helper loops
+ * until `meta.last_page`. At ~10k entries per page, a 1M-page site
+ * costs ~100 requests for a full enumeration; surgical-regen runs
+ * with `refs[]` finish in a single request.
+ */
+export async function fetchSitemapUrls(
+    hostname: string,
+    options: {
+        refs?: string[];
+        pathsGlob?: string[];
+        locale?: string;
+        perPage?: number;
+    } = {},
+): Promise<SitemapUrl[]> {
+    const perPage = options.perPage ?? 10000;
+    const baseQuery = new URLSearchParams();
+    for (const ref of options.refs ?? []) {
+        baseQuery.append('refs[]', ref);
+    }
+    for (const glob of options.pathsGlob ?? []) {
+        baseQuery.append('paths_glob[]', glob);
+    }
+    if (options.locale) {
+        baseQuery.set('locale', options.locale);
+    }
+    baseQuery.set('per_page', String(perPage));
+
+    const all: SitemapUrl[] = [];
+    let page = 1;
+    while (true) {
+        const query = new URLSearchParams(baseQuery);
+        query.set('page', String(page));
+        const response = await fetchJson<{
+            urls: SitemapUrl[];
+            meta: { page: number; per_page: number; total: number; last_page: number };
+        }>(
+            `/websites/${encodeURIComponent(hostname)}/sitemap-urls?${query.toString()}`,
+        );
+        if (response === null) {
+            return [];
+        }
+        all.push(...response.urls);
+        if (page >= response.meta.last_page) {
+            break;
+        }
+        page += 1;
+    }
+
+    return all;
+}
+
+/**
+ * Surgical-regen filter sourced from the env at build time. Replaces
+ * the old path-based `WEBSITE_BUILD_PATHS` with semantic entity
+ * refs:
+ *
+ *   WEBSITE_BUILD_REFS="page:185,author:sophie,landing:fr"
+ *
+ * Empty / unset → no filter (full sitemap). The CMS expands each
+ * ref into the full URL set (one URL per locale that has a
+ * translation), robust to slug renames.
+ */
+export function buildRefsFilter(): string[] {
+    const raw = import.meta.env.WEBSITE_BUILD_REFS;
+    if (!raw) {
+        return [];
+    }
+
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+}
+
+/**
+ * Wildcard-path surgical-regen filter for structural changes
+ * (e.g. URL section moved). Combined with refs filter when both
+ * are set.
+ *
+ *   WEBSITE_BUILD_PATHS_GLOB="*\/rome\/*,*\/paris\/*"
+ */
+export function buildPathsGlobFilter(): string[] {
+    const raw = import.meta.env.WEBSITE_BUILD_PATHS_GLOB;
+    if (!raw) {
+        return [];
+    }
+
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 }
 
 /**

@@ -156,5 +156,20 @@ test('every registered dictionary has the required keys', () => {
             dict.footer.affiliateDisclosure.linkText.length > 0,
             'affiliateDisclosure.linkText must be a non-empty string',
         );
+        assert.ok(dict.notFound.title.length > 0, 'notFound.title must be a non-empty string');
+        assert.ok(dict.notFound.body.length > 0, 'notFound.body must be a non-empty string');
+        assert.ok(dict.notFound.cta.length > 0, 'notFound.cta must be a non-empty string');
     }
+});
+
+test('notFound translation resolves per locale', () => {
+    assert.equal(__('notFound.title', 'fr'), 'Page introuvable');
+    assert.equal(__('notFound.title', 'en'), 'Page not found');
+});
+
+test('notFound title can be overridden by per-site wording', () => {
+    const t = useTranslations('fr', { 'notFound.title': 'Oups, perdu ?' });
+    assert.equal(t('notFound.title'), 'Oups, perdu ?');
+    // Other keys fall back to the dictionary.
+    assert.equal(t('notFound.cta'), "Retour à l'accueil");
 });

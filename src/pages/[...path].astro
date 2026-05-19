@@ -1,27 +1,41 @@
 ---
 /**
- * Root-level catch-all page route — handles every Foundry page whose
- * locale renders WITHOUT a URL prefix:
+ * Single catch-all route. The Foundry CMS owns the URL → entity
+ * map (via `sitemap-urls`) and tells Astro at build time what each
+ * URL should render. Astro stays purely a dispatcher — no locale
+ * resolution, no path parsing, no routing-mode logic.
  *
- *   - Sub-directory mode with the default locale at root:
- *     `/colosseum` (EN default), `/le-colisee` (locale = default).
- *   - Sub-domain mode: every URL on the sub-domain is unprefixed
- *     (the hostname pins the locale).
- *   - Different-TLD mode: same as sub-domain.
+ * Trade-offs (see corresponding CMS commit + strategy doc): anti-
+ * footprint wins (routing mode invisible from Astro), zero per-
+ * entity-type Astro code (adding `/tags/` or `/categories/` becomes
+ * API-only), at the cost of one extra round-trip for getStaticPaths
+ * and a less-explicit mapping from URL to handler.
  *
- * Locales WITH a path_prefix are served by `[locale]/[...path].astro`
- * — getStaticPaths in each route emits a disjoint set of URL paths,
- * so the two routes never compete for the same incoming URL.
- *
- * The Foundry middleware already resolves the active locale from the
- * URL (longest-prefix match against the tenant's locales, falling
- * back to the default locale when no prefix matches). This route
- * reads it from `Astro.locals.locale` and passes it to the API.
+ * Matches every URL the website serves including `/` (Astro's rest
+ * segment captures empty path → `params.path` is `''`).
  */
 export const prerender = true;
 
-import { buildPathsFilter, fetchPage, fetchSitemap, fetchWebsite, localesAtRoot } from '../lib/foundry';
+import { authorPath } from '../lib/author';
+import {
+    buildPathsGlobFilter,
+    buildRefsFilter,
+    fetchAuthorDetail,
+    fetchPage,
+    fetchSitemap,
+    fetchSitemapUrls,
+    type SitemapUrl,
+} from '../lib/foundry';
+import { pageUrl } from '../lib/seo';
 import { getTheme } from '../themes/registry';
+
+interface RouteProps {
+    kind: SitemapUrl['kind'];
+    locale: string;
+    ref: string;
+    target?: string;
+    status?: 301 | 302 | 307 | 308;
+}
 
 export async function getStaticPaths() {
     const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
@@ -29,62 +43,178 @@ export async function getStaticPaths() {
         return [];
     }
 
-    const website = await fetchWebsite(hostname);
-    if (!website) {
-        throw new Error(`Unknown WEBSITE_BUILD_HOSTNAME: ${hostname}`);
-    }
+    const urls = await fetchSitemapUrls(hostname, {
+        refs: buildRefsFilter(),
+        pathsGlob: buildPathsGlobFilter(),
+    });
 
-    const filter = buildPathsFilter();
-    const paths: Array<{ params: { path: string } }> = [];
-
-    // Only emit for locales without a path_prefix — locales with one
-    // ship their pages under `[locale]/[...path].astro` instead. The
-    // partition is enforced by `localesAtRoot` / `localesWithPathPrefix`.
-    for (const locale of localesAtRoot(website.locales)) {
-        const sitemap = await fetchSitemap(locale.locale, hostname);
-        const seen = new Set<string>();
-        for (const node of sitemap) {
-            const path = node.slug;
-            if (!path || seen.has(path)) {
-                continue;
-            }
-            if (filter && !filter.has(`${locale.locale}/${path}`)) {
-                continue;
-            }
-            seen.add(path);
-            paths.push({ params: { path } });
-        }
-    }
-
-    return paths;
+    return urls.map((url) => ({
+        // Strip leading and trailing slashes — Astro's rest param
+        // wants the relative path, so `/fr/colisee` → `'fr/colisee'`
+        // and `/` → `''`.
+        params: { path: url.path.replace(/^\/+/, '').replace(/\/+$/, '') },
+        props: {
+            kind: url.kind,
+            locale: url.locale,
+            ref: url.ref,
+            target: url.target,
+            status: url.status,
+        } satisfies RouteProps,
+    }));
 }
 
-const { path } = Astro.params;
+const { kind, locale, ref, target, status } = Astro.props as RouteProps;
 const tenant = Astro.locals.tenant;
-const locale = Astro.locals.locale;
-const page = await fetchPage(locale, path ?? '', tenant.website.hostname);
-if (!page) {
-    return new Response('Not found', { status: 404 });
+
+// Redirects short-circuit everything — emit an HTTP 301/302
+// (proper Location header) instead of rendering a page. The
+// underlying entity's CURRENT canonical URL is in `target`; the
+// CMS resolves transitive renames so the visitor takes ONE hop
+// regardless of how many times the slug has churned.
+if (kind === 'redirect' && target) {
+    return Astro.redirect(target, status ?? 301);
 }
-Astro.locals.pagePublishedAt = page.published_at ?? page.translation?.published_at ?? null;
+
+// Mirror the props-driven locale on `Astro.locals` so deep
+// components (Comparison block, formatters, byline) keep reading
+// from the same handle they already use.
+Astro.locals.locale = locale;
 
 const theme = getTheme(tenant.template);
-const { Layout, LocaleSwitcher, Seo, Article } = theme;
+const { Layout, LocaleSwitcher, LocaleLanding, Seo, Article, AuthorPage } = theme;
 
-const t = page.translation;
-const title = t?.meta_title ?? t?.title ?? 'Untitled';
-const description = t?.meta_description ?? t?.snippet ?? null;
+let pageData: Awaited<ReturnType<typeof fetchPage>> = null;
+let authorDetail: Awaited<ReturnType<typeof fetchAuthorDetail>> = null;
+let sitemap: Awaited<ReturnType<typeof fetchSitemap>> = [];
+
+if (kind === 'page') {
+    // The slug we hand to the API is the URL path WITHOUT the
+    // locale's path_prefix segment. Strip it explicitly so the API
+    // resolves against `page_translations.slug`, which doesn't
+    // carry the prefix.
+    const localeRow = tenant.locales.find((l) => l.locale === locale);
+    const prefix = localeRow?.path_prefix?.replace(/^\/+/, '').replace(/\/+$/, '') ?? '';
+    const fullPath = Astro.params.path ?? '';
+    const slug = prefix !== '' && fullPath.startsWith(`${prefix}/`)
+        ? fullPath.slice(prefix.length + 1)
+        : fullPath;
+    pageData = await fetchPage(locale, slug, tenant.website.hostname);
+    if (!pageData) {
+        return new Response('Page not found', { status: 404 });
+    }
+    Astro.locals.pagePublishedAt = pageData.published_at ?? pageData.translation?.published_at ?? null;
+} else if (kind === 'author') {
+    const slug = ref.startsWith('author:') ? ref.slice('author:'.length) : null;
+    if (!slug) {
+        return new Response('Bad author ref', { status: 500 });
+    }
+    authorDetail = await fetchAuthorDetail(locale, slug, tenant.website.hostname);
+    if (!authorDetail) {
+        return new Response('Author not found', { status: 404 });
+    }
+} else if (kind === 'landing') {
+    sitemap = await fetchSitemap(locale, tenant.website.hostname);
+}
+
+const pageTitle = pageData?.translation?.meta_title
+    ?? pageData?.translation?.title
+    ?? authorDetail?.identity?.name
+    ?? `${tenant.website.name} — ${locale}`;
+const pageDescription = pageData?.translation?.meta_description
+    ?? pageData?.translation?.snippet
+    ?? authorDetail?.identity?.bio_short
+    ?? authorDetail?.identity?.title
+    ?? null;
+
+// hreflang + canonical overrides for the author kind. Pages defer
+// to Seo's default logic (reads `page.available_locales`); the
+// landing kind has no per-locale alternate map (would need a
+// network-wide sitemap to compute correctly — future work).
+let authorAvailableLocales: { locale: string; slug: string }[] | undefined;
+let authorCanonical: string | undefined;
+if (kind === 'author' && authorDetail !== null) {
+    const teamEntry = tenant.team.find((author) => author.slug === authorDetail!.slug);
+    if (teamEntry) {
+        authorAvailableLocales = Object.keys(teamEntry.translations).map((translationLocale) => ({
+            locale: translationLocale,
+            slug: authorPath(translationLocale, authorDetail!.slug),
+        }));
+    }
+    authorCanonical = pageUrl(tenant, locale, authorPath(locale, authorDetail.slug)) ?? undefined;
+}
 ---
 
-<Layout title={title} description={description} locale={locale}>
-    <Seo slot="head" page={page} locale={locale} type="article" />
+<Layout title={pageTitle} description={pageDescription} locale={locale}>
+    {/* Flat structure so the slot= directives reach Layout directly.
+        Astro doesn't propagate slot= through Fragment wrappers, so
+        nesting these per-kind blocks inside <> </> drops the head. */}
 
-    <LocaleSwitcher
-        slot="locale-switcher"
-        currentLocale={locale}
-        websiteLocales={tenant.locales}
-        pageLocales={page.available_locales}
-    />
+    {kind === 'page' && pageData && (
+        <Seo slot="head" page={pageData} locale={locale} type="article" />
+    )}
+    {kind === 'author' && authorDetail && (
+        <Seo
+            slot="head"
+            page={null}
+            locale={locale}
+            type="website"
+            title={authorDetail.identity?.name ?? authorDetail.slug}
+            description={pageDescription ?? undefined}
+            availableLocales={authorAvailableLocales}
+            canonicalUrl={authorCanonical}
+        />
+    )}
+    {kind === 'landing' && (
+        <Seo slot="head" page={null} locale={locale} type="website" />
+    )}
 
-    <Article page={page} locale={locale} />
+    {kind === 'page' && pageData && (
+        <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={tenant.locales}
+            pageLocales={pageData.available_locales}
+        />
+    )}
+    {kind === 'author' && (
+        <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={tenant.locales}
+            pageLocales={authorAvailableLocales}
+        />
+    )}
+    {kind === 'landing' && (
+        <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={tenant.locales}
+        />
+    )}
+
+    {kind === 'page' && pageData && <Article page={pageData} locale={locale} />}
+    {kind === 'author' && authorDetail && (
+        <AuthorPage
+            author={{
+                slug: authorDetail.slug,
+                name: authorDetail.identity?.name ?? authorDetail.slug,
+                title: authorDetail.identity?.title ?? null,
+                bioShort: authorDetail.identity?.bio_short ?? null,
+                bio: authorDetail.identity?.bio ?? null,
+                photoUrl: authorDetail.photo_url,
+                externalUrl: authorDetail.external_url,
+                twitterHandle: authorDetail.twitter_handle,
+            }}
+            articles={authorDetail.articles}
+            locale={locale}
+        />
+    )}
+    {kind === 'landing' && (
+        <LocaleLanding
+            websiteName={tenant.website.name}
+            locale={locale}
+            isDefaultLocale={tenant.defaultLocale === locale}
+            sitemap={sitemap}
+        />
+    )}
 </Layout>

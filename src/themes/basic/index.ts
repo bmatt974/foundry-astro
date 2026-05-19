@@ -12,6 +12,7 @@ import Article from './Article.astro';
 import Layout from './Layout.astro';
 import AuthorPage from './components/AuthorPage.astro';
 import Block from './components/Block.astro';
+import NotFound from './components/NotFound.astro';
 import Breadcrumb from './components/Breadcrumb.astro';
 import Hero from './components/Hero.astro';
 import LocaleLanding from './components/LocaleLanding.astro';
@@ -51,6 +52,7 @@ const theme: Theme = {
     PreviewBanner,
     LocaleLanding,
     AuthorPage,
+    NotFound,
     css,
 };
 

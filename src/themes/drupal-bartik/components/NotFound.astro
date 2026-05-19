@@ -1,0 +1,30 @@
+---
+/**
+ * Drupal-style 404 — wraps in `region--content` + node/block class
+ * conventions so the markup reads like a stock Drupal Bartik 404.
+ */
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    locale: string;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const homeHref = `/${locale}/`;
+---
+
+<div class="region region--content">
+    <article class="node node--type-error node--view-mode-full">
+        <div class="field field--name-status-code">404</div>
+        <h1 class="page-title">
+            <span class="field field--name-title">{t('notFound.title')}</span>
+        </h1>
+        <div class="text-formatted">
+            <p>{t('notFound.body')}</p>
+        </div>
+        <p class="more-link">
+            <a class="button button--primary" href={homeHref}>{t('notFound.cta')} →</a>
+        </p>
+    </article>
+</div>
