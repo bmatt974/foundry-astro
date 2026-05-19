@@ -8,17 +8,25 @@ import type { Author, AuthorTranslation } from './foundry';
 import { __ } from './i18n/index.ts';
 
 /**
- * Build the public author profile URL — locale-aware prefix
- * ("authors" in EN, "auteurs" in FR, "autores" in ES, …) read from
- * the i18n dictionary's `routes.authorsPrefix` so two sister sites
- * in the network don't share a network-wide-identical `/authors/`
- * literal path. Anti-footprint contract: every locale renders its
- * native segment, never an English-default fallback.
+ * Locale-aware path SEGMENT for an author profile — the part after
+ * `/{locale}/`. Useful when building `pageLocales` for the
+ * LocaleSwitcher (which prepends the locale itself).
+ *
+ *   authorPath('fr', 'sophie') → 'auteurs/sophie'
+ *   authorPath('en', 'sophie') → 'authors/sophie'
+ */
+export function authorPath(locale: string, slug: string): string {
+    return `${__('routes.authorsPrefix', locale)}/${slug}`;
+}
+
+/**
+ * Full public URL for an author profile — locale prefix + path.
+ * Anti-footprint contract: every locale renders its native segment
+ * ("authors" / "auteurs" / "autores" …), never an English-default
+ * fallback. Read from the i18n dictionary's `routes.authorsPrefix`.
  */
 export function authorUrl(locale: string, slug: string): string {
-    const prefix = __('routes.authorsPrefix', locale);
-
-    return `/${locale}/${prefix}/${slug}`;
+    return `/${locale}/${authorPath(locale, slug)}`;
 }
 
 /**

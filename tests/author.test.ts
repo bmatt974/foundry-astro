@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import {
+    authorPath,
     authorSameAsLinks,
     authorUrl,
     formatBylineNames,
@@ -134,7 +135,22 @@ test('formatBylineNames: three+ authors uses separator + final conjunction', () 
     );
 });
 
-// ─── authorUrl (localized prefix) ───────────────────────────────
+// ─── authorPath + authorUrl (localized prefix) ──────────────────
+
+test('authorPath: returns locale-aware path segment without locale prefix', () => {
+    assert.equal(authorPath('en', 'jane'), 'authors/jane');
+    assert.equal(authorPath('fr', 'sophie'), 'auteurs/sophie');
+});
+
+test('authorPath: region tag still picks the base-locale prefix', () => {
+    assert.equal(authorPath('fr-CA', 'sophie'), 'auteurs/sophie');
+});
+
+test('authorPath: unknown locale falls back to EN prefix', () => {
+    // 'zz' isn't registered — i18n falls back to EN, so the path
+    // stays well-formed.
+    assert.equal(authorPath('zz', 'jane'), 'authors/jane');
+});
 
 test('authorUrl: EN uses "authors" prefix', () => {
     assert.equal(authorUrl('en', 'jane'), '/en/authors/jane');
@@ -145,13 +161,48 @@ test('authorUrl: FR uses "auteurs" prefix', () => {
 });
 
 test('authorUrl: unknown locale falls back to EN dictionary', () => {
-    // 'zz' isn't a registered locale — i18n falls back to EN so the
-    // path stays well-formed instead of breaking the build.
     assert.equal(authorUrl('zz', 'jane'), '/zz/authors/jane');
 });
 
 test('authorUrl: region tag (fr-CA) strips to fr prefix', () => {
     assert.equal(authorUrl('fr-CA', 'sophie'), '/fr-CA/auteurs/sophie');
+});
+
+test('authorUrl is composed from authorPath (same prefix logic)', () => {
+    // Locks the contract: anyone consuming `authorUrl` and anyone
+    // consuming `authorPath` get matching segments. Used by the
+    // route file to build `pageLocales` for the LocaleSwitcher
+    // (path without locale prefix) while also producing canonical
+    // URLs for JSON-LD.
+    for (const [locale, slug] of [['en', 'jane'], ['fr', 'sophie'], ['fr-CA', 'sophie']] as const) {
+        assert.equal(authorUrl(locale, slug), `/${locale}/${authorPath(locale, slug)}`);
+    }
+});
+
+test('availableLocales mirror what the LocaleSwitcher needs to point at the localised author page', () => {
+    // The route file builds this exact array from the tenant team's
+    // translations to feed `pageLocales` on the LocaleSwitcher.
+    // Without it, the switcher falls back to the locale root and
+    // the visitor loses their place when changing language. Each
+    // (locale, slug) drives the switcher's
+    //     /{locale}/{slug}
+    // href computation.
+    const author = baseAuthor({
+        slug: 'sophie-berthier-3',
+        translations: {
+            fr: { name: 'Sophie' },
+            en: { name: 'Sophie' },
+        },
+    });
+    const slug = author.slug;
+    const availableLocales = Object.keys(author.translations).map((translationLocale) => ({
+        locale: translationLocale,
+        slug: authorPath(translationLocale, slug),
+    }));
+    assert.deepEqual(availableLocales, [
+        { locale: 'fr', slug: 'auteurs/sophie-berthier-3' },
+        { locale: 'en', slug: 'authors/sophie-berthier-3' },
+    ]);
 });
 
 // ─── authorSameAsLinks ──────────────────────────────────────────

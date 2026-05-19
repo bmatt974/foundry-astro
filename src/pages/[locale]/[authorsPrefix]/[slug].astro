@@ -18,11 +18,12 @@
  */
 export const prerender = true;
 
-import { authorUrl, pickAuthorTranslation } from '../../../lib/author';
+import { authorPath, authorUrl, pickAuthorTranslation } from '../../../lib/author';
 import {
     buildLocalesFilter,
     fetchAuthorDetail,
     fetchWebsiteByHost,
+    type AvailableLocale,
 } from '../../../lib/foundry';
 import { __ } from '../../../lib/i18n';
 import { getTheme } from '../../../themes/registry';
@@ -89,6 +90,18 @@ if (!detail) {
     return new Response('Author not found.', { status: 404 });
 }
 
+// Build the locale-switch alternates from the tenant team — the
+// author entity carries one translation per supported locale, and
+// the URL path is locale-prefixed. Without this the LocaleSwitcher
+// falls back to the locale root, which loses the visitor's place.
+const teamEntry = tenant.team.find((author) => author.slug === slug);
+const availableLocales: AvailableLocale[] = teamEntry
+    ? Object.keys(teamEntry.translations).map((translationLocale) => ({
+        locale: translationLocale,
+        slug: authorPath(translationLocale, slug),
+    }))
+    : [];
+
 const author = {
     slug: detail.slug,
     name: detail.identity?.name ?? detail.slug,
@@ -115,6 +128,7 @@ const { Layout, AuthorPage, LocaleSwitcher, Seo } = theme;
         slot="locale-switcher"
         currentLocale={locale}
         websiteLocales={tenant.locales}
+        pageLocales={availableLocales}
     />
 
     <AuthorPage
