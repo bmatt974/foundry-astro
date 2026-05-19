@@ -22,6 +22,7 @@ interface Props {
 
 const { author, articles, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const sameAs = authorSameAsLinks(author);
 const featured = articles.filter((a) => a.pinned_at !== null);
 const latest = articles.filter((a) => a.pinned_at === null);
@@ -69,7 +70,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <div class="grid gap-6 sm:grid-cols-2">
                 {featured.map((article) => (
                     <a
-                        href={`/${locale}/${article.slug}`}
+                        href={route('page', { slug: article.slug })}
                         class="brand-border block overflow-hidden rounded-lg border hover:opacity-90"
                     >
                         {article.cover_image && (
@@ -98,7 +99,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <ul class="brand-border divide-y divide-gray-200 rounded-lg border">
                 {latest.map((article) => (
                     <li class="p-4">
-                        <a href={`/${locale}/${article.slug}`} class="brand-link block">
+                        <a href={route('page', { slug: article.slug })} class="brand-link block">
                             <p class="font-semibold">{article.title}</p>
                             {article.snippet && (
                                 <p class="brand-text-muted mt-1 text-sm">{article.snippet}</p>

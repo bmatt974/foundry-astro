@@ -3,7 +3,7 @@
  * Bottom-of-article author card with WP conventions
  * (wp-block-post-author--bio + flat image / heading structure).
  */
-import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { type ResolvedAuthor } from '../../../lib/author';
 import { useTranslations } from '../../../lib/i18n';
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const aboutLabel = t('author.aboutLabel');
 const seeProfile = t('author.seeProfile');
 ---
@@ -35,7 +36,7 @@ const seeProfile = t('author.seeProfile');
                 )}
                 <div class="wp-block-post-author__content">
                     <p class="wp-block-post-author__name">
-                        <a href={authorUrl(locale, author.slug)} class="wp-block-link">{author.name}</a>
+                        <a href={route('author', { slug: author.slug })} class="wp-block-link">{author.name}</a>
                     </p>
                     {author.title && (
                         <p class="wp-block-post-author__title">{author.title}</p>
@@ -44,7 +45,7 @@ const seeProfile = t('author.seeProfile');
                         <p class="wp-block-post-author__bio">{author.bioShort ?? author.title}</p>
                     )}
                     <a
-                        href={authorUrl(locale, author.slug)}
+                        href={route('author', { slug: author.slug })}
                         class="wp-block-link wp-block-post-author__more"
                     >
                         {seeProfile} →

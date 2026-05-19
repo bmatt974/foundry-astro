@@ -10,15 +10,18 @@ interface Props {
     };
 }
 
-const { locale, nav } = Astro.props;
+const { nav } = Astro.props;
+const route = Astro.locals.route;
 const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+const hrefFor = (slug: string | null | undefined) =>
+    slug ? route('page', { slug }) : route('home', {});
 ---
 
 {hasContent && (
     <nav class="brand-border brand-text-muted mt-16 border-t pt-6 text-sm">
         {nav.parent && (
             <p class="mb-2">
-                ↑ <a href={`/${locale}/${nav.parent.slug ?? ''}`} class="brand-link">{nav.parent.title}</a>
+                ↑ <a href={hrefFor(nav.parent.slug)} class="brand-link">{nav.parent.title}</a>
             </p>
         )}
         {nav.children.length > 0 && (
@@ -27,7 +30,7 @@ const hasContent = nav.parent !== null || nav.children.length > 0 || nav.sibling
                 <ul class="list-disc pl-5">
                     {nav.children.map((c) => (
                         <li>
-                            <a href={`/${locale}/${c.slug ?? ''}`} class="brand-link">{c.title}</a>
+                            <a href={hrefFor(c.slug)} class="brand-link">{c.title}</a>
                         </li>
                     ))}
                 </ul>
@@ -39,7 +42,7 @@ const hasContent = nav.parent !== null || nav.children.length > 0 || nav.sibling
                 <ul class="list-disc pl-5">
                     {nav.siblings.map((s) => (
                         <li>
-                            <a href={`/${locale}/${s.slug ?? ''}`} class="brand-link">{s.title}</a>
+                            <a href={hrefFor(s.slug)} class="brand-link">{s.title}</a>
                         </li>
                     ))}
                 </ul>

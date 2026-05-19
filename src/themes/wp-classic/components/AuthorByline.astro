@@ -3,7 +3,7 @@
  * Inline byline using WordPress block-editor class names so the
  * markup reads like a server-rendered WP core "post author" block.
  */
-import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { type ResolvedAuthor } from '../../../lib/author';
 import { useTranslations } from '../../../lib/i18n';
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const prefix = t('byline.prefix');
 const separator = t('byline.separator');
 const conjunction = t('byline.conjunction');
@@ -24,7 +25,7 @@ const conjunction = t('byline.conjunction');
         {authors.map((author, idx) => (
             <>
                 {idx > 0 && (idx === authors.length - 1 ? <span>{' '}{conjunction}{' '}</span> : <span>{separator}</span>)}
-                <a href={authorUrl(locale, author.slug)} class="wp-block-link wp-block-post-author__name">{author.name}</a>
+                <a href={route('author', { slug: author.slug })} class="wp-block-link wp-block-post-author__name">{author.name}</a>
             </>
         ))}
     </p>

@@ -29,6 +29,7 @@ interface Props {
 
 const { websiteName, currentLocale, items } = Astro.props;
 const year = new Date().getUTCFullYear();
+const route = Astro.locals.route;
 
 const t = useTranslations(currentLocale, Astro.locals.wording);
 const disclosureHref = items
@@ -44,7 +45,7 @@ const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
 <footer class="brand-border brand-text-muted mt-20 border-t">
     <div class="brand-container flex flex-col gap-4 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p>
-            <a href={`/${currentLocale}/`} class="font-medium hover:opacity-70">{websiteName}</a>
+            <a href={route('home', {})} class="font-medium hover:opacity-70">{websiteName}</a>
             <span class="ml-2 text-xs">© {year}</span>
         </p>
         {items.length > 0 && (

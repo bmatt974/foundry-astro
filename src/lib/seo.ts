@@ -5,8 +5,8 @@
  * keeps full control over which meta tags it emits.
  */
 
-import { authorUrl } from './author.ts';
 import type { Page, TenantResolution, WebsiteLocale } from './foundry.ts';
+import { useRoutes } from './routes.ts';
 
 type TenantContext = {
     website: TenantResolution['website'];
@@ -266,6 +266,8 @@ function resolveAuthorsForJsonLd(
     }
 
     const homepage = siteUrl(tenant, locale);
+    const localeRow = tenant.locales.find((l) => l.locale === locale);
+    const route = useRoutes(localeRow);
     const nodes: Record<string, unknown>[] = [];
     for (const author of authors) {
         const direct = author.translations?.[locale];
@@ -288,7 +290,7 @@ function resolveAuthorsForJsonLd(
             '@type': 'Person',
             name: t.name,
             url: homepage
-                ? `${homepage.replace(/\/+$/, '').replace(`/${locale}`, '')}${authorUrl(locale, author.slug)}`
+                ? `${homepage.replace(/\/+$/, '').replace(`/${locale}`, '')}${route('author', { slug: author.slug })}`
                 : undefined,
             image: author.photo_url ?? undefined,
             jobTitle: t.title ?? undefined,

@@ -4,12 +4,13 @@ interface Props {
     currentLocale: string;
 }
 
-const { websiteName, currentLocale } = Astro.props;
+const { websiteName } = Astro.props;
+const route = Astro.locals.route;
 ---
 
 <header class="wp-site-header">
     <div class="wp-block-group">
-        <a href={`/${currentLocale}/`} class="wp-site-blog-title">{websiteName}</a>
+        <a href={route('home', {})} class="wp-site-blog-title">{websiteName}</a>
         <slot />
     </div>
 </header>

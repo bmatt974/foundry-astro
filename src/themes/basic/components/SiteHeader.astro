@@ -10,12 +10,13 @@ interface Props {
     currentLocale: string;
 }
 
-const { websiteName, currentLocale } = Astro.props;
+const { websiteName } = Astro.props;
+const route = Astro.locals.route;
 ---
 
 <header class="brand-border border-b">
     <div class="brand-container flex items-center justify-between gap-4 px-4 py-4">
-        <a href={`/${currentLocale}/`} class="text-base font-semibold tracking-tight hover:opacity-70">
+        <a href={route('home', {})} class="text-base font-semibold tracking-tight hover:opacity-70">
             {websiteName}
         </a>
         <slot />

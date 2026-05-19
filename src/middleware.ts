@@ -19,6 +19,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { matchAffiliateClickPath, redirectClick } from './lib/affiliate-redirect';
 import { fetchWebsiteByHost, resolveTenantForBuild, type TenantResolution } from './lib/foundry';
+import { useRoutes } from './lib/routes';
 
 interface CacheEntry {
     /** null encodes a negative cache (host is known-unknown for the TTL window). */
@@ -189,6 +190,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
         (row) => row.locale === activeLocale,
     );
     context.locals.wording = activeLocaleRow?.wording ?? null;
+
+    // Pre-build the named-route helper for the active locale. Every
+    // theme component reads from here instead of hand-rolling
+    // `/${locale}/...` strings — `route('home')`, `route('page', { slug })`,
+    // `route('author', { slug })` all bake in path_prefix and wording.
+    context.locals.route = useRoutes(activeLocaleRow);
 
     return next();
 });

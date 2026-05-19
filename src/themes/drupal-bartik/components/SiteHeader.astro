@@ -4,13 +4,14 @@ interface Props {
     currentLocale: string;
 }
 
-const { websiteName, currentLocale } = Astro.props;
+const { websiteName } = Astro.props;
+const route = Astro.locals.route;
 ---
 
 <header class="layout-header" role="banner">
     <div class="region region--header">
         <div class="block block--system-branding">
-            <a href={`/${currentLocale}/`} class="site-branding__name">{websiteName}</a>
+            <a href={route('home', {})} class="site-branding__name">{websiteName}</a>
         </div>
         <slot />
     </div>

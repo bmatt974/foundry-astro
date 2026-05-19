@@ -16,7 +16,6 @@
  */
 export const prerender = true;
 
-import { authorPath } from '../lib/author';
 import {
     buildPathsGlobFilter,
     buildRefsFilter,
@@ -26,6 +25,7 @@ import {
     fetchSitemapUrls,
     type SitemapUrl,
 } from '../lib/foundry';
+import { useRoutes } from '../lib/routes';
 import { pageUrl } from '../lib/seo';
 import { getTheme } from '../themes/registry';
 
@@ -129,12 +129,15 @@ let authorCanonical: string | undefined;
 if (kind === 'author' && authorDetail !== null) {
     const teamEntry = tenant.team.find((author) => author.slug === authorDetail!.slug);
     if (teamEntry) {
-        authorAvailableLocales = Object.keys(teamEntry.translations).map((translationLocale) => ({
-            locale: translationLocale,
-            slug: authorPath(translationLocale, authorDetail!.slug),
-        }));
+        authorAvailableLocales = Object.keys(teamEntry.translations).map((translationLocale) => {
+            const localeRow = tenant.locales.find((l) => l.locale === translationLocale);
+            return {
+                locale: translationLocale,
+                slug: useRoutes(localeRow).path('author', { slug: authorDetail!.slug }),
+            };
+        });
     }
-    authorCanonical = pageUrl(tenant, locale, authorPath(locale, authorDetail.slug)) ?? undefined;
+    authorCanonical = pageUrl(tenant, locale, Astro.locals.route.path('author', { slug: authorDetail.slug })) ?? undefined;
 }
 ---
 
