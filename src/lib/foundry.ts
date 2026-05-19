@@ -366,6 +366,40 @@ export function buildPathsFilter(): Set<string> | null {
  * Returns `null` when unset (= include every enabled locale of the
  * website).
  */
+/**
+ * Strip leading `/` from a path_prefix so route filenames + URLs
+ * compose cleanly. Returns an empty string when null/empty —
+ * caller checks for that to detect "mounted at root".
+ */
+export function normalisedPathPrefix(locale: WebsiteLocale): string {
+    if (!locale.path_prefix) {
+        return '';
+    }
+
+    return locale.path_prefix.replace(/^\/+/, '').replace(/\/+$/, '');
+}
+
+/**
+ * Locales that render WITHOUT a URL prefix — used by the root-level
+ * route files (`src/pages/index.astro`, `src/pages/[...path].astro`,
+ * etc.). Covers three routing modes: default-at-root, sub-domain
+ * (each locale has its own hostname, no prefix), and different TLD.
+ */
+export function localesAtRoot(locales: ReadonlyArray<WebsiteLocale>): WebsiteLocale[] {
+    return locales.filter((l) => l.enabled && normalisedPathPrefix(l) === '');
+}
+
+/**
+ * Locales that render UNDER a `/{prefix}` URL segment — used by the
+ * locale-prefixed route files (`src/pages/[locale]/...`). Together
+ * with `localesAtRoot` they partition the enabled-locale set, so
+ * the root-level and prefixed routes emit non-overlapping path
+ * sets and never collide on the same URL.
+ */
+export function localesWithPathPrefix(locales: ReadonlyArray<WebsiteLocale>): WebsiteLocale[] {
+    return locales.filter((l) => l.enabled && normalisedPathPrefix(l) !== '');
+}
+
 export function buildLocalesFilter(): Set<string> | null {
     const raw = import.meta.env.WEBSITE_BUILD_LOCALES;
     if (!raw) {

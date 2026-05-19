@@ -1,0 +1,90 @@
+---
+/**
+ * Root-level catch-all page route — handles every Foundry page whose
+ * locale renders WITHOUT a URL prefix:
+ *
+ *   - Sub-directory mode with the default locale at root:
+ *     `/colosseum` (EN default), `/le-colisee` (locale = default).
+ *   - Sub-domain mode: every URL on the sub-domain is unprefixed
+ *     (the hostname pins the locale).
+ *   - Different-TLD mode: same as sub-domain.
+ *
+ * Locales WITH a path_prefix are served by `[locale]/[...path].astro`
+ * — getStaticPaths in each route emits a disjoint set of URL paths,
+ * so the two routes never compete for the same incoming URL.
+ *
+ * The Foundry middleware already resolves the active locale from the
+ * URL (longest-prefix match against the tenant's locales, falling
+ * back to the default locale when no prefix matches). This route
+ * reads it from `Astro.locals.locale` and passes it to the API.
+ */
+export const prerender = true;
+
+import { buildPathsFilter, fetchPage, fetchSitemap, fetchWebsite, localesAtRoot } from '../lib/foundry';
+import { getTheme } from '../themes/registry';
+
+export async function getStaticPaths() {
+    const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
+    if (!hostname) {
+        return [];
+    }
+
+    const website = await fetchWebsite(hostname);
+    if (!website) {
+        throw new Error(`Unknown WEBSITE_BUILD_HOSTNAME: ${hostname}`);
+    }
+
+    const filter = buildPathsFilter();
+    const paths: Array<{ params: { path: string } }> = [];
+
+    // Only emit for locales without a path_prefix — locales with one
+    // ship their pages under `[locale]/[...path].astro` instead. The
+    // partition is enforced by `localesAtRoot` / `localesWithPathPrefix`.
+    for (const locale of localesAtRoot(website.locales)) {
+        const sitemap = await fetchSitemap(locale.locale, hostname);
+        const seen = new Set<string>();
+        for (const node of sitemap) {
+            const path = node.slug;
+            if (!path || seen.has(path)) {
+                continue;
+            }
+            if (filter && !filter.has(`${locale.locale}/${path}`)) {
+                continue;
+            }
+            seen.add(path);
+            paths.push({ params: { path } });
+        }
+    }
+
+    return paths;
+}
+
+const { path } = Astro.params;
+const tenant = Astro.locals.tenant;
+const locale = Astro.locals.locale;
+const page = await fetchPage(locale, path ?? '', tenant.website.hostname);
+if (!page) {
+    return new Response('Not found', { status: 404 });
+}
+Astro.locals.pagePublishedAt = page.published_at ?? page.translation?.published_at ?? null;
+
+const theme = getTheme(tenant.template);
+const { Layout, LocaleSwitcher, Seo, Article } = theme;
+
+const t = page.translation;
+const title = t?.meta_title ?? t?.title ?? 'Untitled';
+const description = t?.meta_description ?? t?.snippet ?? null;
+---
+
+<Layout title={title} description={description} locale={locale}>
+    <Seo slot="head" page={page} locale={locale} type="article" />
+
+    <LocaleSwitcher
+        slot="locale-switcher"
+        currentLocale={locale}
+        websiteLocales={tenant.locales}
+        pageLocales={page.available_locales}
+    />
+
+    <Article page={page} locale={locale} />
+</Layout>

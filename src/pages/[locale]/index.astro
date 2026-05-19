@@ -11,7 +11,13 @@
  */
 export const prerender = true;
 
-import { buildLocalesFilter, buildPathsFilter, fetchSitemap, fetchWebsite } from '../../lib/foundry';
+import {
+    buildLocalesFilter,
+    buildPathsFilter,
+    fetchSitemap,
+    fetchWebsite,
+    localesWithPathPrefix,
+} from '../../lib/foundry';
 import { getTheme } from '../../themes/registry';
 
 export async function getStaticPaths() {
@@ -28,8 +34,10 @@ export async function getStaticPaths() {
     const localesFilter = buildLocalesFilter();
     const pathsFilter = buildPathsFilter();
 
-    return website.locales
-        .filter((l) => l.enabled)
+    // Locales rendering at root (no path_prefix) ship their landing
+    // from `src/pages/index.astro` — keep this route to the prefixed
+    // set so the two never compete for the same URL.
+    return localesWithPathPrefix(website.locales)
         .filter((l) => !localesFilter || localesFilter.has(l.locale))
         .filter((l) => !pathsFilter || pathsFilter.has(`${l.locale}/`))
         .map((l) => ({ params: { locale: l.locale } }));

@@ -1,59 +1,78 @@
 ---
 /**
- * Tenant root. By default redirects to `/{default_locale}/`. Append
- * `?debug=1` to render a small inspector showing the resolved tenant
- * context — useful when seeding a new site to confirm the middleware
- * matched the expected website + theme.
+ * Tenant root. Two distinct roles depending on routing mode:
+ *
+ *   - Sub-directory with default locale at root, sub-domain, or
+ *     different-TLD modes — `/` is the canonical homepage of the
+ *     default locale. Renders the LocaleLanding component directly.
+ *
+ *   - Sub-directory with prefix on EVERY locale — `/` has no real
+ *     page; the canonical homepage lives at `/{default_locale}/`.
+ *     Falls back to a `<meta http-equiv="refresh">` to that URL so
+ *     visitors landing at the bare host don't see a 404 (the SEO
+ *     impact is acceptable: this URL has no inbound links from
+ *     within the site, and search engines see the proper canonical
+ *     on the locale landing).
+ *
+ * Prerendered at build time so the bare-host URL renders as a static
+ * HTML file (CDN-friendly). In dev the same code runs via SSR,
+ * so the middleware's tenant + locale resolution is exercised on
+ * every hit.
  */
-export const prerender = false;
+export const prerender = true;
 
-import { getTheme, listThemes } from '../themes/registry';
+import { fetchSitemap, normalisedPathPrefix } from '../lib/foundry';
+import { getTheme } from '../themes/registry';
+
+export async function getStaticPaths() {
+    const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
+    if (!hostname) {
+        return [];
+    }
+
+    // `index.astro` has no dynamic segments — getStaticPaths returns
+    // a single empty-params entry to keep the prerender pipeline
+    // happy. The render logic below decides what to do based on the
+    // tenant's default-locale path_prefix.
+    return [{ params: {} }];
+}
 
 const tenant = Astro.locals.tenant;
 const defaultLocale = tenant.defaultLocale ?? tenant.locales[0]?.locale ?? 'en';
+const defaultLocaleRow = tenant.locales.find((l) => l.locale === defaultLocale);
+const defaultPrefix = defaultLocaleRow ? normalisedPathPrefix(defaultLocaleRow) : '';
 
-if (Astro.url.searchParams.get('debug') !== '1') {
-    return Astro.redirect(`/${defaultLocale}/`, 302);
+// All-prefixed mode: the bare host has no real homepage. Serve a
+// soft redirect to `/{default_locale}/` so the visitor lands on the
+// canonical URL without seeing a 404. Static-friendly (meta-refresh
+// works on a CDN; no worker needed).
+if (defaultPrefix !== '') {
+    return new Response(
+        `<!doctype html>\n<meta charset="utf-8">\n<meta http-equiv="refresh" content="0; url=/${defaultPrefix}/">\n<title>Redirecting…</title>\n<link rel="canonical" href="/${defaultPrefix}/">\n`,
+        { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } },
+    );
 }
 
+// Default-at-root mode: this URL IS the canonical homepage of the
+// default locale. Render the LocaleLanding component normally.
+const sitemap = await fetchSitemap(defaultLocale, tenant.website.hostname);
+
 const theme = getTheme(tenant.template);
-const { Layout } = theme;
-const registeredThemes = listThemes();
+const { Layout, LocaleSwitcher, LocaleLanding, Seo } = theme;
 ---
 
-<Layout title={`${tenant.website.name} — debug`} locale={defaultLocale}>
-    <h1 class="text-3xl font-bold mb-6">Foundry frontend — debug</h1>
+<Layout title={`${tenant.website.name} — ${defaultLocale}`} locale={defaultLocale}>
+    <Seo slot="head" page={null} locale={defaultLocale} type="website" />
 
-    <section class="space-y-2 text-sm">
-        <p>
-            Resolved website: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.hostname}</code>
-            <span class="ml-2 text-xs text-gray-500">(slug: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.website.slug}</code>)</span> —
-            <strong>{tenant.website.name}</strong>
-        </p>
-        <p>
-            Active template: <code class="rounded bg-gray-100 px-1.5 py-0.5">{tenant.template}</code>
-            {!tenant.website.template && (
-                <span class="ml-2 text-xs text-gray-500">(fallback — `Website.template` is null)</span>
-            )}
-        </p>
-        <p>
-            Registered themes: {registeredThemes.map((t) => <code class="mr-2 rounded bg-gray-100 px-1.5 py-0.5">{t}</code>)}
-        </p>
-        <p>
-            Default locale: <code class="rounded bg-gray-100 px-1.5 py-0.5">{defaultLocale}</code>
-        </p>
-    </section>
-
-    <h2 class="mt-8 text-lg font-semibold">Locales</h2>
-    <ul class="list-disc pl-5 text-sm">
-        {tenant.locales.map((l) => (
-            <li>
-                <a href={`/${l.locale}/`} class="brand-link">
-                    {l.locale}
-                </a>
-                {l.is_default && <span class="ml-2 text-xs text-gray-500">(default)</span>}
-                <span class="ml-2 text-xs text-gray-500">— {l.base_url}</span>
-            </li>
-        ))}
-    </ul>
+    <LocaleSwitcher
+        slot="locale-switcher"
+        currentLocale={defaultLocale}
+        websiteLocales={tenant.locales}
+    />
+    <LocaleLanding
+        websiteName={tenant.website.name}
+        locale={defaultLocale}
+        isDefaultLocale={true}
+        sitemap={sitemap}
+    />
 </Layout>

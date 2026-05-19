@@ -130,21 +130,56 @@ export const onRequest = defineMiddleware(async (context, next) => {
         primaryAuthor: resolved.primary_author,
     };
 
-    // Make the request locale globally available so deep components
-    // (Comparison block, formatters, etc.) don't need to parse the
-    // URL themselves. Falls back to the website default when the
-    // route has no locale segment (e.g. /).
+    // Resolve the active locale against the tenant's locale rows,
+    // matching on `path_prefix` rather than a generic 2-letter regex.
+    // Supports all three Foundry routing modes uniformly:
+    //
+    //   1. Sub-directory with prefix on EVERY locale (`/en/…`, `/fr/…`)
+    //      → longest-prefix match picks the locale from the URL.
+    //   2. Sub-directory with default locale at root (`/colosseum`,
+    //      `/fr/colisee`)   → only non-default locales have a prefix;
+    //      paths without any matching prefix fall back to the default.
+    //   3. Sub-domain or different TLD (`fr.example.com/colisee` or
+    //      `example.fr/colisee`)   → no prefix on any locale; the
+    //      hostname-driven tenant resolution already pinned the right
+    //      website, and the locale falls back to that tenant's default.
+    //
+    // The previous regex-based heuristic broke modes 2-3: it treated
+    // any 2-letter first segment as a locale, even when no locale row
+    // actually had that prefix (e.g. `/ab` was mis-parsed as locale
+    // `ab`, leaking through to the 404 fallback).
     //
     // The dev preview route prefixes URLs with `/preview/<locale>/…`,
-    // so skip that leading segment when probing for the locale.
-    const segments = context.url.pathname.split('/').filter(Boolean);
-    const localeIdx = segments[0] === 'preview' ? 1 : 0;
-    const candidateLocale = segments[localeIdx];
-    const looksLikeLocale = candidateLocale !== undefined
-        && /^[a-z]{2}(-[a-zA-Z]{2,4})?$/.test(candidateLocale);
-    const activeLocale = looksLikeLocale && candidateLocale !== undefined
-        ? candidateLocale
-        : (resolved.default_locale ?? 'en');
+    // so we honour that explicit hint when the first segment is
+    // literally `preview`.
+    const pathname = context.url.pathname;
+    let activeLocale = resolved.default_locale ?? 'en';
+    if (pathname.startsWith('/preview/')) {
+        const previewSegments = pathname.split('/').filter(Boolean);
+        const explicit = previewSegments[1];
+        if (explicit !== undefined && resolved.locales.some((l) => l.locale === explicit)) {
+            activeLocale = explicit;
+        }
+    } else {
+        // Longest-prefix wins, so a deeper `/blog/fr` would beat a
+        // bare `/fr` if both were configured. Today every Foundry
+        // path_prefix is a single segment, but the algorithm is
+        // future-proof.
+        let bestLength = 0;
+        for (const localeRow of resolved.locales) {
+            if (!localeRow.path_prefix) {
+                continue;
+            }
+            const prefix = localeRow.path_prefix.startsWith('/')
+                ? localeRow.path_prefix
+                : `/${localeRow.path_prefix}`;
+            const matches = pathname === prefix || pathname.startsWith(`${prefix}/`);
+            if (matches && prefix.length > bestLength) {
+                activeLocale = localeRow.locale;
+                bestLength = prefix.length;
+            }
+        }
+    }
     context.locals.locale = activeLocale;
 
     // Surface the active locale's per-site `wording` overrides — null
