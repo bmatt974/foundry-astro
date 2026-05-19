@@ -18,7 +18,7 @@
  */
 export const prerender = true;
 
-import { authorPath, authorUrl, pickAuthorTranslation } from '../../../lib/author';
+import { authorPath, pickAuthorTranslation } from '../../../lib/author';
 import {
     buildLocalesFilter,
     fetchAuthorDetail,
@@ -26,6 +26,7 @@ import {
     type AvailableLocale,
 } from '../../../lib/foundry';
 import { __ } from '../../../lib/i18n';
+import { pageUrl } from '../../../lib/seo';
 import { getTheme } from '../../../themes/registry';
 
 export async function getStaticPaths() {
@@ -122,7 +123,16 @@ const { Layout, AuthorPage, LocaleSwitcher, Seo } = theme;
     description={author.title ?? author.bioShort ?? null}
     locale={locale}
 >
-    <Seo slot="head" page={null} locale={locale} type="website" title={author.name} description={author.bioShort ?? author.title ?? null} />
+    <Seo
+        slot="head"
+        page={null}
+        locale={locale}
+        type="website"
+        title={author.name}
+        description={author.bioShort ?? author.title ?? null}
+        availableLocales={availableLocales}
+        canonicalUrl={pageUrl(tenant, locale, authorPath(locale, slug)) ?? undefined}
+    />
 
     <LocaleSwitcher
         slot="locale-switcher"
@@ -135,6 +145,5 @@ const { Layout, AuthorPage, LocaleSwitcher, Seo } = theme;
         author={author}
         articles={detail.articles}
         locale={locale}
-        canonicalUrl={authorUrl(locale, author.slug)}
     />
 </Layout>

@@ -5,7 +5,7 @@
  * with the other themes (each exposes `theme.Seo`); the actual
  * emission is in `src/components/SeoCore.astro`.
  */
-import type { Page } from '../../../lib/foundry';
+import type { AvailableLocale, Page } from '../../../lib/foundry';
 import SeoCore from '../../../components/SeoCore.astro';
 
 interface Props {
@@ -15,6 +15,8 @@ interface Props {
     title?: string;
     description?: string;
     noindex?: boolean;
+    availableLocales?: AvailableLocale[];
+    canonicalUrl?: string;
 }
 ---
 

@@ -18,8 +18,6 @@ interface Props {
     author: ResolvedAuthor;
     articles: AuthorArticle[];
     locale: string;
-    /** Canonical URL of this profile — passed to JSON-LD / Seo. Optional. */
-    canonicalUrl?: string;
 }
 
 const { author, articles, locale } = Astro.props;
