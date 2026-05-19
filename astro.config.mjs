@@ -3,6 +3,17 @@ import { defineConfig, passthroughImageService } from 'astro/config';
 import node from '@astrojs/node';
 import tailwindcss from '@tailwindcss/vite';
 
+// `astro.config.mjs` runs in raw Node before Vite, so `import.meta.env`
+// isn't populated yet. Load `.env` into `process.env` so the config can
+// read `FOUNDRY_API_URL` and friends. `loadEnvFile` is a no-op if the
+// file is absent, which keeps CI / Docker builds (env via the host)
+// working unchanged.
+try {
+    process.loadEnvFile('.env');
+} catch {
+    // No .env file — host env vars take over.
+}
+
 // ──────────────────────────────────────────────
 // Deploy target — per-environment adapter selection
 // ──────────────────────────────────────────────
@@ -86,6 +97,91 @@ const HMR_CLIENT_PORT = process.env.HMR_CLIENT_PORT
 const buildHostname = process.env.WEBSITE_BUILD_HOSTNAME;
 const outDir = buildHostname ? `./dist/${buildHostname}` : './dist';
 
+// ──────────────────────────────────────────────
+// Static redirects — slug-history 301s emitted by the CMS
+// ──────────────────────────────────────────────
+//
+// The CMS's `sitemap-urls` endpoint mixes `kind: 'redirect'` rows in
+// with regular pages/authors/landings. Each one carries `target` and
+// `status` (301/302) and represents an old slug that should redirect
+// to the current canonical URL.
+//
+// Feeding these into Astro's native `redirects` config lets the
+// adapter emit provider-native rules at build time:
+//   - Cloudflare Pages → `_redirects` file (edge-served, no worker)
+//   - Vercel           → `vercel.json` redirects array
+//   - Netlify          → `_redirects` file
+//   - Node SSR         → handled by Astro's runtime middleware
+//
+// Static 301s are served by the CDN itself with zero compute cost,
+// which is the whole point of separating redirects from the SSR
+// catch-all — they don't need to invoke a worker per old URL.
+/**
+ * @param {string | undefined} hostname
+ * @returns {Promise<Record<string, { status: 301 | 302 | 307 | 308; destination: string }>>}
+ */
+async function loadStaticRedirects(hostname) {
+    if (!hostname) {
+        return {};
+    }
+    const apiBase = (process.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1').replace(/\/+$/, '');
+    const previewToken = process.env.FOUNDRY_PREVIEW_TOKEN ?? null;
+    /** @type {Record<string, string>} */
+    const headers = { Accept: 'application/json' };
+    if (previewToken) {
+        headers['X-Preview-Token'] = previewToken;
+    }
+
+    /** @type {Record<string, { status: 301 | 302 | 307 | 308; destination: string }>} */
+    const redirects = {};
+    let page = 1;
+    const perPage = 10000;
+    while (true) {
+        const url = `${apiBase}/websites/${encodeURIComponent(hostname)}/sitemap-urls?per_page=${perPage}&page=${page}`;
+        let response;
+        try {
+            response = await fetch(url, { headers });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.warn(`[astro.config] sitemap-urls fetch failed (${message}); skipping static redirects.`);
+            return {};
+        }
+        if (response.status === 404) {
+            return {};
+        }
+        if (!response.ok) {
+            console.warn(`[astro.config] sitemap-urls returned ${response.status}; skipping static redirects.`);
+            return {};
+        }
+        const body = await response.json();
+        const data = body?.data ?? {};
+        const urls = data.urls ?? [];
+        for (const entry of urls) {
+            if (entry.kind !== 'redirect' || !entry.target) {
+                continue;
+            }
+            // Last-wins on duplicate paths — harmless since the
+            // observer guarantees each old slug points at the
+            // current canonical URL.
+            redirects[entry.path] = {
+                status: entry.status ?? 301,
+                destination: entry.target,
+            };
+        }
+        const meta = data.meta ?? { last_page: 1 };
+        if (page >= (meta.last_page ?? 1)) {
+            break;
+        }
+        page += 1;
+    }
+    return redirects;
+}
+
+const staticRedirects = await loadStaticRedirects(buildHostname);
+if (buildHostname && Object.keys(staticRedirects).length > 0) {
+    console.log(`[astro.config] Loaded ${Object.keys(staticRedirects).length} static redirect(s) for ${buildHostname}.`);
+}
+
 // https://astro.build/config
 export default defineConfig({
     // SSR everywhere — every page hits the headless API per request,
@@ -96,6 +192,7 @@ export default defineConfig({
     output: 'server',
     adapter: await resolveAdapter(),
     outDir,
+    redirects: staticRedirects,
 
     // We don't use Astro's <Image> component — remote images go
     // through `lib/image.ts` which rewrites CDN URLs at template

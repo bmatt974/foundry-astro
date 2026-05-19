@@ -30,11 +30,9 @@ import { pageUrl } from '../lib/seo';
 import { getTheme } from '../themes/registry';
 
 interface RouteProps {
-    kind: SitemapUrl['kind'];
+    kind: Exclude<SitemapUrl['kind'], 'redirect'>;
     locale: string;
     ref: string;
-    target?: string;
-    status?: 301 | 302 | 307 | 308;
 }
 
 export async function getStaticPaths() {
@@ -48,32 +46,28 @@ export async function getStaticPaths() {
         pathsGlob: buildPathsGlobFilter(),
     });
 
-    return urls.map((url) => ({
-        // Strip leading and trailing slashes — Astro's rest param
-        // wants the relative path, so `/fr/colisee` → `'fr/colisee'`
-        // and `/` → `''`.
-        params: { path: url.path.replace(/^\/+/, '').replace(/\/+$/, '') },
-        props: {
-            kind: url.kind,
-            locale: url.locale,
-            ref: url.ref,
-            target: url.target,
-            status: url.status,
-        } satisfies RouteProps,
-    }));
+    // `kind === 'redirect'` rows are owned by `astro.config.mjs`
+    // `redirects:` field — the adapter emits provider-native rules
+    // (Cloudflare `_redirects`, Vercel `vercel.json`, Netlify
+    // `_redirects`) at HTTP level. Skipping them here avoids a
+    // duplicate route conflict and a useless prerender pass.
+    return urls
+        .filter((url) => url.kind !== 'redirect')
+        .map((url) => ({
+            // Strip leading and trailing slashes — Astro's rest param
+            // wants the relative path, so `/fr/colisee` → `'fr/colisee'`
+            // and `/` → `''`.
+            params: { path: url.path.replace(/^\/+/, '').replace(/\/+$/, '') },
+            props: {
+                kind: url.kind as Exclude<SitemapUrl['kind'], 'redirect'>,
+                locale: url.locale,
+                ref: url.ref,
+            } satisfies RouteProps,
+        }));
 }
 
-const { kind, locale, ref, target, status } = Astro.props as RouteProps;
+const { kind, locale, ref } = Astro.props as RouteProps;
 const tenant = Astro.locals.tenant;
-
-// Redirects short-circuit everything — emit an HTTP 301/302
-// (proper Location header) instead of rendering a page. The
-// underlying entity's CURRENT canonical URL is in `target`; the
-// CMS resolves transitive renames so the visitor takes ONE hop
-// regardless of how many times the slug has churned.
-if (kind === 'redirect' && target) {
-    return Astro.redirect(target, status ?? 301);
-}
 
 // Mirror the props-driven locale on `Astro.locals` so deep
 // components (Comparison block, formatters, byline) keep reading
