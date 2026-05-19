@@ -1,0 +1,33 @@
+---
+/**
+ * WordPress-style 404 — wraps in core-block classes so the rendered
+ * markup looks like a stock WP `not-found.php` template (the kind
+ * Twenty-Twenty-Four ships).
+ */
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    locale: string;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const homeHref = `/${locale}/`;
+---
+
+<main class="wp-site-main wp-site-main--404">
+    <article class="wp-block-post wp-block-post--error-404">
+        <header class="wp-block-group wp-block-post__header">
+            <p class="wp-block-post__eyebrow">404</p>
+            <h1 class="wp-block-heading wp-block-post__title">{t('notFound.title')}</h1>
+        </header>
+        <div class="wp-block-post-content">
+            <p class="wp-block-paragraph">{t('notFound.body')}</p>
+        </div>
+        <p class="wp-block-buttons">
+            <a class="wp-block-button__link wp-element-button" href={homeHref}>
+                {t('notFound.cta')} →
+            </a>
+        </p>
+    </article>
+</main>

@@ -61,4 +61,12 @@ export interface Dictionary {
          *  `/{locale}/{authorsPrefix}/{slug}` route matching. */
         authorsPrefix: string;
     };
+    notFound: {
+        /** Big heading on the 404 page. */
+        title: string;
+        /** Body paragraph explaining what happened. */
+        body: string;
+        /** Label of the "back home" CTA. */
+        cta: string;
+    };
 }

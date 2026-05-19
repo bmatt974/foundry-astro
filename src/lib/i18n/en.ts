@@ -25,6 +25,11 @@ const en: Dictionary = {
     routes: {
         authorsPrefix: 'authors',
     },
+    notFound: {
+        title: 'Page not found',
+        body: "Sorry, we couldn't find the page you were looking for. It may have moved, or perhaps you mistyped the address.",
+        cta: 'Back to home',
+    },
 };
 
 export default en;

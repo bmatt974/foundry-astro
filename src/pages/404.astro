@@ -1,0 +1,44 @@
+---
+/**
+ * Custom 404 page. Astro emits this as `dist/404.html` in the
+ * static build, and every mainstream static host (Cloudflare
+ * Pages, Vercel, Netlify, S3+CloudFront via custom-error config,
+ * Nginx via `error_page`) picks up that file automatically — no
+ * provider-specific routing needed.
+ *
+ * Rendered SSR in dev so the middleware-driven theme override
+ * (`?theme=…`) works. The 404 status is enforced explicitly via
+ * `Astro.response.status` so the same component serves the
+ * dev/SSR fallback (Astro routes unmatched URLs here) AND the
+ * statically built `404.html` (where the HTTP status comes from
+ * the host's custom-error rule).
+ *
+ * Anti-footprint: each theme owns its NotFound markup, so the
+ * 404 page doesn't betray the shared codebase across sister
+ * sites on different templates. Locale + tenant context come
+ * from the middleware (cached per host), no extra fetch needed.
+ */
+export const prerender = true;
+
+import { getTheme } from '../themes/registry';
+
+const tenant = Astro.locals.tenant;
+const locale = Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
+
+Astro.response.status = 404;
+
+const theme = getTheme(tenant.template);
+const { Layout, NotFound, LocaleSwitcher, Seo } = theme;
+---
+
+<Layout title={`${tenant.website.name} — 404`} locale={locale}>
+    <Seo slot="head" page={null} locale={locale} type="website" noindex={true} />
+
+    <LocaleSwitcher
+        slot="locale-switcher"
+        currentLocale={locale}
+        websiteLocales={tenant.locales}
+    />
+
+    <NotFound locale={locale} />
+</Layout>

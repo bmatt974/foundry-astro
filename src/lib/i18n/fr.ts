@@ -25,6 +25,11 @@ const fr: Dictionary = {
     routes: {
         authorsPrefix: 'auteurs',
     },
+    notFound: {
+        title: 'Page introuvable',
+        body: "Désolé, nous n'avons pas trouvé la page que vous cherchiez. Elle a peut-être été déplacée, ou l'adresse contient peut-être une faute de frappe.",
+        cta: "Retour à l'accueil",
+    },
 };
 
 export default fr;

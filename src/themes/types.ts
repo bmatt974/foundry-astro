@@ -165,6 +165,15 @@ export interface Theme {
     AuthorPage: AstroComponent;
 
     /**
+     * Custom 404 page rendered at the bare `/404.html`. Each theme
+     * emits its own markup so the not-found page doesn't betray the
+     * shared codebase across sister sites (anti-footprint). Receives
+     * `locale: string` and the static-friendly tenant context Astro
+     * is already passing to other components.
+     */
+    NotFound: AstroComponent;
+
+    /**
      * CSS declaration list (no `:root {}` wrapper) injected as inline
      * `style=` on `<html>` per request. Themes use it to project the
      * site's `theme_config` (colors, fonts) into CSS custom properties.
