@@ -1,34 +1,31 @@
 ---
 /**
- * Public author profile route — localised path segment via the i18n
- * dictionary's `routes.authorsPrefix` so French sites render
- * `/fr/auteurs/{slug}`, English sites `/en/authors/{slug}`, etc. The
- * dynamic `[authorsPrefix]` segment in the filename is the
- * mechanism, but only locale-matching combinations are emitted by
- * getStaticPaths — all other 3-segment URLs fall through to the
- * `[...path]` catch-all.
+ * Root-level author profile route for locales served without a URL
+ * prefix (sub-directory default-at-root, sub-domain, different TLD).
  *
- * Article list comes from the dedicated author-detail endpoint
- * (not from /resolve) so the tenant cache stays lean and the page
- * gets both the full bio + ordered articles in one fetch.
+ * Mirrors `src/pages/[locale]/[authorsPrefix]/[slug].astro` but
+ * filters the getStaticPaths emit list to `localesAtRoot` only —
+ * the two routes share no URL space, so Astro's specificity rules
+ * resolve each request to exactly one of them.
  *
- * Prerendered at build time when `WEBSITE_BUILD_HOSTNAME` is set —
- * one HTML file per (enabled locale × enabled author) pair on the
- * pinned site.
+ * The `[authorsPrefix]` segment is dynamic so each locale can use
+ * its native term: "authors" (en), "auteurs" (fr), "autores" (es).
+ * Runtime guard 404s mismatched prefixes; getStaticPaths emits only
+ * locale-correct combinations.
  */
 export const prerender = true;
 
-import { authorPath, pickAuthorTranslation } from '../../../lib/author';
+import { authorPath, pickAuthorTranslation } from '../../lib/author';
 import {
     buildLocalesFilter,
     fetchAuthorDetail,
     fetchWebsiteByHost,
-    localesWithPathPrefix,
+    localesAtRoot,
     type AvailableLocale,
-} from '../../../lib/foundry';
-import { __ } from '../../../lib/i18n';
-import { pageUrl } from '../../../lib/seo';
-import { getTheme } from '../../../themes/registry';
+} from '../../lib/foundry';
+import { __ } from '../../lib/i18n';
+import { pageUrl } from '../../lib/seo';
+import { getTheme } from '../../themes/registry';
 
 export async function getStaticPaths() {
     const hostname = import.meta.env.WEBSITE_BUILD_HOSTNAME;
@@ -42,25 +39,19 @@ export async function getStaticPaths() {
     }
 
     const localesFilter = buildLocalesFilter();
-    const paths: Array<{ params: { locale: string; authorsPrefix: string; slug: string } }> = [];
+    const paths: Array<{ params: { authorsPrefix: string; slug: string } }> = [];
 
-    // Only emit for locales WITH a path_prefix — the root-level
-    // `src/pages/[authorsPrefix]/[slug].astro` covers the rest.
-    for (const localeRow of localesWithPathPrefix(resolved.locales)) {
+    for (const localeRow of localesAtRoot(resolved.locales)) {
         if (localesFilter && !localesFilter.has(localeRow.locale)) {
             continue;
         }
         const authorsPrefix = __('routes.authorsPrefix', localeRow.locale);
         for (const author of resolved.team) {
-            // Skip authors with no usable translation in this locale —
-            // mirrors what the route's render path does so no broken
-            // entry ships in the static dist.
             if (pickAuthorTranslation(author, localeRow.locale) === null) {
                 continue;
             }
             paths.push({
                 params: {
-                    locale: localeRow.locale,
                     authorsPrefix,
                     slug: author.slug,
                 },
@@ -71,30 +62,24 @@ export async function getStaticPaths() {
     return paths;
 }
 
-const { locale, authorsPrefix, slug } = Astro.params;
-if (!locale || !authorsPrefix || !slug) {
+const { authorsPrefix, slug } = Astro.params;
+if (!authorsPrefix || !slug) {
     return new Response('Missing route segments.', { status: 400 });
 }
 
-// Runtime guard: the dynamic [authorsPrefix] segment also matches
-// random 3-segment URLs that landed here via dev SSR. Reject anything
-// that doesn't match the expected prefix for this locale so unrelated
-// paths return 404 instead of leaking the route.
+const tenant = Astro.locals.tenant;
+const locale = Astro.locals.locale;
+
 const expectedPrefix = __('routes.authorsPrefix', locale);
 if (authorsPrefix !== expectedPrefix) {
     return new Response('Not found.', { status: 404 });
 }
 
-const tenant = Astro.locals.tenant;
 const detail = await fetchAuthorDetail(locale, slug, tenant.website.hostname);
 if (!detail) {
     return new Response('Author not found.', { status: 404 });
 }
 
-// Build the locale-switch alternates from the tenant team — the
-// author entity carries one translation per supported locale, and
-// the URL path is locale-prefixed. Without this the LocaleSwitcher
-// falls back to the locale root, which loses the visitor's place.
 const teamEntry = tenant.team.find((author) => author.slug === slug);
 const availableLocales: AvailableLocale[] = teamEntry
     ? Object.keys(teamEntry.translations).map((translationLocale) => ({
