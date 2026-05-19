@@ -8,7 +8,8 @@ interface Props {
     websiteName?: string;
 }
 
-const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
+const { breadcrumb, currentTitle, websiteName } = Astro.props;
+const route = Astro.locals.route;
 ---
 
 {breadcrumb.length > 0 && (
@@ -16,13 +17,13 @@ const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
         <ol class="wp-block-post-breadcrumbs__list">
             {websiteName && (
                 <li class="wp-block-post-breadcrumbs__item">
-                    <a href={`/${locale}/`} class="wp-block-link">{websiteName}</a>
+                    <a href={route('home', {})} class="wp-block-link">{websiteName}</a>
                 </li>
             )}
             {breadcrumb.map((node) => (
                 <li class="wp-block-post-breadcrumbs__item">
                     {node.slug
-                        ? <a href={`/${locale}/${node.slug}`} class="wp-block-link">{node.title}</a>
+                        ? <a href={route('page', { slug: node.slug })} class="wp-block-link">{node.title}</a>
                         : <span>{node.title}</span>}
                 </li>
             ))}

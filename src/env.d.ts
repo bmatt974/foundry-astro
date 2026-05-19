@@ -1,6 +1,7 @@
 /// <reference types="astro/client" />
 
 import type { TenantResolution } from './lib/foundry';
+import type { RouteHelper } from './lib/routes';
 
 declare global {
     namespace App {
@@ -65,6 +66,16 @@ declare global {
              * overrides.
              */
             wording?: Record<string, string> | null;
+            /**
+             * Pre-built named-route helper for the active locale. Use
+             * `Astro.locals.route('home')`, `route('page', { slug })`,
+             * `route('author', { slug })` — the locale's path_prefix,
+             * dictionary segment and wording overrides are already
+             * baked in. For non-active locales (hreflang, LocaleSwitcher
+             * pageLocales) build a fresh helper with
+             * `useRoutes(localeRow)`.
+             */
+            route: RouteHelper;
         }
     }
 

@@ -12,6 +12,7 @@ interface Props {
 
 const { author, articles, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const sameAs = authorSameAsLinks(author);
 const featured = articles.filter((a) => a.pinned_at !== null);
 const latest = articles.filter((a) => a.pinned_at === null);
@@ -53,7 +54,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <ul class="wp-block-list wp-block-list--cards">
                 {featured.map((article) => (
                     <li class="wp-block-post wp-block-post--card">
-                        <a class="wp-block-link" href={`/${locale}/${article.slug}`}>
+                        <a class="wp-block-link" href={route('page', { slug: article.slug })}>
                             {article.cover_image && (
                                 <figure class="wp-block-image">
                                     <img src={article.cover_image} alt={article.title} loading="lazy" />
@@ -76,7 +77,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <ul class="wp-block-list">
                 {latest.map((article) => (
                     <li>
-                        <a class="wp-block-link" href={`/${locale}/${article.slug}`}>{article.title}</a>
+                        <a class="wp-block-link" href={route('page', { slug: article.slug })}>{article.title}</a>
                         {article.snippet && (
                             <p class="wp-block-paragraph">{article.snippet}</p>
                         )}

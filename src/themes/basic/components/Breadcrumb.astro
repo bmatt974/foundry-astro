@@ -16,7 +16,8 @@ interface Props {
     websiteName?: string;
 }
 
-const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
+const { breadcrumb, currentTitle, websiteName } = Astro.props;
+const route = Astro.locals.route;
 ---
 
 {breadcrumb.length > 0 && (
@@ -24,13 +25,13 @@ const { locale, breadcrumb, currentTitle, websiteName } = Astro.props;
         <ol class="flex flex-wrap items-center gap-x-2">
             {websiteName && (
                 <li>
-                    <a href={`/${locale}/`} class="brand-link">{websiteName}</a>
+                    <a href={route('home', {})} class="brand-link">{websiteName}</a>
                 </li>
             )}
             {breadcrumb.map((node) => (
                 <li class="flex items-center gap-x-2 before:content-['/'] before:opacity-50">
                     {node.slug
-                        ? <a href={`/${locale}/${node.slug}`} class="brand-link">{node.title}</a>
+                        ? <a href={route('page', { slug: node.slug })} class="brand-link">{node.title}</a>
                         : <span>{node.title}</span>}
                 </li>
             ))}

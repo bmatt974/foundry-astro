@@ -1,5 +1,6 @@
 ---
 import type { AvailableLocale, WebsiteLocale } from '../../../lib/foundry';
+import { useRoutes } from '../../../lib/routes';
 
 interface Props {
     currentLocale: string;
@@ -36,7 +37,10 @@ const pageLocaleMap = new Map((pageLocales ?? []).map((p) => [p.locale, p.slug ?
                     );
                 }
 
-                const href = pageSlug !== undefined ? `/${l.locale}/${pageSlug}` : `/${l.locale}/`;
+                const r = useRoutes(l);
+                const href = pageSlug !== undefined && pageSlug !== ''
+                    ? r('page', { slug: pageSlug })
+                    : r('home', {});
 
                 return (
                     <li class="menu-item">

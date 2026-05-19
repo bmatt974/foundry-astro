@@ -11,6 +11,7 @@ interface Props {
 
 const { websiteName, currentLocale, items } = Astro.props;
 const year = new Date().getUTCFullYear();
+const route = Astro.locals.route;
 
 const t = useTranslations(currentLocale, Astro.locals.wording);
 const disclosureHref = items
@@ -26,7 +27,7 @@ const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
 <footer class="wp-site-footer">
     <div class="wp-block-group">
         <p class="wp-site-credit">
-            <a href={`/${currentLocale}/`} class="wp-site-credit__name">{websiteName}</a>
+            <a href={route('home', {})} class="wp-site-credit__name">{websiteName}</a>
             <span class="wp-site-credit__year">© {year}</span>
         </p>
         {items.length > 0 && (

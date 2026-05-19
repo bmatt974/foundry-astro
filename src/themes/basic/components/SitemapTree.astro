@@ -18,6 +18,7 @@ interface Props {
 }
 
 const { locale, nodes, parentId = null, depth = 0 } = Astro.props;
+const route = Astro.locals.route;
 
 const children = nodes
     .filter((n) => n.parent_id === parentId)
@@ -32,7 +33,7 @@ const hasChildren = (id: number) => nodes.some((n) => n.parent_id === id);
             <li>
                 <div class="flex items-baseline justify-between gap-3 py-1">
                     <a
-                        href={`/${locale}/${node.slug ?? ''}`}
+                        href={node.slug ? route('page', { slug: node.slug }) : route('home', {})}
                         class="brand-link"
                     >
                         {node.title}

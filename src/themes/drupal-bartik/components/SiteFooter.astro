@@ -11,6 +11,7 @@ interface Props {
 
 const { websiteName, currentLocale, items } = Astro.props;
 const year = new Date().getUTCFullYear();
+const route = Astro.locals.route;
 
 const t = useTranslations(currentLocale, Astro.locals.wording);
 const disclosureHref = items
@@ -26,7 +27,7 @@ const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
 <footer class="layout-footer" role="contentinfo">
     <div class="region region--footer">
         <div class="block block--system-powered-by">
-            <a href={`/${currentLocale}/`} class="site-credit__link">{websiteName}</a>
+            <a href={route('home', {})} class="site-credit__link">{websiteName}</a>
             <span class="site-credit__year">© {year}</span>
         </div>
         {items.length > 0 && (

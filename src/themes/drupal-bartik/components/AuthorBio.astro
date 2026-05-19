@@ -3,7 +3,7 @@
  * Author bio card with Drupal conventions
  * (block--type-author-bio + field-collection-item structure).
  */
-import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { type ResolvedAuthor } from '../../../lib/author';
 import { useTranslations } from '../../../lib/i18n';
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const aboutLabel = t('author.aboutLabel');
 const seeProfile = t('author.seeProfile');
 ---
@@ -36,7 +37,7 @@ const seeProfile = t('author.seeProfile');
                     )}
                     <div class="field-collection-item__content">
                         <p class="username">
-                            <a href={authorUrl(locale, author.slug)} rel="author">{author.name}</a>
+                            <a href={route('author', { slug: author.slug })} rel="author">{author.name}</a>
                         </p>
                         {author.title && (
                             <p class="field field--name-field-title">{author.title}</p>
@@ -45,7 +46,7 @@ const seeProfile = t('author.seeProfile');
                             <p class="field field--name-field-bio-short">{author.bioShort ?? author.title}</p>
                         )}
                         <a
-                            href={authorUrl(locale, author.slug)}
+                            href={route('author', { slug: author.slug })}
                             class="more-link"
                         >
                             {seeProfile} →

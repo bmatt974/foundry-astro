@@ -10,8 +10,11 @@ interface Props {
     };
 }
 
-const { locale, nav } = Astro.props;
+const { nav } = Astro.props;
+const route = Astro.locals.route;
 const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+const hrefFor = (slug: string | null | undefined) =>
+    slug ? route('page', { slug }) : route('home', {});
 ---
 
 {hasContent && (
@@ -20,7 +23,7 @@ const hasContent = nav.parent !== null || nav.children.length > 0 || nav.sibling
             <div class="wp-block-post-navigation__group">
                 <p class="wp-block-post-navigation__heading">↑ Parent</p>
                 <p>
-                    <a href={`/${locale}/${nav.parent.slug ?? ''}`} class="wp-block-link">
+                    <a href={hrefFor(nav.parent.slug)} class="wp-block-link">
                         {nav.parent.title}
                     </a>
                 </p>
@@ -31,7 +34,7 @@ const hasContent = nav.parent !== null || nav.children.length > 0 || nav.sibling
                 <p class="wp-block-post-navigation__heading">Sous-pages</p>
                 <ul class="wp-block-post-navigation__list">
                     {nav.children.map((c) => (
-                        <li><a href={`/${locale}/${c.slug ?? ''}`} class="wp-block-link">{c.title}</a></li>
+                        <li><a href={hrefFor(c.slug)} class="wp-block-link">{c.title}</a></li>
                     ))}
                 </ul>
             </div>
@@ -41,7 +44,7 @@ const hasContent = nav.parent !== null || nav.children.length > 0 || nav.sibling
                 <p class="wp-block-post-navigation__heading">À voir aussi</p>
                 <ul class="wp-block-post-navigation__list">
                     {nav.siblings.map((s) => (
-                        <li><a href={`/${locale}/${s.slug ?? ''}`} class="wp-block-link">{s.title}</a></li>
+                        <li><a href={hrefFor(s.slug)} class="wp-block-link">{s.title}</a></li>
                     ))}
                 </ul>
             </div>

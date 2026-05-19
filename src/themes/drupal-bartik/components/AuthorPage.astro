@@ -12,6 +12,7 @@ interface Props {
 
 const { author, articles, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const sameAs = authorSameAsLinks(author);
 const featured = articles.filter((a) => a.pinned_at !== null);
 const latest = articles.filter((a) => a.pinned_at === null);
@@ -51,7 +52,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <div class="view view--featured">
                 {featured.map((article) => (
                     <article class="node node--type-article node--view-mode-teaser">
-                        <a href={`/${locale}/${article.slug}`}>
+                        <a href={route('page', { slug: article.slug })}>
                             {article.cover_image && (
                                 <div class="field field--name-field-image">
                                     <img src={article.cover_image} alt={article.title} loading="lazy" />
@@ -74,7 +75,7 @@ const latest = articles.filter((a) => a.pinned_at === null);
             <ul class="view view--latest">
                 {latest.map((article) => (
                     <li>
-                        <a href={`/${locale}/${article.slug}`}>{article.title}</a>
+                        <a href={route('page', { slug: article.slug })}>{article.title}</a>
                         {article.snippet && (
                             <p>{article.snippet}</p>
                         )}
