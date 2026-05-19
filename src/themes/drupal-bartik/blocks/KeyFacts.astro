@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 
 interface Props {
     block: PageBlock;
@@ -14,7 +15,11 @@ const facts = content.facts ?? [];
 ---
 
 <aside class="block block--type-key-facts">
-    {content.title && <h2 class="block__title">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="block__title">
+            {content.title}
+        </h2>
+    )}
     {facts.length > 0 && (
         <ul class="field-collection-list">
             {facts.map((f) =>

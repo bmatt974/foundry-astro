@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 import Markdown from '../components/Markdown.astro';
 
 interface Props {
@@ -16,7 +17,11 @@ const questions = content.questions ?? content.items ?? [];
 ---
 
 <div class="block block--type-faq">
-    {content.title && <h2 class="block__title">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="block__title">
+            {content.title}
+        </h2>
+    )}
     <div class="field field--name-field-faq-items">
         {questions.map((qa) => (
             <details class="paragraph paragraph--type-faq-item">

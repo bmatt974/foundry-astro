@@ -1,0 +1,33 @@
+---
+/**
+ * Auto-generated table of contents. WordPress-styled (uses
+ * `wp-block-*` class conventions so the markup reads like a
+ * server-rendered classic block). Same source as the basic theme —
+ * the shared `extractHeadingsFromBlocks` walks the page once.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { extractHeadingsFromBlocks } from '../../../lib/toc';
+
+interface Props {
+    blocks: PageBlock[];
+}
+
+const { blocks } = Astro.props;
+const headings = extractHeadingsFromBlocks(blocks);
+const MIN_HEADINGS = 3;
+const locale = Astro.locals.locale ?? 'en';
+const tocLabel = locale.startsWith('fr') ? 'Sommaire' : 'Table of contents';
+---
+
+{headings.length >= MIN_HEADINGS && (
+    <nav class="wp-block-table-of-contents" aria-label={tocLabel}>
+        <p class="wp-block-table-of-contents__title">{tocLabel}</p>
+        <ol class="wp-block-list wp-block-table-of-contents__list">
+            {headings.map((h) => (
+                <li class={h.level === 3 ? 'wp-block-table-of-contents__item--sub' : 'wp-block-table-of-contents__item'}>
+                    <a class="wp-block-link" href={`#${h.slug}`}>{h.text}</a>
+                </li>
+            ))}
+        </ol>
+    </nav>
+)}

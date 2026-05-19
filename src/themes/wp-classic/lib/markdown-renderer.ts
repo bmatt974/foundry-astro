@@ -20,6 +20,12 @@
  * request — and lives for the Node process lifetime.
  */
 import { Marked, type Tokens } from 'marked';
+import { slugify } from '../../../lib/toc.ts';
+
+// Per-parse-invocation slug counters so duplicate h2 texts get
+// disambiguated (foo, foo-2, foo-3 …) the same way `extractHeadings`
+// in `lib/toc.ts` does, keeping anchor links and rendered ids in sync.
+const slugCounts = new Map<string, number>();
 
 interface RendererThis {
     parser: {
@@ -36,8 +42,19 @@ export const wpRenderer = {
 
     heading(this: RendererThis, { tokens, depth }: Tokens.Heading): string {
         const inner = this.parser.parseInline(tokens);
+        // Only h2/h3 get a `id` attribute — they're the depths the
+        // TOC surfaces. h1 / h4+ keep the wp-block-heading class but
+        // skip the id so they don't pollute the anchor namespace.
+        if (depth !== 2 && depth !== 3) {
+            return `<h${depth} class="wp-block-heading">${inner}</h${depth}>\n`;
+        }
+        const plain = inner.replace(/<[^>]+>/g, '').trim();
+        const base = slugify(plain);
+        const count = slugCounts.get(base) ?? 0;
+        const slug = count === 0 ? base : `${base}-${count + 1}`;
+        slugCounts.set(base, count + 1);
 
-        return `<h${depth} class="wp-block-heading">${inner}</h${depth}>\n`;
+        return `<h${depth} class="wp-block-heading" id="${slug}">${inner}</h${depth}>\n`;
     },
 
     list(this: RendererThis, token: Tokens.List): string {
@@ -66,4 +83,16 @@ export const wpRenderer = {
     },
 };
 
-export const wpMarked = new Marked({ renderer: wpRenderer, gfm: true });
+export const wpMarked = new Marked({
+    renderer: wpRenderer,
+    gfm: true,
+    hooks: {
+        // Reset the per-instance slug counter at the start of every
+        // parse so two unrelated bodies don't accumulate slug counts
+        // across each other.
+        preprocess(markdown: string) {
+            slugCounts.clear();
+            return markdown;
+        },
+    },
+});

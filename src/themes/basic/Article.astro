@@ -17,6 +17,7 @@ import PageFooter from './components/PageFooter.astro';
 import PageHeader from './components/PageHeader.astro';
 import PageNav from './components/PageNav.astro';
 import SourceableInfo from './components/SourceableInfo.astro';
+import Toc from './components/Toc.astro';
 import { pickLayout } from '../../lib/themes/page-sections';
 
 interface Props {
@@ -66,6 +67,8 @@ const sections = pickLayout(page.page_type);
                     fallbackTitle={fallbackTitle}
                 />
             );
+        case 'toc':
+            return <Toc blocks={page.blocks} />;
         case 'sourceable_info':
             return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
         case 'page_blocks':

@@ -14,6 +14,7 @@ export type Section =
     | 'hero'
     | 'breadcrumb'
     | 'page_header'
+    | 'toc'
     | 'sourceable_info'
     | 'page_blocks'
     | 'page_footer'
@@ -23,6 +24,7 @@ const FULL: readonly Section[] = [
     'hero',
     'breadcrumb',
     'page_header',
+    'toc',
     'sourceable_info',
     'page_blocks',
     'page_footer',
@@ -33,6 +35,7 @@ const COMPACT: readonly Section[] = [
     'hero',
     'breadcrumb',
     'page_header',
+    'toc',
     'page_blocks',
     'page_footer',
     'page_nav',

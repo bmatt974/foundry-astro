@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 import Markdown from '../components/Markdown.astro';
 
 interface Props {
@@ -18,7 +19,11 @@ const questions = content.questions ?? content.items ?? [];
 ---
 
 <section class="my-8">
-    {content.title && <h2 class="text-2xl font-semibold mb-4">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="text-2xl font-semibold mb-4">
+            {content.title}
+        </h2>
+    )}
     <div class="divide-y divide-gray-200 rounded-lg border border-gray-200">
         {questions.map((qa) => (
             <details class="group p-4">

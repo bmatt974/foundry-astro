@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 
 interface Props {
     block: PageBlock;
@@ -14,7 +15,11 @@ const facts = content.facts ?? [];
 ---
 
 <aside class="wp-block-key-facts">
-    {content.title && <h2 class="wp-block-heading wp-block-key-facts__title">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="wp-block-heading wp-block-key-facts__title">
+            {content.title}
+        </h2>
+    )}
     {facts.length > 0 && (
         <ul class="wp-block-columns">
             {facts.map((f) =>

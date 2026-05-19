@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 import Block from '../components/Block.astro';
 import Markdown from '../components/Markdown.astro';
 
@@ -12,7 +13,11 @@ const content = (block.content ?? {}) as { title?: string; body?: string };
 ---
 
 <section class="my-12 border-t border-gray-200 pt-8">
-    {content.title && <h2 class="text-3xl font-semibold mb-4">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="text-3xl font-semibold mb-4">
+            {content.title}
+        </h2>
+    )}
     {content.body && <Markdown text={content.body} class="text-gray-800 mb-6" />}
     {block.children.length > 0 && (
         <div class="space-y-6">
