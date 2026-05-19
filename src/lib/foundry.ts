@@ -177,6 +177,29 @@ export interface Website {
  * either from the Host header at runtime or from WEBSITE_BUILD_HOSTNAME
  * at build time). It is what subsequent fetch calls use to key API URLs.
  */
+export type Posture = 'whitehat' | 'greyhat' | 'blackhat';
+export type JsonLdLevel = 'none' | 'article_only' | 'cms_standard' | 'wp_blog_full' | 'tourist_entity';
+export type LinkProxyPath = 'view' | 'details' | 'info' | 'visit' | 'out' | 'go';
+
+/**
+ * Per-website experimental axes resolved server-side by Foundry's
+ * `ExperimentsResolver`. Every axis is filled (either explicit
+ * override or per-posture default) so the Astro side can read
+ * unconditionally — no fallback logic on the frontend.
+ *
+ *   posture          overall SEO posture, drives defaults
+ *   jsonld_level     how much schema.org JSON-LD the page emits
+ *   link_proxy_path  the URL prefix the /go/ redirector lives behind,
+ *                    varied per site to break cross-site fingerprint
+ *                    on the affiliate stack (`/visit/{id}`,
+ *                    `/details/{id}`, `/info/{id}`, …)
+ */
+export interface WebsiteExperiments {
+    posture: Posture;
+    jsonld_level: JsonLdLevel;
+    link_proxy_path: LinkProxyPath;
+}
+
 export interface TenantResolution {
     website: {
         id: number;
@@ -188,6 +211,7 @@ export interface TenantResolution {
     };
     locales: WebsiteLocale[];
     default_locale: string | null;
+    experiments: WebsiteExperiments;
 }
 
 // ──────────────────────────────────────────────

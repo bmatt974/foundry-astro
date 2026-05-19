@@ -19,6 +19,10 @@ declare global {
                 template: string;
                 /** Free-form per-site overrides — see `Website.themeConfig()` on the backend. */
                 themeConfig: Record<string, unknown>;
+                /** Resolved experimental axes — posture, jsonld_level,
+                 *  link_proxy_path. Each value is non-null (server-side
+                 *  resolver fills in posture defaults). */
+                experiments: TenantResolution['experiments'];
             };
             /**
              * Locale segment from the URL (e.g. 'fr', 'fr-FR') so deep

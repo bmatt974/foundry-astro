@@ -17,6 +17,7 @@
  */
 
 import { defineMiddleware } from 'astro:middleware';
+import { matchAffiliateClickPath, redirectClick } from './lib/affiliate-redirect';
 import { fetchWebsiteByHost, resolveTenantForBuild, type TenantResolution } from './lib/foundry';
 
 interface CacheEntry {
@@ -42,6 +43,20 @@ async function resolveHost(host: string): Promise<TenantResolution | null> {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+    // Affiliate click dispatcher — short-circuits before any tenant
+    // resolution so a click never pays for a CMS round-trip. Matches
+    // `/{prefix}/{id}` where prefix is in the allow-list (see
+    // `AFFILIATE_PROXY_PREFIXES` in lib/affiliate-redirect.ts).
+    // Anything else falls through to the normal page routing.
+    const affiliateMatch = matchAffiliateClickPath(context.url.pathname);
+    if (affiliateMatch) {
+        return redirectClick({
+            id: affiliateMatch.id,
+            request: context.request,
+            origin: context.url.origin,
+        });
+    }
+
     // Build-time path: Astro runs middleware for prerendered pages but
     // synthesises a request whose headers aren't usable (and trigger a
     // warning if accessed). Resolve the tenant from the env-pinned slug
@@ -110,6 +125,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         defaultLocale: resolved.default_locale,
         template,
         themeConfig: resolved.website.theme_config ?? {},
+        experiments: resolved.experiments,
     };
 
     // Make the request locale globally available so deep components
