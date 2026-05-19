@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 import Markdown from '../components/Markdown.astro';
 
 interface Props {
@@ -16,7 +17,11 @@ const questions = content.questions ?? content.items ?? [];
 ---
 
 <section class="wp-block-group wp-block-group--faq">
-    {content.title && <h2 class="wp-block-heading">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="wp-block-heading">
+            {content.title}
+        </h2>
+    )}
     <div class="wp-block-details-group">
         {questions.map((qa) => (
             <details class="wp-block-details">

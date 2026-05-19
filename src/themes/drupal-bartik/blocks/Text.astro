@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 import Markdown from '../components/Markdown.astro';
 
 interface Props {
@@ -11,6 +12,10 @@ const content = (block.content ?? {}) as { title?: string; body?: string };
 ---
 
 <div class="block block--type-basic block--field-text">
-    {content.title && <h2 class="block__title">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="block__title">
+            {content.title}
+        </h2>
+    )}
     <Markdown text={content.body} />
 </div>

@@ -20,11 +20,11 @@ test('paragraph gets .wp-block-paragraph', () => {
     assert.match(html, /<p class="wp-block-paragraph">Hello world\.<\/p>/);
 });
 
-test('headings get .wp-block-heading at every depth', () => {
+test('headings get .wp-block-heading at every depth, with id on h2/h3 only', () => {
     const html = render('# H1\n\n## H2\n\n### H3\n\n#### H4');
     assert.match(html, /<h1 class="wp-block-heading">H1<\/h1>/);
-    assert.match(html, /<h2 class="wp-block-heading">H2<\/h2>/);
-    assert.match(html, /<h3 class="wp-block-heading">H3<\/h3>/);
+    assert.match(html, /<h2 class="wp-block-heading" id="h2">H2<\/h2>/);
+    assert.match(html, /<h3 class="wp-block-heading" id="h3">H3<\/h3>/);
     assert.match(html, /<h4 class="wp-block-heading">H4<\/h4>/);
 });
 
@@ -102,10 +102,11 @@ test('basic renderer emits vanilla <p> with no class', () => {
     assert.doesNotMatch(html, /class="/, 'basic theme should not emit class names');
 });
 
-test('basic renderer emits vanilla headings without class', () => {
-    const html = renderBasic('# H1\n\n## H2');
+test('basic renderer emits vanilla headings without class, with id on h2/h3', () => {
+    const html = renderBasic('# H1\n\n## H2\n\n### H3');
     assert.match(html, /<h1>H1<\/h1>/);
-    assert.match(html, /<h2>H2<\/h2>/);
+    assert.match(html, /<h2 id="h2">H2<\/h2>/);
+    assert.match(html, /<h3 id="h3">H3<\/h3>/);
     assert.doesNotMatch(html, /wp-block|text-formatted/);
 });
 
@@ -117,9 +118,9 @@ function renderDrupal(input: string): string {
     return drupalMarked.parse(input, { async: false }) as string;
 }
 
-test('drupal renderer emits vanilla HTML (no per-element classes)', () => {
+test('drupal renderer emits vanilla HTML, with id on h2 for TOC anchoring', () => {
     const html = renderDrupal('## Title\n\nA paragraph.');
-    assert.match(html, /<h2>Title<\/h2>/);
+    assert.match(html, /<h2 id="title">Title<\/h2>/);
     assert.match(html, /<p>A paragraph\.<\/p>/);
     assert.doesNotMatch(html, /wp-block/);
 });

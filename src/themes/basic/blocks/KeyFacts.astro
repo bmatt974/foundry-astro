@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { slugify } from '../../../lib/toc';
 
 interface Props {
     block: PageBlock;
@@ -14,7 +15,11 @@ const facts = content.facts ?? [];
 ---
 
 <section class="my-8 rounded-lg border border-gray-200 bg-gray-50 p-6">
-    {content.title && <h2 class="text-xl font-semibold mb-4">{content.title}</h2>}
+    {content.title && (
+        <h2 id={slugify(content.title)} class="text-xl font-semibold mb-4">
+            {content.title}
+        </h2>
+    )}
     {facts.length > 0 && (
         <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {facts.map((f) =>
