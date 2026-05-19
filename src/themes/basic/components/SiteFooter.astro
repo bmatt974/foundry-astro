@@ -2,14 +2,23 @@
 /**
  * Bottom footer for the basic theme. Renders the website's footer
  * menu (auto-seeded with utility pages by UtilityPagesScaffolder)
- * plus a copyright line.
+ * plus a copyright line and an affiliate disclosure.
  *
  * Pre-menu-system iterations filtered root pages by `page_type ∈
  * utility` — that logic moved to the backend's
  * UtilityPagesScaffolder + bootstrap command, so this component just
  * renders what the API returns.
+ *
+ * The disclosure line is rendered unconditionally: every site in
+ * the Foundry network is affiliate-equipped (link_proxy_path axis
+ * is set on every tenant), and on the rare non-affiliate vertical
+ * the line costs nothing visually but covers FTC + Google
+ * `sponsored_links_disclosure` hygiene without any per-site config.
+ * If a footer menu item links to an `*-disclosure` page the line's
+ * keyword anchors to it; otherwise plain text.
  */
 import type { MenuItem } from '../../../lib/foundry';
+import { splitLinkBody, useTranslations } from '../../../lib/i18n';
 import Menu from './Menu.astro';
 
 interface Props {
@@ -20,6 +29,16 @@ interface Props {
 
 const { websiteName, currentLocale, items } = Astro.props;
 const year = new Date().getUTCFullYear();
+
+const t = useTranslations(currentLocale, Astro.locals.wording);
+const disclosureHref = items
+    .map((item) => item.href)
+    .find((href): href is string =>
+        typeof href === 'string' && /disclos|affilia/i.test(href));
+const [disclosureLead, disclosureTrail] = splitLinkBody(
+    t('footer.affiliateDisclosure.body'),
+);
+const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
 ---
 
 <footer class="brand-border brand-text-muted mt-20 border-t">
@@ -34,4 +53,7 @@ const year = new Date().getUTCFullYear();
             </nav>
         )}
     </div>
+    <p class="brand-container brand-text-muted px-4 pb-6 text-xs leading-relaxed">{disclosureLead}{disclosureHref
+        ? <a href={disclosureHref} class="underline hover:opacity-80">{disclosureLinkText}</a>
+        : disclosureLinkText}{disclosureTrail}</p>
 </footer>

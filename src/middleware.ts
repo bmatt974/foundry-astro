@@ -140,9 +140,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const candidateLocale = segments[localeIdx];
     const looksLikeLocale = candidateLocale !== undefined
         && /^[a-z]{2}(-[a-zA-Z]{2,4})?$/.test(candidateLocale);
-    context.locals.locale = looksLikeLocale && candidateLocale !== undefined
+    const activeLocale = looksLikeLocale && candidateLocale !== undefined
         ? candidateLocale
         : (resolved.default_locale ?? 'en');
+    context.locals.locale = activeLocale;
+
+    // Surface the active locale's per-site `wording` overrides — null
+    // when the locale has no overrides, or when no locale row matches
+    // (the dictionary fallback then kicks in inside `useTranslations`).
+    const activeLocaleRow = resolved.locales.find(
+        (row) => row.locale === activeLocale,
+    );
+    context.locals.wording = activeLocaleRow?.wording ?? null;
 
     return next();
 });

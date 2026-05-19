@@ -150,6 +150,11 @@ export interface WebsiteLocale {
     site_name: string | null;
     meta_title: string | null;
     meta_description: string | null;
+    /** Per-site UI string overrides keyed by Astro i18n dot-notation
+     *  paths. Null = no overrides, fallback to the compile-time
+     *  dictionary. Anti-footprint lever: lets each site phrase the
+     *  same UI element differently. */
+    wording: Record<string, string> | null;
 }
 
 export interface Website {
