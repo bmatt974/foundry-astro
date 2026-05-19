@@ -33,6 +33,8 @@ interface RouteProps {
     kind: SitemapUrl['kind'];
     locale: string;
     ref: string;
+    target?: string;
+    status?: 301 | 302 | 307 | 308;
 }
 
 export async function getStaticPaths() {
@@ -55,12 +57,23 @@ export async function getStaticPaths() {
             kind: url.kind,
             locale: url.locale,
             ref: url.ref,
+            target: url.target,
+            status: url.status,
         } satisfies RouteProps,
     }));
 }
 
-const { kind, locale, ref } = Astro.props as RouteProps;
+const { kind, locale, ref, target, status } = Astro.props as RouteProps;
 const tenant = Astro.locals.tenant;
+
+// Redirects short-circuit everything — emit an HTTP 301/302
+// (proper Location header) instead of rendering a page. The
+// underlying entity's CURRENT canonical URL is in `target`; the
+// CMS resolves transitive renames so the visitor takes ONE hop
+// regardless of how many times the slug has churned.
+if (kind === 'redirect' && target) {
+    return Astro.redirect(target, status ?? 301);
+}
 
 // Mirror the props-driven locale on `Astro.locals` so deep
 // components (Comparison block, formatters, byline) keep reading

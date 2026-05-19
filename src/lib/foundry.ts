@@ -500,14 +500,24 @@ export async function fetchAuthorDetail(
  * Entry from the sitemap-urls endpoint. Each row describes one
  * public URL the website serves with everything the Astro catch-all
  * route needs to dispatch rendering (no second round-trip per URL).
+ *
+ * `kind === 'redirect'` rows carry an extra `target` + `status` —
+ * the catch-all renders these as HTTP 301/302 via Astro.redirect()
+ * so existing inbound links to renamed pages keep working. Source:
+ * `page_translations.previous_slugs` + `authors.previous_slugs`,
+ * maintained by an Eloquent observer on slug rename.
  */
 export interface SitemapUrl {
     /** Leading slash, no host — e.g. `/fr/auteurs/sophie`. */
     path: string;
-    kind: 'page' | 'author' | 'landing';
+    kind: 'page' | 'author' | 'landing' | 'redirect';
     locale: string;
-    /** `page:<id>` | `author:<slug>` | `landing:<locale>`. */
+    /** `page:<id>` | `author:<slug>` | `landing:<locale>` | `redirect:page:<id>` | `redirect:author:<slug>`. */
     ref: string;
+    /** Only set when `kind === 'redirect'` — the URL to redirect to. */
+    target?: string;
+    /** Only set when `kind === 'redirect'` — HTTP status (default 301). */
+    status?: 301 | 302 | 307 | 308;
 }
 
 /**
