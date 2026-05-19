@@ -23,6 +23,16 @@ declare global {
                  *  link_proxy_path. Each value is non-null (server-side
                  *  resolver fills in posture defaults). */
                 experiments: TenantResolution['experiments'];
+                /** All enabled authors for this site, with full `bio`
+                 *  bundled so /authors/{slug} renders without a second
+                 *  fetch. Used by TeamGrid (future) and as the fallback
+                 *  source for `page.authors`. */
+                team: TenantResolution['team'];
+                /** Default byline. Already merged into `page.authors`
+                 *  server-side when the page has no explicit attribution
+                 *  — kept here for the rare component that needs the
+                 *  website's primary author independently of the page. */
+                primaryAuthor: TenantResolution['primary_author'];
             };
             /**
              * Locale segment from the URL (e.g. 'fr', 'fr-FR') so deep

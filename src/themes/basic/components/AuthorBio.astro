@@ -1,0 +1,65 @@
+---
+/**
+ * In-article author bio card — sits at the end of the article body.
+ * One card per author (N>1 stacks vertically). Each card shows:
+ *
+ *   [photo]  Name
+ *            Title
+ *            bio_short (or title if null)
+ *            → See profile
+ *
+ * Stays compact — the full markdown bio lives on the public
+ * author page (locale-specific URL via `authorUrl()`).
+ */
+import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    authors: ResolvedAuthor[];
+    locale: string;
+}
+
+const { authors, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const aboutLabel = t('author.aboutLabel');
+const seeProfile = t('author.seeProfile');
+---
+
+{authors.length > 0 && (
+    <section class="brand-border mt-12 border-t pt-8">
+        <p class="brand-text-muted mb-4 text-xs font-semibold uppercase tracking-wider">{aboutLabel}</p>
+        <div class="space-y-6">
+            {authors.map((author) => (
+                <div class="flex gap-4">
+                    {author.photoUrl && (
+                        <img
+                            src={author.photoUrl}
+                            alt={author.name}
+                            width="80"
+                            height="80"
+                            class="aspect-square h-20 w-20 rounded-full object-cover"
+                            loading="lazy"
+                        />
+                    )}
+                    <div class="min-w-0 flex-1">
+                        <p class="font-semibold">
+                            <a href={authorUrl(locale, author.slug)} class="brand-link">{author.name}</a>
+                        </p>
+                        {author.title && (
+                            <p class="brand-text-muted text-sm">{author.title}</p>
+                        )}
+                        {(author.bioShort ?? author.title) && (
+                            <p class="mt-2 text-sm">{author.bioShort ?? author.title}</p>
+                        )}
+                        <a
+                            href={authorUrl(locale, author.slug)}
+                            class="brand-link mt-2 inline-block text-sm"
+                        >
+                            {seeProfile} →
+                        </a>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </section>
+)}

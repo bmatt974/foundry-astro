@@ -1,0 +1,88 @@
+---
+import { authorSameAsLinks, type ResolvedAuthor } from '../../../lib/author';
+import type { AuthorArticle } from '../../../lib/foundry';
+import { useTranslations } from '../../../lib/i18n';
+import Markdown from './Markdown.astro';
+
+interface Props {
+    author: ResolvedAuthor;
+    articles: AuthorArticle[];
+    locale: string;
+}
+
+const { author, articles, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const sameAs = authorSameAsLinks(author);
+const featured = articles.filter((a) => a.pinned_at !== null);
+const latest = articles.filter((a) => a.pinned_at === null);
+---
+
+<article class="wp-block-post wp-block-post-author--profile">
+    <header class="wp-block-group wp-block-post-author--profile__header">
+        {author.photoUrl && (
+            <figure class="wp-block-image wp-block-post-author--profile__avatar">
+                <img src={author.photoUrl} alt={author.name} width="160" height="160" />
+            </figure>
+        )}
+        <h1 class="wp-block-heading wp-block-post-author--profile__name">{author.name}</h1>
+        {author.title && (
+            <p class="wp-block-paragraph wp-block-post-author--profile__title">{author.title}</p>
+        )}
+        {sameAs.length > 0 && (
+            <ul class="wp-block-list wp-block-post-author--profile__sameas">
+                {sameAs.map((url) => (
+                    <li>
+                        <a class="wp-block-link" href={url} target="_blank" rel="me noopener noreferrer">
+                            {url.replace(/^https?:\/\//, '')}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        )}
+    </header>
+
+    {author.bio && (
+        <div class="wp-block-post-content">
+            <Markdown text={author.bio} />
+        </div>
+    )}
+
+    {featured.length > 0 && (
+        <section class="wp-block-group wp-block-post-author--profile__featured">
+            <h2 class="wp-block-heading">{t('author.featuredLabel')}</h2>
+            <ul class="wp-block-list wp-block-list--cards">
+                {featured.map((article) => (
+                    <li class="wp-block-post wp-block-post--card">
+                        <a class="wp-block-link" href={`/${locale}/${article.slug}`}>
+                            {article.cover_image && (
+                                <figure class="wp-block-image">
+                                    <img src={article.cover_image} alt={article.title} loading="lazy" />
+                                </figure>
+                            )}
+                            <h3 class="wp-block-heading">{article.title}</h3>
+                            {article.snippet && (
+                                <p class="wp-block-paragraph">{article.snippet}</p>
+                            )}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    )}
+
+    {latest.length > 0 && (
+        <section class="wp-block-group wp-block-post-author--profile__latest">
+            <h2 class="wp-block-heading">{t('author.latestLabel')}</h2>
+            <ul class="wp-block-list">
+                {latest.map((article) => (
+                    <li>
+                        <a class="wp-block-link" href={`/${locale}/${article.slug}`}>{article.title}</a>
+                        {article.snippet && (
+                            <p class="wp-block-paragraph">{article.snippet}</p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    )}
+</article>

@@ -1,0 +1,58 @@
+---
+/**
+ * Author bio card with Drupal conventions
+ * (block--type-author-bio + field-collection-item structure).
+ */
+import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    authors: ResolvedAuthor[];
+    locale: string;
+}
+
+const { authors, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const aboutLabel = t('author.aboutLabel');
+const seeProfile = t('author.seeProfile');
+---
+
+{authors.length > 0 && (
+    <aside class="block block--type-author-bio region region--author-bio">
+        <h2 class="block__title">{aboutLabel}</h2>
+        <div class="field-collection-list">
+            {authors.map((author) => (
+                <div class="field-collection-item">
+                    {author.photoUrl && (
+                        <div class="field field--name-field-avatar">
+                            <img
+                                src={author.photoUrl}
+                                alt={author.name}
+                                width="80"
+                                height="80"
+                                loading="lazy"
+                            />
+                        </div>
+                    )}
+                    <div class="field-collection-item__content">
+                        <p class="username">
+                            <a href={authorUrl(locale, author.slug)} rel="author">{author.name}</a>
+                        </p>
+                        {author.title && (
+                            <p class="field field--name-field-title">{author.title}</p>
+                        )}
+                        {(author.bioShort ?? author.title) && (
+                            <p class="field field--name-field-bio-short">{author.bioShort ?? author.title}</p>
+                        )}
+                        <a
+                            href={authorUrl(locale, author.slug)}
+                            class="more-link"
+                        >
+                            {seeProfile} →
+                        </a>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </aside>
+)}

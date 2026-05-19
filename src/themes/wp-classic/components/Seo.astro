@@ -11,7 +11,7 @@
  * sites on this theme look like the same engine as wp-twentyfour /
  * wp-astra / etc. — to the extent we mimic the same WP version string.
  */
-import type { Page } from '../../../lib/foundry';
+import type { AvailableLocale, Page } from '../../../lib/foundry';
 import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
 
@@ -22,6 +22,8 @@ interface Props {
     title?: string;
     description?: string;
     noindex?: boolean;
+    availableLocales?: AvailableLocale[];
+    canonicalUrl?: string;
 }
 
 const wpExtras: SeoExtras = {

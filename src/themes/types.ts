@@ -157,6 +157,14 @@ export interface Theme {
     LocaleLanding: AstroComponent;
 
     /**
+     * Public author profile page rendered at `/[locale]/authors/[slug]`.
+     * Receives the resolved author (`ResolvedAuthor`) and locale.
+     * Themes own the layout (photo placement, sameAs links style,
+     * etc.) but always render the `bio` markdown via `theme.Markdown`.
+     */
+    AuthorPage: AstroComponent;
+
+    /**
      * CSS declaration list (no `:root {}` wrapper) injected as inline
      * `style=` on `<html>` per request. Themes use it to project the
      * site's `theme_config` (colors, fonts) into CSS custom properties.

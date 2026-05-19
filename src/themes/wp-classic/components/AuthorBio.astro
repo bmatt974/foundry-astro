@@ -1,0 +1,56 @@
+---
+/**
+ * Bottom-of-article author card with WP conventions
+ * (wp-block-post-author--bio + flat image / heading structure).
+ */
+import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    authors: ResolvedAuthor[];
+    locale: string;
+}
+
+const { authors, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const aboutLabel = t('author.aboutLabel');
+const seeProfile = t('author.seeProfile');
+---
+
+{authors.length > 0 && (
+    <section class="wp-block-group wp-block-post-author--bio">
+        <h2 class="wp-block-heading wp-block-post-author--bio__title">{aboutLabel}</h2>
+        {authors.map((author) => (
+            <div class="wp-block-post-author wp-block-post-author--card">
+                {author.photoUrl && (
+                    <figure class="wp-block-image wp-block-post-author__avatar">
+                        <img
+                            src={author.photoUrl}
+                            alt={author.name}
+                            width="80"
+                            height="80"
+                            loading="lazy"
+                        />
+                    </figure>
+                )}
+                <div class="wp-block-post-author__content">
+                    <p class="wp-block-post-author__name">
+                        <a href={authorUrl(locale, author.slug)} class="wp-block-link">{author.name}</a>
+                    </p>
+                    {author.title && (
+                        <p class="wp-block-post-author__title">{author.title}</p>
+                    )}
+                    {(author.bioShort ?? author.title) && (
+                        <p class="wp-block-post-author__bio">{author.bioShort ?? author.title}</p>
+                    )}
+                    <a
+                        href={authorUrl(locale, author.slug)}
+                        class="wp-block-link wp-block-post-author__more"
+                    >
+                        {seeProfile} →
+                    </a>
+                </div>
+            </div>
+        ))}
+    </section>
+)}

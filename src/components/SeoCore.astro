@@ -11,7 +11,7 @@
  * that hard-codes the family-specific extras. Pages keep calling
  * `theme.Seo` and stay theme-agnostic.
  */
-import type { Page } from '../lib/foundry';
+import type { AvailableLocale, Page } from '../lib/foundry';
 import { imageUrl } from '../lib/image';
 import {
     alternateUrls,
@@ -31,9 +31,20 @@ interface Props {
     description?: string;
     noindex?: boolean;
     extras?: SeoExtras;
+    /** Override the hreflang alternates list — useful for synthetic
+     *  routes (author profile, future tag/category pages) that
+     *  aren't backed by a `Page` row but still need to declare per-
+     *  locale alternates. Each entry: { locale, slug } where `slug`
+     *  is the path-after-locale (e.g. `auteurs/sophie`). When
+     *  provided, takes precedence over `page.available_locales`. */
+    availableLocales?: AvailableLocale[];
+    /** Override the canonical URL — same rationale as
+     *  `availableLocales`. When omitted, defaults to the page's own
+     *  canonical (or the locale root when page is null). */
+    canonicalUrl?: string;
 }
 
-const { page, locale, type, title, description, noindex = false, extras } = Astro.props;
+const { page, locale, type, title, description, noindex = false, extras, availableLocales, canonicalUrl: canonicalOverride } = Astro.props;
 const tenant = Astro.locals.tenant as TenantContext;
 
 const t = page?.translation ?? null;
@@ -45,12 +56,16 @@ const resolvedDescription = description
 const resolvedType = type ?? (page ? 'article' : 'website');
 
 const canonicalSlug = t?.slug ?? null;
-const canonicalUrl = page ? pageUrl(tenant, locale, canonicalSlug) : siteUrl(tenant, locale);
+const canonicalUrl = canonicalOverride
+    ?? (page ? pageUrl(tenant, locale, canonicalSlug) : siteUrl(tenant, locale));
 
-// hreflang only emitted when the API provided per-locale slugs — that's
-// `page.available_locales`. Locale landing has none, so we skip them
-// there (a global website-locale map could be built later if useful).
-const alternates = page ? alternateUrls(tenant, page.available_locales) : [];
+// hreflang: prefer an explicit override (used by synthetic routes
+// like the author profile), fall back to `page.available_locales`,
+// otherwise emit nothing. Locale landing pages have no alternates
+// metadata, so they skip this naturally.
+const alternates = availableLocales !== undefined
+    ? alternateUrls(tenant, availableLocales)
+    : (page ? alternateUrls(tenant, page.available_locales) : []);
 
 // Image used for og:image / twitter:image. Same fallback chain as the
 // Hero so the social preview matches what shoppers see in the SERP.

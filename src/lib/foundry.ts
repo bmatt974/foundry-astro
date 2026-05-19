@@ -127,6 +127,10 @@ export interface Page {
         children: NavNode[];
         siblings: NavNode[];
     };
+    /** Byline authors in render order (lead first). The CMS-side
+     *  fallback chain (page authors → website primary author) is
+     *  already applied — an empty array means truly no byline. */
+    authors: Author[];
     available_locales: AvailableLocale[];
 }
 
@@ -155,6 +159,35 @@ export interface WebsiteLocale {
      *  dictionary. Anti-footprint lever: lets each site phrase the
      *  same UI element differently. */
     wording: Record<string, string> | null;
+}
+
+/**
+ * One translation row of an Author, rendered on the public site
+ * (byline + bio card + /authors/{slug} page).
+ */
+export interface AuthorTranslation {
+    name: string;
+    title?: string | null;
+    bio_short?: string | null;
+    /** Full markdown body, only present in /resolve payloads (the team[]
+     *  carries it so the dedicated /authors/{slug} route doesn't need
+     *  a second round-trip). Absent on `page.authors[]` rows. */
+    bio?: string | null;
+}
+
+/**
+ * Public-facing author. `translations` is keyed by locale so
+ * components do `author.translations[locale]` without searching a
+ * list. The Foundry CMS guarantees the empty case serialises as
+ * `{}` (object), never `[]`.
+ */
+export interface Author {
+    slug: string;
+    photo_url: string | null;
+    external_url: string | null;
+    twitter_handle: string | null;
+    position: number;
+    translations: Record<string, AuthorTranslation>;
 }
 
 export interface Website {
@@ -217,6 +250,13 @@ export interface TenantResolution {
     locales: WebsiteLocale[];
     default_locale: string | null;
     experiments: WebsiteExperiments;
+    /** All enabled authors for this site, ordered by position. Carries
+     *  the full `bio` markdown body so the /authors/{slug} route can
+     *  render the public profile page without a separate fetch. */
+    team: Author[];
+    /** Default byline author. Used by `page.authors` fallback when the
+     *  page has no explicit attribution. */
+    primary_author: Author | null;
 }
 
 // ──────────────────────────────────────────────
@@ -431,6 +471,54 @@ export async function fetchSitemap(
         `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages?tree=1`,
     );
     return list ?? [];
+}
+
+/**
+ * Card-friendly article shape returned by the author-detail endpoint
+ * for the author profile page. Just enough fields to render a list
+ * of cards without per-article round-trips. `pinned_at !== null` =
+ * the article is featured (sorted at the top, most recent pin first).
+ */
+export interface AuthorArticle {
+    id: number;
+    slug: string;
+    page_type: string | null;
+    cover_image: string | null;
+    title: string;
+    snippet: string | null;
+    published_at: string | null;
+    pinned_at: string | null;
+}
+
+/**
+ * Full author profile payload — bio (markdown) + ordered articles.
+ * Fetched at build time by the `[authorsPrefix]/[slug]` route, not
+ * surfaced on `/resolve` (the tenant cache stays lean — only the
+ * thinner `team[]` shape ships there).
+ */
+export interface AuthorDetail {
+    slug: string;
+    photo_url: string | null;
+    external_url: string | null;
+    twitter_handle: string | null;
+    locale: string;
+    identity: {
+        name: string;
+        title: string | null;
+        bio_short: string | null;
+        bio: string | null;
+    } | null;
+    articles: AuthorArticle[];
+}
+
+export async function fetchAuthorDetail(
+    locale: string,
+    slug: string,
+    hostname: string,
+): Promise<AuthorDetail | null> {
+    return fetchJson<AuthorDetail>(
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/authors/${encodeURIComponent(slug)}`,
+    );
 }
 
 /**

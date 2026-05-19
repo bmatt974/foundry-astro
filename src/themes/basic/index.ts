@@ -10,6 +10,7 @@
 import type { Theme } from '../types';
 import Article from './Article.astro';
 import Layout from './Layout.astro';
+import AuthorPage from './components/AuthorPage.astro';
 import Block from './components/Block.astro';
 import Breadcrumb from './components/Breadcrumb.astro';
 import Hero from './components/Hero.astro';
@@ -49,6 +50,7 @@ const theme: Theme = {
     PageNav,
     PreviewBanner,
     LocaleLanding,
+    AuthorPage,
     css,
 };
 

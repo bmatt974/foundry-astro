@@ -1,0 +1,31 @@
+---
+/**
+ * Inline byline with Drupal conventions
+ * (field--name-uid / submitted-by markup like Bartik renders).
+ */
+import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    authors: ResolvedAuthor[];
+    locale: string;
+}
+
+const { authors, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const prefix = t('byline.prefix');
+const separator = t('byline.separator');
+const conjunction = t('byline.conjunction');
+---
+
+{authors.length > 0 && (
+    <p class="field field--name-uid field--label-hidden submitted">
+        <span>{prefix}{' '}</span>
+        {authors.map((author, idx) => (
+            <>
+                {idx > 0 && (idx === authors.length - 1 ? <span>{' '}{conjunction}{' '}</span> : <span>{separator}</span>)}
+                <a href={authorUrl(locale, author.slug)} class="username" rel="author">{author.name}</a>
+            </>
+        ))}
+    </p>
+)}

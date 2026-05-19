@@ -1,0 +1,112 @@
+---
+/**
+ * Public author profile rendered at the localised
+ * `/{locale}/{authorsPrefix}/{slug}` route. Shows the full bio
+ * markdown + photo + sameAs links, then two article sections:
+ * Featured (pinned) followed by Latest articles (reverse-chrono).
+ *
+ * The article list is what makes this page worth more than thin
+ * content for SEO — it gives the page real word count and
+ * concentrates the author's topical authority as a hub.
+ */
+import { authorSameAsLinks, type ResolvedAuthor } from '../../../lib/author';
+import type { AuthorArticle } from '../../../lib/foundry';
+import { useTranslations } from '../../../lib/i18n';
+import Markdown from './Markdown.astro';
+
+interface Props {
+    author: ResolvedAuthor;
+    articles: AuthorArticle[];
+    locale: string;
+}
+
+const { author, articles, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const sameAs = authorSameAsLinks(author);
+const featured = articles.filter((a) => a.pinned_at !== null);
+const latest = articles.filter((a) => a.pinned_at === null);
+---
+
+<article class="brand-container mx-auto max-w-4xl px-4 py-12">
+    <header class="brand-border mb-10 flex flex-col items-center gap-6 border-b pb-10 text-center">
+        {author.photoUrl && (
+            <img
+                src={author.photoUrl}
+                alt={author.name}
+                width="160"
+                height="160"
+                class="aspect-square h-40 w-40 rounded-full object-cover"
+            />
+        )}
+        <div>
+            <h1 class="text-4xl font-bold tracking-tight">{author.name}</h1>
+            {author.title && (
+                <p class="brand-text-muted mt-2 text-lg">{author.title}</p>
+            )}
+        </div>
+        {sameAs.length > 0 && (
+            <ul class="brand-text-muted flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
+                {sameAs.map((url) => (
+                    <li>
+                        <a href={url} class="brand-link" target="_blank" rel="me noopener noreferrer">
+                            {url.replace(/^https?:\/\//, '')}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        )}
+    </header>
+
+    {author.bio && (
+        <section class="mx-auto mb-12 max-w-2xl">
+            <Markdown text={author.bio} class="text-gray-800" />
+        </section>
+    )}
+
+    {featured.length > 0 && (
+        <section class="mb-12">
+            <h2 class="brand-text-primary mb-4 text-xs font-semibold uppercase tracking-wider">{t('author.featuredLabel')}</h2>
+            <div class="grid gap-6 sm:grid-cols-2">
+                {featured.map((article) => (
+                    <a
+                        href={`/${locale}/${article.slug}`}
+                        class="brand-border block overflow-hidden rounded-lg border hover:opacity-90"
+                    >
+                        {article.cover_image && (
+                            <img
+                                src={article.cover_image}
+                                alt={article.title}
+                                class="aspect-video w-full object-cover"
+                                loading="lazy"
+                            />
+                        )}
+                        <div class="p-4">
+                            <p class="font-semibold leading-snug">{article.title}</p>
+                            {article.snippet && (
+                                <p class="brand-text-muted mt-2 text-sm leading-snug">{article.snippet}</p>
+                            )}
+                        </div>
+                    </a>
+                ))}
+            </div>
+        </section>
+    )}
+
+    {latest.length > 0 && (
+        <section>
+            <h2 class="brand-text-primary mb-4 text-xs font-semibold uppercase tracking-wider">{t('author.latestLabel')}</h2>
+            <ul class="brand-border divide-y divide-gray-200 rounded-lg border">
+                {latest.map((article) => (
+                    <li class="p-4">
+                        <a href={`/${locale}/${article.slug}`} class="brand-link block">
+                            <p class="font-semibold">{article.title}</p>
+                            {article.snippet && (
+                                <p class="brand-text-muted mt-1 text-sm">{article.snippet}</p>
+                            )}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    )}
+</article>

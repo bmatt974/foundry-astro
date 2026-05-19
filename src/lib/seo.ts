@@ -5,7 +5,8 @@
  * keeps full control over which meta tags it emits.
  */
 
-import type { Page, TenantResolution, WebsiteLocale } from './foundry';
+import { authorUrl } from './author.ts';
+import type { Page, TenantResolution, WebsiteLocale } from './foundry.ts';
 
 type TenantContext = {
     website: TenantResolution['website'];
@@ -107,6 +108,12 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
 
     const t = page?.translation;
     if (page && t) {
+        // E-E-A-T author signal — Person entity per byline author
+        // with `sameAs` pointing at any external profiles the CMS
+        // has on file. Single author rendered as object; multiple
+        // as an array (schema.org accepts both shapes).
+        const authors = resolveAuthorsForJsonLd(page, tenant, locale);
+
         graph.push({
             '@type': 'Article',
             '@id': canonicalUrl ? `${canonicalUrl}#article` : undefined,
@@ -118,6 +125,9 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
             dateModified: page.published_at ?? t.published_at ?? undefined,
             inLanguage: locale,
             isPartOf: { '@id': websiteId },
+            author: authors.length === 0
+                ? undefined
+                : (authors.length === 1 ? authors[0] : authors),
         });
     }
 
@@ -231,6 +241,62 @@ export interface SeoExtras {
     extraMeta?: Array<{ name?: string; property?: string; content: string }>;
     /** Extra <link> tags rendered alongside canonical/alternates. */
     extraLinks?: Array<{ rel: string; href: string; type?: string; title?: string }>;
+}
+
+/**
+ * Build Person nodes for the JSON-LD Article.author field. Picks
+ * the active locale's translation for each byline author and
+ * derives `sameAs` from `external_url` + `twitter_handle`. Author
+ * profile URL points at the locale-specific author page —
+ * `/{locale}/auteurs/{slug}` in FR, `/{locale}/authors/{slug}` in
+ * EN, etc., via `authorUrl()`. Keeps the schema E-E-A-T signal
+ * coherent with the rendered URL on each site.
+ *
+ * Returns an empty array when the page has no byline — the caller
+ * omits the `author` field entirely from the schema.
+ */
+function resolveAuthorsForJsonLd(
+    page: Page,
+    tenant: TenantContext,
+    locale: string,
+): Record<string, unknown>[] {
+    const authors = page.authors ?? [];
+    if (authors.length === 0) {
+        return [];
+    }
+
+    const homepage = siteUrl(tenant, locale);
+    const nodes: Record<string, unknown>[] = [];
+    for (const author of authors) {
+        const direct = author.translations?.[locale];
+        const base = locale.toLowerCase().split('-')[0];
+        const fallback = author.translations?.[base];
+        const t = direct ?? fallback ?? Object.values(author.translations ?? {})[0];
+        if (!t) {
+            continue;
+        }
+
+        const sameAs: string[] = [];
+        if (author.external_url) {
+            sameAs.push(author.external_url);
+        }
+        if (author.twitter_handle) {
+            sameAs.push(`https://twitter.com/${author.twitter_handle.replace(/^@/, '')}`);
+        }
+
+        nodes.push({
+            '@type': 'Person',
+            name: t.name,
+            url: homepage
+                ? `${homepage.replace(/\/+$/, '').replace(`/${locale}`, '')}${authorUrl(locale, author.slug)}`
+                : undefined,
+            image: author.photo_url ?? undefined,
+            jobTitle: t.title ?? undefined,
+            sameAs: sameAs.length > 0 ? sameAs : undefined,
+        });
+    }
+
+    return nodes;
 }
 
 /** Convenience re-export for consumer types. */

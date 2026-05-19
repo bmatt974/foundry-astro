@@ -1,0 +1,36 @@
+---
+/**
+ * Inline byline — small line directly under the page title.
+ * Supports N authors with locale-aware conjunction
+ * ("Jane, John and Marie" / "Jane, John et Marie"). Each name
+ * links to the author profile page at /{locale}/authors/{slug}.
+ *
+ * Renders nothing when the page has no authors (utility / legal
+ * pages, sites without a configured byline).
+ */
+import { authorUrl, type ResolvedAuthor } from '../../../lib/author';
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    authors: ResolvedAuthor[];
+    locale: string;
+}
+
+const { authors, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const prefix = t('byline.prefix');
+const separator = t('byline.separator');
+const conjunction = t('byline.conjunction');
+---
+
+{authors.length > 0 && (
+    <p class="brand-text-muted text-sm">
+        <span>{prefix}{' '}</span>
+        {authors.map((author, idx) => (
+            <>
+                {idx > 0 && (idx === authors.length - 1 ? <span>{' '}{conjunction}{' '}</span> : <span>{separator}</span>)}
+                <a href={authorUrl(locale, author.slug)} class="brand-link font-medium">{author.name}</a>
+            </>
+        ))}
+    </p>
+)}
