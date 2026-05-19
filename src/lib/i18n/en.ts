@@ -10,6 +10,21 @@ const en: Dictionary = {
             linkText: 'affiliate links',
         },
     },
+    byline: {
+        prefix: 'By',
+        separator: ', ',
+        conjunction: 'and',
+    },
+    author: {
+        aboutLabel: 'About the author',
+        profileLabel: 'About',
+        seeProfile: 'See profile',
+        featuredLabel: 'Featured',
+        latestLabel: 'Latest articles',
+    },
+    routes: {
+        authorsPrefix: 'authors',
+    },
 };
 
 export default en;

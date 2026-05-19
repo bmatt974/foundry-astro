@@ -1,0 +1,87 @@
+---
+import { authorSameAsLinks, type ResolvedAuthor } from '../../../lib/author';
+import type { AuthorArticle } from '../../../lib/foundry';
+import { useTranslations } from '../../../lib/i18n';
+import Markdown from './Markdown.astro';
+
+interface Props {
+    author: ResolvedAuthor;
+    articles: AuthorArticle[];
+    locale: string;
+    canonicalUrl?: string;
+}
+
+const { author, articles, locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const sameAs = authorSameAsLinks(author);
+const featured = articles.filter((a) => a.pinned_at !== null);
+const latest = articles.filter((a) => a.pinned_at === null);
+---
+
+<article class="node node--type-user node--view-mode-full">
+    <header class="region region--user-header">
+        {author.photoUrl && (
+            <img src={author.photoUrl} alt={author.name} width="160" height="160" />
+        )}
+        <h1 class="page-title">{author.name}</h1>
+        {author.title && (
+            <p class="field field--name-field-title">{author.title}</p>
+        )}
+        {sameAs.length > 0 && (
+            <ul class="menu menu--sameas">
+                {sameAs.map((url) => (
+                    <li class="menu-item">
+                        <a class="menu-item__link" href={url} target="_blank" rel="me noopener noreferrer">
+                            {url.replace(/^https?:\/\//, '')}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        )}
+    </header>
+
+    {author.bio && (
+        <div class="field field--name-field-bio text-formatted">
+            <Markdown text={author.bio} />
+        </div>
+    )}
+
+    {featured.length > 0 && (
+        <section class="region region--featured">
+            <h2 class="block__title">{t('author.featuredLabel')}</h2>
+            <div class="view view--featured">
+                {featured.map((article) => (
+                    <article class="node node--type-article node--view-mode-teaser">
+                        <a href={`/${locale}/${article.slug}`}>
+                            {article.cover_image && (
+                                <div class="field field--name-field-image">
+                                    <img src={article.cover_image} alt={article.title} loading="lazy" />
+                                </div>
+                            )}
+                            <h3 class="node__title">{article.title}</h3>
+                            {article.snippet && (
+                                <p class="field field--name-field-snippet">{article.snippet}</p>
+                            )}
+                        </a>
+                    </article>
+                ))}
+            </div>
+        </section>
+    )}
+
+    {latest.length > 0 && (
+        <section class="region region--latest">
+            <h2 class="block__title">{t('author.latestLabel')}</h2>
+            <ul class="view view--latest">
+                {latest.map((article) => (
+                    <li>
+                        <a href={`/${locale}/${article.slug}`}>{article.title}</a>
+                        {article.snippet && (
+                            <p>{article.snippet}</p>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    )}
+</article>

@@ -30,4 +30,35 @@ export interface Dictionary {
             linkText: string;
         };
     };
+    byline: {
+        /** "By " — sits before the author name in the inline byline. */
+        prefix: string;
+        /** Locale-aware comma separator between authors in a co-authored
+         *  byline. Most languages use ", " but some put a space before. */
+        separator: string;
+        /** Locale-aware "and" used between the last two authors:
+         *  "By Jane, John and Marie" (EN) / "Par Jane, John et Marie" (FR). */
+        conjunction: string;
+    };
+    author: {
+        /** Heading for the in-article AuthorBio card. */
+        aboutLabel: string;
+        /** Heading on the public /{authorsPrefix}/{slug} page above
+         *  the bio markdown. Falls back to the author's `name`. */
+        profileLabel: string;
+        /** Inline "see profile →" link label on the bio card. */
+        seeProfile: string;
+        /** Section heading above the pinned articles list. */
+        featuredLabel: string;
+        /** Section heading above the chronological articles list. */
+        latestLabel: string;
+    };
+    routes: {
+        /** URL segment for the author profile page. Anti-footprint:
+         *  every locale should use its native term ("authors" in EN,
+         *  "auteurs" in FR, "autores" in ES …). The middleware /
+         *  getStaticPaths reads this to drive
+         *  `/{locale}/{authorsPrefix}/{slug}` route matching. */
+        authorsPrefix: string;
+    };
 }

@@ -126,6 +126,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
         template,
         themeConfig: resolved.website.theme_config ?? {},
         experiments: resolved.experiments,
+        team: resolved.team,
+        primaryAuthor: resolved.primary_author,
     };
 
     // Make the request locale globally available so deep components
