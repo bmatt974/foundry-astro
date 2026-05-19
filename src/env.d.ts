@@ -42,6 +42,19 @@ declare global {
              * map to a single page (root, locale landing without a page).
              */
             pagePublishedAt?: string | null;
+            /**
+             * Active locale's per-site wording overrides — flat map
+             * keyed by Astro i18n dot-notation paths
+             * (`'toc.label'`, `'footer.affiliateDisclosure.body'`, …).
+             * Populated by the middleware from the resolved tenant's
+             * `WebsiteLocale.wording` column. Consumed by
+             * `useTranslations(locale, wording)` to override the
+             * compile-time dictionary on a per-site basis (anti-
+             * footprint variance — every site can phrase the same UI
+             * string differently). Null when the locale has no
+             * overrides.
+             */
+            wording?: Record<string, string> | null;
         }
     }
 

@@ -1,5 +1,6 @@
 ---
 import type { MenuItem } from '../../../lib/foundry';
+import { splitLinkBody, useTranslations } from '../../../lib/i18n';
 import Menu from './Menu.astro';
 
 interface Props {
@@ -10,6 +11,16 @@ interface Props {
 
 const { websiteName, currentLocale, items } = Astro.props;
 const year = new Date().getUTCFullYear();
+
+const t = useTranslations(currentLocale, Astro.locals.wording);
+const disclosureHref = items
+    .map((item) => item.href)
+    .find((href): href is string =>
+        typeof href === 'string' && /disclos|affilia/i.test(href));
+const [disclosureLead, disclosureTrail] = splitLinkBody(
+    t('footer.affiliateDisclosure.body'),
+);
+const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
 ---
 
 <footer class="wp-site-footer">
@@ -24,4 +35,7 @@ const year = new Date().getUTCFullYear();
             </nav>
         )}
     </div>
+    <p class="wp-block-paragraph wp-site-disclosure">{disclosureLead}{disclosureHref
+        ? <a class="wp-block-link" href={disclosureHref}>{disclosureLinkText}</a>
+        : disclosureLinkText}{disclosureTrail}</p>
 </footer>

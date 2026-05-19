@@ -6,6 +6,7 @@
  * the shared `extractHeadingsFromBlocks` walks the page once.
  */
 import type { PageBlock } from '../../../lib/foundry';
+import { useTranslations } from '../../../lib/i18n';
 import { extractHeadingsFromBlocks } from '../../../lib/toc';
 
 interface Props {
@@ -15,8 +16,8 @@ interface Props {
 const { blocks } = Astro.props;
 const headings = extractHeadingsFromBlocks(blocks);
 const MIN_HEADINGS = 3;
-const locale = Astro.locals.locale ?? 'en';
-const tocLabel = locale.startsWith('fr') ? 'Sommaire' : 'Table of contents';
+const t = useTranslations(Astro.locals.locale ?? 'en', Astro.locals.wording);
+const tocLabel = t('toc.label');
 ---
 
 {headings.length >= MIN_HEADINGS && (
