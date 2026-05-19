@@ -87,16 +87,25 @@ declare global {
          */
         readonly WEBSITE_BUILD_LOCALES?: string;
         /**
-         * Comma-separated surgical-regen filter (e.g. "fr/colisee,en/colosseum,fr/").
-         * Each entry is a `locale/path` or `locale/` (locale landing).
-         * When set, only those entries are emitted by `getStaticPaths`.
+         * Surgical-regen filter as semantic entity refs:
          *
-         * Astro still wipes `dist/` on each build, so the resulting tree
-         * contains only the filtered pages. The deploy step merges them
-         * into the long-lived target (CDN bucket) via `rclone copy` — a
-         * non-deleting overlay — so other pages stay intact at the edge.
+         *   WEBSITE_BUILD_REFS="page:185,author:sophie,landing:fr"
+         *
+         * The CMS expands each ref into the full URL set (one URL
+         * per locale the entity has a translation in). Robust to
+         * slug renames — the regen pipeline never has to look up
+         * URL strings.
          */
-        readonly WEBSITE_BUILD_PATHS?: string;
+        readonly WEBSITE_BUILD_REFS?: string;
+        /**
+         * Wildcard-path surgical-regen filter for structural
+         * changes (URL section moved):
+         *
+         *   WEBSITE_BUILD_PATHS_GLOB="*\/rome\/*,*\/paris\/*"
+         *
+         * Combined with `WEBSITE_BUILD_REFS` when both are set.
+         */
+        readonly WEBSITE_BUILD_PATHS_GLOB?: string;
     }
 }
 

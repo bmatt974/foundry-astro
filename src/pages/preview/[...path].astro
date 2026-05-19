@@ -1,0 +1,88 @@
+---
+/**
+ * Single SSR preview route consolidating the three earlier preview
+ * files. Parses the path locally — `preview/{locale}/[...rest]`:
+ *
+ *   /preview/fr/                  → locale landing for FR
+ *   /preview/fr/le-colisee        → page preview by slug
+ *   /preview/en/colosseum         → idem (default-at-root locale)
+ *
+ * Always runs SSR (prerender=false) so the middleware's
+ * `?theme=<name>` override + cookie persistence are exercised on
+ * every hit. `noindex` forced in <Seo> regardless of preview-page
+ * status so a leaked preview URL never lands in search results.
+ *
+ * The legacy `/{locale}/preview/{id}` route is dropped — by-id
+ * previews were only useful for pages whose slug wasn't ready yet.
+ * In practice editors paste a known slug; we keep the workflow
+ * simple by requiring one.
+ */
+export const prerender = false;
+
+import { fetchPage, fetchSitemap } from '../../lib/foundry';
+import { getTheme } from '../../themes/registry';
+
+const path = Astro.params.path ?? '';
+const segments = path.split('/').filter((s) => s.length > 0);
+const locale = segments[0];
+if (!locale) {
+    return new Response('Missing locale segment.', { status: 400 });
+}
+const slug = segments.slice(1).join('/');
+
+const tenant = Astro.locals.tenant;
+Astro.locals.locale = locale;
+
+const theme = getTheme(tenant.template);
+const { Layout, LocaleSwitcher, LocaleLanding, Seo, Article } = theme;
+
+let pageData: Awaited<ReturnType<typeof fetchPage>> = null;
+let sitemap: Awaited<ReturnType<typeof fetchSitemap>> = [];
+
+if (slug === '') {
+    sitemap = await fetchSitemap(locale, tenant.website.hostname);
+} else {
+    pageData = await fetchPage(locale, slug, tenant.website.hostname);
+    if (!pageData) {
+        return new Response('Page not found', { status: 404 });
+    }
+    Astro.locals.pagePublishedAt = pageData.published_at ?? pageData.translation?.published_at ?? null;
+}
+
+const t = pageData?.translation ?? null;
+const title = t?.meta_title ?? t?.title ?? `${tenant.website.name} — preview ${locale}`;
+const description = t?.meta_description ?? t?.snippet ?? null;
+---
+
+<Layout title={title} description={description} locale={locale}>
+    {/* Flat structure — slot= can't propagate through <Fragment>. */}
+
+    {pageData
+        ? <Seo slot="head" page={pageData} locale={locale} type="article" noindex={true} />
+        : <Seo slot="head" page={null} locale={locale} type="website" noindex={true} />
+    }
+
+    {pageData
+        ? <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={tenant.locales}
+            pageLocales={pageData.available_locales}
+        />
+        : <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={tenant.locales}
+        />
+    }
+
+    {pageData
+        ? <Article page={pageData} locale={locale} />
+        : <LocaleLanding
+            websiteName={tenant.website.name}
+            locale={locale}
+            isDefaultLocale={tenant.defaultLocale === locale}
+            sitemap={sitemap}
+        />
+    }
+</Layout>
