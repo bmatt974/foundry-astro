@@ -11,6 +11,7 @@
  * sites on this theme look like the same engine as wp-twentyfour /
  * wp-astra / etc. — to the extent we mimic the same WP version string.
  */
+import { wpGenerator } from '../../../lib/fingerprint';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
 import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
@@ -26,9 +27,12 @@ interface Props {
     canonicalUrl?: string;
 }
 
+// Pick a WordPress version per-site so the generator string isn't
+// identical across the whole network. The pick is deterministic
+// from the hostname — stable per site, varied across sites.
 const wpExtras: SeoExtras = {
     extraMeta: [
-        { name: 'generator', content: 'WordPress 6.4.2' },
+        { name: 'generator', content: wpGenerator(Astro.locals.tenant.website.hostname) },
     ],
     extraLinks: [
         { rel: 'pingback', href: '/xmlrpc.php' },
