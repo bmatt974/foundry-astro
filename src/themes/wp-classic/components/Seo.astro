@@ -11,7 +11,7 @@
  * sites on this theme look like the same engine as wp-twentyfour /
  * wp-astra / etc. — to the extent we mimic the same WP version string.
  */
-import { wpGenerator } from '../../../lib/fingerprint';
+import { wpGenerator, wpHeadProfile } from '../../../lib/fingerprint';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
 import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
@@ -27,18 +27,30 @@ interface Props {
     canonicalUrl?: string;
 }
 
-// Pick a WordPress version per-site so the generator string isn't
-// identical across the whole network. The pick is deterministic
-// from the hostname — stable per site, varied across sites.
+// Pick a WordPress version + identity-link profile per-site so
+// the head tags aren't identical across the whole network. Both
+// picks are deterministic from the hostname — stable per site,
+// varied across sites. The profile mirrors real-world plugin
+// coverage: some sites have pingback/wp-json/EditURI all present,
+// others have one or more stripped by security plugins.
+const hostname = Astro.locals.tenant.website.hostname;
+const profile = wpHeadProfile(hostname);
+const extraLinks: NonNullable<SeoExtras['extraLinks']> = [];
+if (profile.pingback) {
+    extraLinks.push({ rel: 'pingback', href: '/xmlrpc.php' });
+}
+if (profile.wpJson) {
+    extraLinks.push({ rel: 'https://api.w.org/', href: '/wp-json/' });
+}
+if (profile.editURI) {
+    extraLinks.push({ rel: 'EditURI', type: 'application/rsd+xml', title: 'RSD', href: '/xmlrpc.php?rsd' });
+}
+
 const wpExtras: SeoExtras = {
     extraMeta: [
-        { name: 'generator', content: wpGenerator(Astro.locals.tenant.website.hostname) },
+        { name: 'generator', content: wpGenerator(hostname) },
     ],
-    extraLinks: [
-        { rel: 'pingback', href: '/xmlrpc.php' },
-        { rel: 'https://api.w.org/', href: '/wp-json/' },
-        { rel: 'EditURI', type: 'application/rsd+xml', title: 'RSD', href: '/xmlrpc.php?rsd' },
-    ],
+    extraLinks,
 };
 ---
 

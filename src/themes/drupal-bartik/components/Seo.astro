@@ -10,7 +10,7 @@
  * the canonical Drupal tell — it's a single-byte difference that bots
  * notice and humans miss.
  */
-import { drupalGenerator } from '../../../lib/fingerprint';
+import { drupalGenerator, drupalHeadProfile } from '../../../lib/fingerprint';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
 import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
@@ -26,16 +26,23 @@ interface Props {
     canonicalUrl?: string;
 }
 
-// Pick a Drupal version per-site so the generator string isn't
-// identical across the whole network. The pick is deterministic
-// from the hostname — stable per site, varied across sites.
-const drupalExtras: SeoExtras = {
-    extraMeta: [
-        { name: 'Generator', content: drupalGenerator(Astro.locals.tenant.website.hostname) },
-        { name: 'MobileOptimized', content: 'width' },
-        { name: 'HandheldFriendly', content: 'true' },
-    ],
-};
+// Pick a Drupal version + legacy-meta profile per-site. Drupal 10
+// themes dropped MobileOptimized/HandheldFriendly so sites built
+// on D10 don't emit them; older D7/D8 themes still do. Mixing
+// both reflects the real-world Drupal version distribution.
+const hostname = Astro.locals.tenant.website.hostname;
+const profile = drupalHeadProfile(hostname);
+const extraMeta: NonNullable<SeoExtras['extraMeta']> = [
+    { name: 'Generator', content: drupalGenerator(hostname) },
+];
+if (profile.mobileOptimized) {
+    extraMeta.push({ name: 'MobileOptimized', content: 'width' });
+}
+if (profile.handheldFriendly) {
+    extraMeta.push({ name: 'HandheldFriendly', content: 'true' });
+}
+
+const drupalExtras: SeoExtras = { extraMeta };
 ---
 
 <SeoCore {...Astro.props} extras={drupalExtras} />

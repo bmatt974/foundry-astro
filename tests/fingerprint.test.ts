@@ -10,8 +10,10 @@ import { strict as assert } from 'node:assert';
 import {
     basicGenerator,
     drupalGenerator,
+    drupalHeadProfile,
     pickFromList,
     wpGenerator,
+    wpHeadProfile,
 } from '../src/lib/fingerprint.ts';
 
 // ─── pickFromList ────────────────────────────────────────────
@@ -99,4 +101,46 @@ test('basicGenerator: stable per hostname', () => {
         basicGenerator('site-a.example.com'),
         basicGenerator('site-a.example.com'),
     );
+});
+
+// ─── wpHeadProfile ───────────────────────────────────────────
+
+test('wpHeadProfile: returns flags for each WP identity link', () => {
+    const p = wpHeadProfile('site-a.example.com');
+    assert.equal(typeof p.pingback, 'boolean');
+    assert.equal(typeof p.wpJson, 'boolean');
+    assert.equal(typeof p.editURI, 'boolean');
+});
+
+test('wpHeadProfile: stable per hostname', () => {
+    const a = wpHeadProfile('site-a.example.com');
+    const b = wpHeadProfile('site-a.example.com');
+    assert.deepEqual(a, b);
+});
+
+test('wpHeadProfile: variance across hostnames produces different profiles', () => {
+    const sample = Array.from({ length: 40 }, (_, i) => `site-${i}.example.com`);
+    const profiles = new Set(sample.map((s) => JSON.stringify(wpHeadProfile(s))));
+    // The pool has 8 entries with overlapping shapes; expect at
+    // least 3 distinct profiles across 40 hostnames.
+    assert.ok(profiles.size >= 3, `expected variance, got ${profiles.size}`);
+});
+
+// ─── drupalHeadProfile ───────────────────────────────────────
+
+test('drupalHeadProfile: returns flags for legacy mobile meta tags', () => {
+    const p = drupalHeadProfile('site-a.example.com');
+    assert.equal(typeof p.mobileOptimized, 'boolean');
+    assert.equal(typeof p.handheldFriendly, 'boolean');
+});
+
+test('drupalHeadProfile: D10 profile (both absent) is the dominant pick', () => {
+    const sample = Array.from({ length: 40 }, (_, i) => `site-${i}.example.com`);
+    const d10Only = sample.filter((s) => {
+        const p = drupalHeadProfile(s);
+        return !p.mobileOptimized && !p.handheldFriendly;
+    });
+    // Pool weights "both false" 3/7 = ~43% — for 40 hostnames
+    // expect at least 8 to fall there.
+    assert.ok(d10Only.length >= 8, `expected D10 profile to dominate, got ${d10Only.length}/40`);
 });
