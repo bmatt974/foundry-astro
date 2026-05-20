@@ -56,4 +56,13 @@ if (flags.paths) env.WEBSITE_BUILD_PATHS = flags.paths;
 console.log(`→ astro build for ${hostname}${flags.locales ? ` (locales: ${flags.locales})` : ''}${flags.paths ? ` (paths: ${flags.paths})` : ''}`);
 
 const child = spawn('astro', ['build'], { stdio: 'inherit', env });
-child.on('exit', (code) => process.exit(code ?? 0));
+child.on('exit', (code) => {
+    if (code !== 0) {
+        process.exit(code ?? 0);
+    }
+    // Post-build: per-theme CSS path mimicry. The script reads the
+    // tenant template via /resolve and either rewrites the link or
+    // bails out (basic theme keeps Astro defaults).
+    const mimic = spawn('node', ['scripts/mimic-cms-assets.mjs'], { stdio: 'inherit', env });
+    mimic.on('exit', (mimicCode) => process.exit(mimicCode ?? 0));
+});
