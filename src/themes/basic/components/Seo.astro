@@ -1,11 +1,15 @@
 ---
 /**
- * SEO head for the basic theme — vanilla pass-through of `SeoCore`
- * with no engine-specific extras. The wrapper exists for symmetry
- * with the other themes (each exposes `theme.Seo`); the actual
- * emission is in `src/components/SeoCore.astro`.
+ * SEO head for the basic theme. Picks a static-site-generator
+ * string per-site (Hugo / Eleventy / Jekyll / …) or nothing at
+ * all — both are common looks for non-CMS sites. The pick is
+ * deterministic from the hostname so each site is stable across
+ * rebuilds; sister sites in a network land on different picks
+ * (or one with a tag, one without).
  */
+import { basicGenerator } from '../../../lib/fingerprint';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
+import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
 
 interface Props {
@@ -18,6 +22,11 @@ interface Props {
     availableLocales?: AvailableLocale[];
     canonicalUrl?: string;
 }
+
+const generator = basicGenerator(Astro.locals.tenant.website.hostname);
+const basicExtras: SeoExtras = {
+    extraMeta: generator ? [{ name: 'generator', content: generator }] : [],
+};
 ---
 
-<SeoCore {...Astro.props} />
+<SeoCore {...Astro.props} extras={basicExtras} />

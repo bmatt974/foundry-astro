@@ -10,6 +10,7 @@
  * the canonical Drupal tell — it's a single-byte difference that bots
  * notice and humans miss.
  */
+import { drupalGenerator } from '../../../lib/fingerprint';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
 import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
@@ -25,9 +26,12 @@ interface Props {
     canonicalUrl?: string;
 }
 
+// Pick a Drupal version per-site so the generator string isn't
+// identical across the whole network. The pick is deterministic
+// from the hostname — stable per site, varied across sites.
 const drupalExtras: SeoExtras = {
     extraMeta: [
-        { name: 'Generator', content: 'Drupal 10 (https://www.drupal.org)' },
+        { name: 'Generator', content: drupalGenerator(Astro.locals.tenant.website.hostname) },
         { name: 'MobileOptimized', content: 'width' },
         { name: 'HandheldFriendly', content: 'true' },
     ],
