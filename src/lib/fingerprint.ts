@@ -55,6 +55,49 @@ export function wpGenerator(hostname: string): string {
     return `WordPress ${pickFromList(WP_VERSIONS, hostname)}`;
 }
 
+/**
+ * Per-site profile for the extra WordPress identity links in
+ * <head>. Each link is canonical to WP (`/xmlrpc.php`,
+ * `/wp-json/`, `/xmlrpc.php?rsd`), so we don't vary the PATHS
+ * — we vary their PRESENCE. In the real world, security and
+ * optimization plugins commonly disable one or more of these:
+ *
+ *   - pingback: disabled by Wordfence, iThemes Security, etc.
+ *   - wp-json:  disabled by Disable REST API, security hardening
+ *   - EditURI:  removed by SEO plugins (Yoast, Rank Math) and
+ *               most "remove generator" snippets
+ *
+ * The pool below mirrors real-world plugin coverage so a network
+ * crawler sees a believable distribution: most sites have at
+ * least one of these absent.
+ */
+export interface WpHeadProfile {
+    pingback: boolean;
+    wpJson: boolean;
+    editURI: boolean;
+}
+
+const WP_HEAD_PROFILES: readonly WpHeadProfile[] = [
+    // Vanilla WP — all three present. Small sites without plugins.
+    { pingback: true, wpJson: true, editURI: true },
+    { pingback: true, wpJson: true, editURI: true },
+    // Pingback disabled (the most common modification — security
+    // plugins target this aggressively due to DDoS amplification).
+    { pingback: false, wpJson: true, editURI: false },
+    { pingback: false, wpJson: true, editURI: false },
+    { pingback: false, wpJson: true, editURI: true },
+    // wp-json disabled too — fully locked-down installs.
+    { pingback: false, wpJson: false, editURI: false },
+    // EditURI removed (SEO plugin), rest vanilla.
+    { pingback: true, wpJson: true, editURI: false },
+    // Partial — pingback + wp-json off, EditURI somehow kept.
+    { pingback: false, wpJson: false, editURI: true },
+] as const;
+
+export function wpHeadProfile(hostname: string): WpHeadProfile {
+    return pickFromList(WP_HEAD_PROFILES, hostname);
+}
+
 // ──────────────────────────────────────────────
 // Basic — static-site generators
 // ──────────────────────────────────────────────
@@ -123,4 +166,34 @@ const DRUPAL_GENERATORS = [
 
 export function drupalGenerator(hostname: string): string {
     return pickFromList(DRUPAL_GENERATORS, hostname);
+}
+
+/**
+ * Per-site profile for legacy mobile-hint meta tags. Drupal 7/8
+ * core themes (Bartik included) emit `MobileOptimized` and
+ * `HandheldFriendly`, but Drupal 10 themes mostly dropped them.
+ * Varying presence reflects the mix of Drupal versions in the
+ * wild — pairs with the generator pool above.
+ */
+export interface DrupalHeadProfile {
+    mobileOptimized: boolean;
+    handheldFriendly: boolean;
+}
+
+const DRUPAL_HEAD_PROFILES: readonly DrupalHeadProfile[] = [
+    // Modern Drupal 10 — both dropped, weighted heavily because
+    // it's where the platform is moving.
+    { mobileOptimized: false, handheldFriendly: false },
+    { mobileOptimized: false, handheldFriendly: false },
+    { mobileOptimized: false, handheldFriendly: false },
+    // Legacy / D7-style — both kept.
+    { mobileOptimized: true, handheldFriendly: true },
+    { mobileOptimized: true, handheldFriendly: true },
+    // Mixed — one or the other (some themes override partially).
+    { mobileOptimized: true, handheldFriendly: false },
+    { mobileOptimized: false, handheldFriendly: true },
+] as const;
+
+export function drupalHeadProfile(hostname: string): DrupalHeadProfile {
+    return pickFromList(DRUPAL_HEAD_PROFILES, hostname);
 }
