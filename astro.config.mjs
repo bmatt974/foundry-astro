@@ -1,7 +1,6 @@
 // @ts-check
 import { defineConfig, passthroughImageService } from 'astro/config';
 import node from '@astrojs/node';
-import tailwindcss from '@tailwindcss/vite';
 
 // `astro.config.mjs` runs in raw Node before Vite, so `import.meta.env`
 // isn't populated yet. Load `.env` into `process.env` so the config can
@@ -199,7 +198,6 @@ export default defineConfig({
         host: true,
     },
     vite: {
-        plugins: [tailwindcss()],
         // Inline `WEBSITE_BUILD_TEMPLATE` as a literal so the theme
         // registry's `if/else` branches collapse via Rollup DCE in
         // production builds — no `import.meta.env` lookup at runtime,
