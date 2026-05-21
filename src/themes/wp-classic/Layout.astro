@@ -14,7 +14,7 @@ interface Props {
 const { title, description, locale = 'en' } = Astro.props;
 const tenant = Astro.locals.tenant;
 const themeConfig = tenant?.themeConfig ?? {};
-const inlineTokens = css(themeConfig);
+const inlineTokens = css(themeConfig, tenant?.website.slug ?? '');
 
 const footerItems = tenant
     ? await fetchMenu('footer', locale, tenant.website.hostname)

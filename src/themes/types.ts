@@ -176,10 +176,16 @@ export interface Theme {
     /**
      * CSS declaration list (no `:root {}` wrapper) injected as inline
      * `style=` on `<html>` per request. Themes use it to project the
-     * site's `theme_config` (colors, fonts) into CSS custom properties.
-     * Return an empty string when the theme has no per-site tokens.
+     * site's `theme_config` (colors, fonts) into CSS custom properties,
+     * and to derive *per-site seeded* tokens (radius, shadow, spacing)
+     * from the website slug — so two sister sites on the same theme
+     * still ship a visually distinct identity.
+     *
+     * `websiteSlug` is empty in dev / preview contexts where the
+     * tenant isn't resolved yet; themes treat it as "no seed available"
+     * and skip the seeded derivations.
      */
-    css: (themeConfig: Record<string, unknown>) => string;
+    css: (themeConfig: Record<string, unknown>, websiteSlug?: string) => string;
 
     /**
      * Reserved for stricter typing in the future: themes that want to

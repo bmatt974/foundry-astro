@@ -19,7 +19,7 @@ const { title, description, locale = 'en' } = Astro.props;
 // lands later in the cascade.
 const tenant = Astro.locals.tenant;
 const themeConfig = tenant?.themeConfig ?? {};
-const inlineTokens = css(themeConfig);
+const inlineTokens = css(themeConfig, tenant?.website.slug ?? '');
 
 // Pre-fetch the footer menu — memoised 60s per (host, locale,
 // location) so every page render isn't a fresh round-trip.

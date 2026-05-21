@@ -18,6 +18,8 @@
  *     `<html>` per request, overriding the defaults via specificity.
  */
 
+import { pickFromList } from '../../lib/anti-footprint/util';
+
 interface ThemeConfig {
     colors?: {
         primary?: string;
@@ -40,7 +42,22 @@ const DENSITY_MAX_WIDTH: Record<NonNullable<ThemeConfig['density']>, string> = {
     spacious: '56rem',
 };
 
-export function css(themeConfig: Record<string, unknown>): string {
+// Per-site seeded design-token pools. The website slug seeds every
+// pick, so a multi-locale site keeps one coherent identity across
+// every hostname / locale combo. Two sister sites on the same theme
+// land on different combinations — adds visual variance on top of
+// the colour / font / density tokens admins control explicitly via
+// Filament.
+const RADIUS_POOL = ['0', '2px', '4px', '6px', '8px', '12px', '16px'];
+const SHADOW_POOL = [
+    'none',
+    '0 1px 2px 0 rgba(0,0,0,0.05)',
+    '0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04)',
+    '0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04)',
+];
+const SECTION_SPACING_POOL = ['2rem', '2.5rem', '3rem', '4rem', '5rem'];
+
+export function css(themeConfig: Record<string, unknown>, websiteSlug = ''): string {
     const cfg = themeConfig as ThemeConfig;
     const colors = cfg.colors ?? {};
     const fonts = cfg.fonts ?? {};
@@ -57,8 +74,16 @@ export function css(themeConfig: Record<string, unknown>): string {
         '--layout-max-width': density ? DENSITY_MAX_WIDTH[density] : undefined,
     };
 
+    if (websiteSlug !== '') {
+        declarations['--radius-card'] = pickFromList(RADIUS_POOL, `${websiteSlug}:radius-card`);
+        declarations['--radius-button'] = pickFromList(RADIUS_POOL, `${websiteSlug}:radius-button`);
+        declarations['--shadow-card'] = pickFromList(SHADOW_POOL, `${websiteSlug}:shadow-card`);
+        declarations['--section-spacing'] = pickFromList(SECTION_SPACING_POOL, `${websiteSlug}:section-spacing`);
+    }
+
     return Object.entries(declarations)
         .filter(([, value]) => value !== undefined && value !== null && value !== '')
         .map(([key, value]) => `${key}: ${value}`)
         .join('; ');
 }
+

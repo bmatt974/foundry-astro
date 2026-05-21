@@ -35,6 +35,12 @@ export type BlockType =
 export interface PageBlock {
     id: number;
     block_type: BlockType;
+    /** Opaque per-theme variant identifier — picks which visual rendering
+     *  of `block_type` to use (e.g. `editorial-split` vs `immersive-cover`
+     *  for a `hero` block). `null` falls back to the theme's default
+     *  variant. Theme components are responsible for accepting unknown
+     *  variants gracefully (default rendering). */
+    variant: string | null;
     cluster_block_key: string | null;
     related_page_id: number | null;
     position: number;

@@ -29,7 +29,7 @@ const DENSITY_CONTENT_WIDTH: Record<NonNullable<ThemeConfig['density']>, string>
     spacious: '880px',
 };
 
-export function css(themeConfig: Record<string, unknown>): string {
+export function css(themeConfig: Record<string, unknown>, _websiteSlug = ''): string {
     const cfg = themeConfig as ThemeConfig;
     const colors = cfg.colors ?? {};
     const fonts = cfg.fonts ?? {};
