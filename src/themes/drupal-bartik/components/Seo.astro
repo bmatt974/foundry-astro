@@ -1,18 +1,12 @@
 ---
 /**
- * SEO head for drupal-bartik — wraps `SeoCore` with the meta tags a
- * real Drupal install leaks into <head>:
- *   <meta name="Generator" content="Drupal 10 (https://www.drupal.org)">
- *   <meta name="MobileOptimized" content="width">
- *   <meta name="HandheldFriendly" content="true">
- *
- * Capitalised "Generator" (vs WordPress's lowercase "generator") is
- * the canonical Drupal tell — it's a single-byte difference that bots
- * notice and humans miss.
+ * SEO head for drupal-bartik. All Drupal-specific head variance
+ * lives in `src/themes/drupal-bartik/anti-footprint.ts` (capital-G
+ * Generator string, legacy mobile metas, theme-color, favicon
+ * path mode — fresh-install droplet vs custom upload).
  */
-import { drupalGenerator, drupalHeadProfile } from '../../../lib/fingerprint';
+import { getAntiFootprint } from '../../../lib/anti-footprint/registry';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
-import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
 
 interface Props {
@@ -26,23 +20,10 @@ interface Props {
     canonicalUrl?: string;
 }
 
-// Pick a Drupal version + legacy-meta profile per-site. Drupal 10
-// themes dropped MobileOptimized/HandheldFriendly so sites built
-// on D10 don't emit them; older D7/D8 themes still do. Mixing
-// both reflects the real-world Drupal version distribution.
-const hostname = Astro.locals.tenant.website.hostname;
-const profile = drupalHeadProfile(hostname);
-const extraMeta: NonNullable<SeoExtras['extraMeta']> = [
-    { name: 'Generator', content: drupalGenerator(hostname) },
-];
-if (profile.mobileOptimized) {
-    extraMeta.push({ name: 'MobileOptimized', content: 'width' });
-}
-if (profile.handheldFriendly) {
-    extraMeta.push({ name: 'HandheldFriendly', content: 'true' });
-}
-
-const drupalExtras: SeoExtras = { extraMeta };
+const extras = getAntiFootprint('drupal-bartik').seoExtras(
+    Astro.locals.tenant.website.slug,
+    Astro.locals.tenant.website.fingerprint_preset,
+);
 ---
 
-<SeoCore {...Astro.props} extras={drupalExtras} />
+<SeoCore {...Astro.props} extras={extras} />

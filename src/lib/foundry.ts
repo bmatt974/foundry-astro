@@ -245,6 +245,9 @@ export interface TenantResolution {
         hostname: string;
         name: string;
         template: string | null;
+        /** Optional admin pin for the anti-footprint preset (head
+         *  tags + favicon mode). Null = let the theme auto-pick. */
+        fingerprint_preset: string | null;
         theme_config: Record<string, unknown>;
     };
     locales: WebsiteLocale[];
@@ -257,6 +260,19 @@ export interface TenantResolution {
     /** Default byline author. Used by `page.authors` fallback when the
      *  page has no explicit attribution. */
     primary_author: Author | null;
+    /** Admin-supplied raw HTML snippets injected into every page of
+     *  this website — verification meta tags, GTM / GA4 scripts,
+     *  custom stylesheets, third-party widgets. Each entry carries a
+     *  position (`head` | `body_start` | `body_end`), an admin-facing
+     *  label, the raw body, and an optional locale narrowing. */
+    injections: CustomInjection[];
+}
+
+export interface CustomInjection {
+    position: 'head' | 'body_start' | 'body_end';
+    label: string;
+    body: string;
+    locale: string | null;
 }
 
 // ──────────────────────────────────────────────

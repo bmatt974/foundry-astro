@@ -34,6 +34,11 @@ declare global {
                  *  — kept here for the rare component that needs the
                  *  website's primary author independently of the page. */
                 primaryAuthor: TenantResolution['primary_author'];
+                /** Admin-supplied raw HTML injection snippets — see
+                 *  `WebsiteCustomInjection` on the backend. The Layout
+                 *  filters by position and emits via `set:html` at the
+                 *  three injection points (head / body_start / body_end). */
+                injections: TenantResolution['injections'];
             };
             /**
              * Locale segment from the URL (e.g. 'fr', 'fr-FR') so deep
