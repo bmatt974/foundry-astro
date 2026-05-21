@@ -87,6 +87,15 @@ function generatorString(websiteSlug: string, family: SsgFamily): string | null 
 const config: ThemeAntiFootprint = {
     name: 'basic',
 
+    // Bare XML — a hand-coded / minimal SSG site usually ships
+    // a raw sitemap without any client-side styling. Keeping it
+    // unstyled IS the basic-theme fingerprint.
+    sitemap: {
+        xslHref: null,
+        xslBody: null,
+        generatorComment: null,
+    },
+
     cssUrlTemplates: [
         '/assets/main.css?v={hash}',
         '/static/main.css?v={hash}',

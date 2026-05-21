@@ -28,6 +28,7 @@ import type {
     SeoExtras,
     ThemeAntiFootprint,
 } from '../../lib/anti-footprint/types.ts';
+import sitemapXsl from './sitemap-xsl.ts';
 
 // ──────────────────────────────────────────────
 // Preset — the LOCKED-together identity bits.
@@ -107,6 +108,15 @@ const REST_DISABLED_BODY = JSON.stringify({
 
 const config: ThemeAntiFootprint = {
     name: 'wp-classic',
+
+    sitemap: {
+        // Yoast SEO's canonical XSL path. The plugin is the
+        // dominant XML-sitemap source for WordPress, so this is
+        // the prefix a crawler / human would expect.
+        xslHref: '/main-sitemap.xsl',
+        xslBody: sitemapXsl,
+        generatorComment: null,
+    },
 
     cssUrlTemplates: [
         '/wp-content/themes/{site}/style.css?ver={hash}',

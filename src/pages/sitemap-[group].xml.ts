@@ -8,11 +8,12 @@
  * (the lib) and rejects bogus inputs naturally.
  */
 import type { APIRoute } from 'astro';
+import { getAntiFootprint } from '../lib/anti-footprint/registry';
 import { fetchAndGroupUrls, renderUrlset, xmlResponse } from '../lib/sitemap';
 
 export const GET: APIRoute = async ({ locals, params, url }) => {
-    const hostname = locals.tenant?.website.hostname;
-    if (!hostname) {
+    const tenant = locals.tenant;
+    if (!tenant) {
         return new Response('Not found', { status: 404 });
     }
 
@@ -21,13 +22,14 @@ export const GET: APIRoute = async ({ locals, params, url }) => {
         return new Response('Not found', { status: 404 });
     }
 
-    const groups = await fetchAndGroupUrls(hostname);
+    const groups = await fetchAndGroupUrls(tenant.website.hostname);
     const match = groups.find((g) => g.slug === slug);
     if (!match) {
         return new Response('Not found', { status: 404 });
     }
 
     const baseUrl = `${url.protocol}//${url.host}`;
+    const { xslHref, generatorComment } = getAntiFootprint(tenant.website.template).sitemap;
 
-    return xmlResponse(renderUrlset(match.urls, baseUrl));
+    return xmlResponse(renderUrlset(match.urls, baseUrl, { xslHref, generatorComment }));
 };

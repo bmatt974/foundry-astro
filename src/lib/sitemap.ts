@@ -17,6 +17,13 @@
  */
 import { fetchSitemapUrls, type SitemapUrl } from './foundry';
 
+export interface SitemapStyleOptions {
+    /** Public URL of the XSL stylesheet to declare, or `null` to skip. */
+    xslHref?: string | null;
+    /** XML/HTML comment inserted right after the stylesheet declaration. */
+    generatorComment?: string | null;
+}
+
 const URLS_PER_SITEMAP = 10_000;
 const CACHE_TTL_MS = 10_000;
 
@@ -85,11 +92,10 @@ export async function fetchAndGroupUrls(hostname: string): Promise<SitemapGroup[
     return groups;
 }
 
-export function renderSitemapIndex(groups: SitemapGroup[], baseUrl: string): string {
-    const lines = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ];
+export function renderSitemapIndex(groups: SitemapGroup[], baseUrl: string, style: SitemapStyleOptions = {}): string {
+    const lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
+    appendStylePreamble(lines, style);
+    lines.push('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     for (const group of groups) {
         lines.push('  <sitemap>');
         lines.push(`    <loc>${escapeXml(`${baseUrl}/sitemap-${group.slug}.xml`)}</loc>`);
@@ -102,11 +108,10 @@ export function renderSitemapIndex(groups: SitemapGroup[], baseUrl: string): str
     return lines.join('\n') + '\n';
 }
 
-export function renderUrlset(urls: SitemapUrl[], baseUrl: string): string {
-    const lines = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ];
+export function renderUrlset(urls: SitemapUrl[], baseUrl: string, style: SitemapStyleOptions = {}): string {
+    const lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
+    appendStylePreamble(lines, style);
+    lines.push('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
     for (const url of urls) {
         lines.push('  <url>');
         lines.push(`    <loc>${escapeXml(`${baseUrl}${url.path}`)}</loc>`);
@@ -128,6 +133,15 @@ export function xmlResponse(body: string): Response {
             'Cache-Control': 'public, max-age=600, s-maxage=600',
         },
     });
+}
+
+function appendStylePreamble(lines: string[], style: SitemapStyleOptions): void {
+    if (style.xslHref) {
+        lines.push(`<?xml-stylesheet type="text/xsl" href="${style.xslHref}"?>`);
+    }
+    if (style.generatorComment) {
+        lines.push(`<!--${style.generatorComment}-->`);
+    }
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
