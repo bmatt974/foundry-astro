@@ -86,9 +86,11 @@ test('robots.txt fingerprints the claimed CMS', () => {
 
     const drupal = getAntiFootprint('drupal-bartik').robotsTxt;
     assert.match(drupal, /Disallow: \/core\//, 'drupal-bartik: missing /core/ disallow');
-    assert.match(drupal, /Crawl-delay: 10/, 'drupal-bartik: missing Drupal-typical Crawl-delay');
     assert.match(drupal, /Disallow: \/user\/login/, 'drupal-bartik: missing Drupal /user/login disallow');
     assert.doesNotMatch(drupal, /\/wp-admin\//, 'drupal-bartik: leaks WordPress /wp-admin/');
+    // Crawl-delay: omitted on purpose — Google ignores it but
+    // Bing / Yandex would crawl 10× slower for no SEO gain.
+    assert.doesNotMatch(drupal, /Crawl-delay:/, 'drupal-bartik: Crawl-delay should be omitted for indexing speed');
 
     const basic = getAntiFootprint('basic').robotsTxt;
     assert.doesNotMatch(basic, /\/wp-admin\//, 'basic: leaks WordPress /wp-admin/');
