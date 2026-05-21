@@ -26,6 +26,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@types/node": "^25.8.0",
+    "purgecss": "^8.0.0",
     "typescript": "^6.0.3"
   }
 }
