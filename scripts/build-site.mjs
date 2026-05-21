@@ -12,8 +12,15 @@
  *
  * `<hostname>` matches a seeded WebsiteLocale.hostname row on the
  * Foundry backend (e.g. `site-a.foundry-astro.test`).
+ *
+ * Before `astro build` runs, the script hits `/resolve?host=…` to
+ * read the website's `template` and pins it via `WEBSITE_BUILD_TEMPLATE`.
+ * The theme registry uses that env var to import ONLY the active
+ * theme's module in production builds — basic Tailwind CSS no longer
+ * leaks into a wp-classic bundle, and vice versa.
  */
 import { spawn } from 'node:child_process';
+import { loadEnvFile } from 'node:process';
 
 const args = process.argv.slice(2);
 const positional = [];
@@ -46,14 +53,32 @@ if (!hostname) {
     process.exit(1);
 }
 
+try {
+    loadEnvFile('.env');
+} catch {
+    // No .env file — host env vars take over.
+}
+
+const template = await resolveTemplate(hostname);
+
+/** @type {Record<string, string | undefined>} */
 const env = {
     ...process.env,
     WEBSITE_BUILD_HOSTNAME: hostname,
+    // Empty string when the resolver can't reach the CMS or the
+    // website has no pinned template — the registry then eager-globs
+    // all themes as the safe fallback.
+    WEBSITE_BUILD_TEMPLATE: template ?? '',
 };
 if (flags.locales) env.WEBSITE_BUILD_LOCALES = flags.locales;
 if (flags.paths) env.WEBSITE_BUILD_PATHS = flags.paths;
 
-console.log(`→ astro build for ${hostname}${flags.locales ? ` (locales: ${flags.locales})` : ''}${flags.paths ? ` (paths: ${flags.paths})` : ''}`);
+console.log(
+    `→ astro build for ${hostname}`
+    + ` (template: ${template ?? 'unknown — fallback to all themes'})`
+    + `${flags.locales ? ` (locales: ${flags.locales})` : ''}`
+    + `${flags.paths ? ` (paths: ${flags.paths})` : ''}`,
+);
 
 const child = spawn('astro', ['build'], { stdio: 'inherit', env });
 child.on('exit', (code) => {
@@ -67,6 +92,27 @@ child.on('exit', (code) => {
         'scripts/mimic-cms-assets.ts',
     ], env);
 });
+
+async function resolveTemplate(host) {
+    const base = (process.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1').replace(/\/+$/, '');
+    const headers = { Accept: 'application/json' };
+    if (process.env.FOUNDRY_PREVIEW_TOKEN) {
+        headers['X-Preview-Token'] = process.env.FOUNDRY_PREVIEW_TOKEN;
+    }
+    try {
+        const response = await fetch(`${base}/resolve?host=${encodeURIComponent(host)}`, { headers });
+        if (!response.ok) {
+            console.warn(`[build-site] /resolve returned ${response.status} for ${host} — building with all themes.`);
+            return null;
+        }
+        const body = await response.json();
+        const template = body?.data?.website?.template ?? null;
+        return typeof template === 'string' && template !== '' ? template : null;
+    } catch (err) {
+        console.warn(`[build-site] /resolve unreachable (${err.message}) — building with all themes.`);
+        return null;
+    }
+}
 
 function runPostBuild(scripts, env) {
     if (scripts.length === 0) {

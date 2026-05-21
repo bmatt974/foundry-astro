@@ -69,7 +69,7 @@ if (cssFile === null) {
     process.exit(0);
 }
 
-const sourceHash = cssFile.match(/^registry\.([A-Za-z0-9_-]+)\.css$/)?.[1] ?? '';
+const sourceHash = cssFile.match(/^[A-Za-z0-9_-]+\.([A-Za-z0-9_-]+)\.css$/)?.[1] ?? '';
 
 // Drift guard for surgical regen (same logic as before — see
 // dist/.mimic-state JSON for the previous hash).
@@ -184,7 +184,14 @@ async function findCssFile(astroDir: string): Promise<string | null> {
     } catch {
         return null;
     }
-    return entries.find((name) => /^registry\.[A-Za-z0-9_-]+\.css$/.test(name)) ?? null;
+
+    // Vite emits a single root CSS chunk per build under various
+    // names — historically `registry.<hash>.css`, more recently
+    // `index.<hash>.css` after the theme registry was reworked to
+    // use direct dynamic imports instead of `import.meta.glob`. We
+    // just take the first `.css` file in `_astro/` since the build
+    // produces exactly one when a template is pinned.
+    return entries.find((name) => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.css$/.test(name)) ?? null;
 }
 
 async function collectHtmlFiles(root: string): Promise<string[]> {
