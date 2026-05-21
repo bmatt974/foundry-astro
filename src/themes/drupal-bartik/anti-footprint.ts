@@ -262,6 +262,30 @@ Sitemap: {sitemap_url}
         }
         return out;
     },
+
+    // Drupal CSS files conventionally open with a `@file` docblock
+    // pointing at the theme's `.info.yml`. The version flows into the
+    // URL's `?ver=` query — Drupal uses semver internally for custom
+    // themes.
+    cssHeader(websiteSlug: string) {
+        const version = pickFromList(DRUPAL_THEME_VERSIONS, `${websiteSlug}:dthemeversion`);
+        const themeName = drupalThemeName(websiteSlug);
+        const body = `/**\n * @file\n * Custom theme styles for ${themeName}.\n *\n * @see themes/custom/${websiteSlug}/${websiteSlug}.info.yml\n */\n`;
+        return { body, version };
+    },
 };
+
+const DRUPAL_THEME_VERSIONS = [
+    '1.0.0', '1.0.1', '1.1.0', '1.2.3', '1.4.0', '1.5.2',
+    '2.0.0', '2.0.3', '2.1.0',
+] as const;
+
+function drupalThemeName(slug: string): string {
+    return slug
+        .split('-')
+        .filter((part) => part.length > 0)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
 
 export default config;

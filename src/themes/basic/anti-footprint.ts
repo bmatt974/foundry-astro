@@ -7,7 +7,7 @@
  * generator". The exact version of the framework varies
  * independently per hostname.
  */
-import { makeIdenticon, pickFromList } from '../../lib/anti-footprint/util.ts';
+import { favHash, makeIdenticon, pickFromList } from '../../lib/anti-footprint/util.ts';
 import type {
     FakeResponseContext,
     FakeResponseSpec,
@@ -133,6 +133,29 @@ Sitemap: {sitemap_url}
             return [{ urlPath: '/favicon.ico', body: astroIco, mime: 'image/x-icon' }];
         }
         return [{ urlPath: '/favicon.ico', body: makeIdenticon(websiteSlug), mime: 'image/x-icon' }];
+    },
+
+    // SSG sites don't really have "theme versions" — they have build
+    // hashes. So `version` is a per-slug short hash and the header is
+    // a minimal one-liner naming the bundle. Branded SSG installs
+    // (`hugo`, `jekyll`, …) get a version drawn from the same pool
+    // as the generator meta tag, keeping the two signals coherent.
+    cssHeader(websiteSlug: string, presetOverride?: string | null) {
+        const p = presetFor(websiteSlug, presetOverride);
+        let version: string;
+        if (p.family === 'anonymous') {
+            version = favHash(`${websiteSlug}:basicversion`).toString(36).slice(0, 7);
+        } else {
+            const pool = p.family === 'hugo' ? HUGO_VERSIONS
+                : p.family === 'jekyll' ? JEKYLL_VERSIONS
+                    : p.family === 'eleventy' ? ELEVENTY_VERSIONS
+                        : ASTRO_VERSIONS;
+            version = pickFromList(pool, `${websiteSlug}:basicversion`);
+        }
+        return {
+            body: `/*! ${websiteSlug} ${version} */\n`,
+            version,
+        };
     },
 };
 
