@@ -57,6 +57,45 @@ test('sitemap style: when xslHref is set, xslBody is non-empty XSL', () => {
     }
 });
 
+test('cssHeader: every theme returns a non-empty header + version', () => {
+    for (const name of antiFootprintTemplates()) {
+        const header = getAntiFootprint(name).cssHeader('rome-test');
+        assert.ok(header.body.length > 0, `${name}: cssHeader.body is empty`);
+        assert.ok(header.version.length > 0, `${name}: cssHeader.version is empty`);
+        assert.match(header.body, /\/\*/, `${name}: cssHeader.body is not a CSS comment`);
+    }
+});
+
+test('cssHeader: same-theme sister sites get distinct bodies', () => {
+    for (const name of antiFootprintTemplates()) {
+        const config = getAntiFootprint(name);
+        const a = config.cssHeader('rome-family');
+        const b = config.cssHeader('rome-budget');
+        // The whole point: byte-identical CSS across sister sites
+        // is the cross-site fingerprint we're breaking. The slug
+        // shows up either directly (basic, drupal) or via the
+        // titlecased Theme Name (wp-classic).
+        assert.notEqual(a.body, b.body, `${name}: cssHeader.body identical across sister sites`);
+    }
+});
+
+test('cssHeader: per-site output is deterministic', () => {
+    for (const name of antiFootprintTemplates()) {
+        const config = getAntiFootprint(name);
+        const first = config.cssHeader('rome-family');
+        const second = config.cssHeader('rome-family');
+        assert.deepEqual(first, second, `${name}: cssHeader output drifted on re-call`);
+    }
+});
+
+test('cssHeader fingerprints the claimed CMS', () => {
+    // WP themes ship a `Theme Name:` block; Drupal uses `@file`
+    // with a pointer to the `.info.yml`; basic stays minimal.
+    assert.match(getAntiFootprint('wp-classic').cssHeader('rome-family').body, /^\/\*\nTheme Name:/);
+    assert.match(getAntiFootprint('drupal-bartik').cssHeader('rome-family').body, /@file/);
+    assert.match(getAntiFootprint('basic').cssHeader('rome-family').body, /^\/\*!/);
+});
+
 test('sitemap xsl paths fingerprint the claimed CMS', () => {
     // The XSL path is itself a CMS giveaway — wp-classic must
     // expose Yoast's `/main-sitemap.xsl`, drupal-bartik must

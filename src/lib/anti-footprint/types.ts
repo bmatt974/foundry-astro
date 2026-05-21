@@ -50,6 +50,25 @@ export interface ThemeAntiFootprint {
     ): Promise<FakeResponseSpec[]>;
 
     /**
+     * Per-site header injected at the top of the served CSS file
+     * by the post-build step. Two jobs:
+     *
+     *   1. **Break cross-site byte identity.** Without it, every
+     *      site on the same theme ships an identical CSS bundle
+     *      (same MD5) — a one-line cross-site fingerprint.
+     *      Injecting a header that contains the website slug
+     *      varies the bytes per site.
+     *
+     *   2. **Stamp a theme-shaped version.** The `version` field
+     *      replaces the Vite content hash in the `?ver=` query
+     *      param the URL template emits. Real CMSs use semver-
+     *      style versions (`1.5.3` for WP themes, `10.2.7` for
+     *      Drupal) — a Vite content hash (`BcIWnJiK`) is a
+     *      build-tool give-away.
+     */
+    cssHeader(websiteSlug: string, presetOverride?: string | null): CssHeader;
+
+    /**
      * Sitemap presentation layer. Real CMSs almost always ship a
      * client-side XSL stylesheet so a human visiting `/sitemap.xml`
      * sees a styled HTML table instead of raw XML. The XSL path is
@@ -71,6 +90,20 @@ export interface ThemeAntiFootprint {
      * they want.
      */
     readonly robotsTxt: string;
+}
+
+/**
+ * Per-site CSS-header spec — the body gets prepended to the
+ * theme's bundled CSS, and `version` flows into the URL's
+ * `?ver=` query param (replacing the Vite content hash).
+ */
+export interface CssHeader {
+    /** Raw text inserted verbatim at the top of the CSS file. Should
+     *  be a valid CSS comment so it doesn't break the cascade. */
+    readonly body: string;
+    /** Per-site version string. Substituted for `{hash}` in the URL
+     *  template. */
+    readonly version: string;
 }
 
 /**

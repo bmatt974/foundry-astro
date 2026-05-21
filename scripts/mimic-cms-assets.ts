@@ -82,16 +82,28 @@ if (isSurgical && previousState?.cssHash && previousState.cssHash !== sourceHash
 // {site} = website slug — the same string for every locale of a
 // multi-locale install (sub-domain mode would otherwise emit a
 // different theme name per language, which is incoherent).
+//
+// {hash} now flows from the theme's per-site `cssHeader.version`
+// rather than the raw Vite content hash, so `?ver=BcIWnJiK` (a
+// build-tool give-away) becomes `?ver=1.5.3` / `?ver=10.2.7` etc.
+// — the version string a real CMS theme would advertise.
+const cssHeader = config.cssHeader(websiteSlug, fingerprintPreset);
 const urlTemplate = pickFromList(config.cssUrlTemplates, websiteSlug);
 const newHref = urlTemplate
-    .replaceAll('{hash}', sourceHash)
+    .replaceAll('{hash}', cssHeader.version)
     .replaceAll('{site}', websiteSlug);
 const oldHref = `/_astro/${cssFile}`;
 const [newPath] = newHref.split('?', 2);
 const targetAbsPath = path.join(clientDir, newPath.replace(/^\/+/, ''));
 
 await fs.mkdir(path.dirname(targetAbsPath), { recursive: true });
-await fs.copyFile(path.join(clientDir, '_astro', cssFile), targetAbsPath);
+
+// Prepend the per-site CSS header so two sister sites on the same
+// theme never ship byte-identical bundles — the header carries the
+// slug, the theme name and a per-site version string. Cross-site
+// MD5 lookups stop linking the network in one query.
+const sourceCss = await fs.readFile(path.join(clientDir, '_astro', cssFile), 'utf-8');
+await fs.writeFile(targetAbsPath, cssHeader.body + sourceCss);
 
 const htmlFiles = await collectHtmlFiles(clientDir);
 let rewriteCount = 0;

@@ -171,7 +171,7 @@ Sitemap: {sitemap_url}
         presetOverride?: string | null,
     ): Promise<FakeResponseSpec[]> {
         const p = presetFor(websiteSlug, presetOverride);
-        const pingback = flag(websiteSlug,'pingback', PINGBACK_POOL);
+        const pingback = flag(websiteSlug, 'pingback', PINGBACK_POOL);
         const out: FakeResponseSpec[] = [];
 
         if (pingback) {
@@ -200,6 +200,40 @@ Sitemap: {sitemap_url}
 
         return out;
     },
+
+    // Real WP themes ship a stock comment block at the top of
+    // `style.css` — `Theme Name`, `Theme URI`, `Author`, `Version`.
+    // We reproduce it with a per-site version drawn from a separate
+    // pool from the WP-core version (themes and core update on
+    // independent cadences).
+    cssHeader(websiteSlug: string) {
+        const version = pickFromList(WP_THEME_VERSIONS, `${websiteSlug}:wpthemeversion`);
+        const author = pickFromList(WP_THEME_AUTHORS, `${websiteSlug}:wpthemeauthor`);
+        const themeName = titleCase(websiteSlug);
+        const body = `/*\nTheme Name: ${themeName}\nTheme URI: https://example.com/themes/${websiteSlug}\nAuthor: ${author}\nDescription: Custom block-based theme for ${themeName}.\nVersion: ${version}\nRequires at least: 6.4\nTested up to: 6.6\nRequires PHP: 7.4\nText Domain: ${websiteSlug}\n*/\n`;
+        return { body, version };
+    },
 };
+
+const WP_THEME_VERSIONS = [
+    '1.0.3', '1.1.0', '1.2.4', '1.3.1', '1.5.0', '1.5.3',
+    '2.0.1', '2.1.0', '2.1.7', '2.3.0', '3.0.2',
+] as const;
+
+const WP_THEME_AUTHORS = [
+    'Anaïs Klein',
+    'Marco Bertolini',
+    'Studio Loftwise',
+    'Daniel Park',
+    'BlueOwl Studio',
+] as const;
+
+function titleCase(slug: string): string {
+    return slug
+        .split('-')
+        .filter((part) => part.length > 0)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
 
 export default config;
