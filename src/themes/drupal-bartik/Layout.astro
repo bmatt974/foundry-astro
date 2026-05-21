@@ -20,6 +20,15 @@ const footerItems = tenant
     ? await fetchMenu('footer', locale, tenant.website.hostname)
     : [];
 const websiteName = tenant?.website.name ?? '';
+
+// Admin-supplied raw HTML injections — see basic/Layout.astro for
+// the contract.
+const injections = tenant?.injections ?? [];
+const injectionsAt = (pos: 'head' | 'body_start' | 'body_end') =>
+    injections.filter((i) => i.position === pos && (!i.locale || i.locale === locale));
+const headInjections = injectionsAt('head');
+const bodyStartInjections = injectionsAt('body_start');
+const bodyEndInjections = injectionsAt('body_end');
 ---
 
 <!doctype html>
@@ -32,8 +41,10 @@ const websiteName = tenant?.website.name ?? '';
         {!Astro.slots.has('head') && description && (
             <meta name="description" content={description} />
         )}
+        {headInjections.map((i) => <Fragment set:html={i.body} />)}
     </head>
     <body class="layout-container">
+        {bodyStartInjections.map((i) => <Fragment set:html={i.body} />)}
         <SiteHeader websiteName={websiteName} currentLocale={locale}>
             <slot name="locale-switcher" />
         </SiteHeader>
@@ -43,5 +54,6 @@ const websiteName = tenant?.website.name ?? '';
         </main>
 
         <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
+        {bodyEndInjections.map((i) => <Fragment set:html={i.body} />)}
     </body>
 </html>

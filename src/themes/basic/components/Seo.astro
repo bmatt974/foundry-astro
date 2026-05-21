@@ -1,15 +1,12 @@
 ---
 /**
- * SEO head for the basic theme. Picks a static-site-generator
- * string per-site (Hugo / Eleventy / Jekyll / …) or nothing at
- * all — both are common looks for non-CMS sites. The pick is
- * deterministic from the hostname so each site is stable across
- * rebuilds; sister sites in a network land on different picks
- * (or one with a tag, one without).
+ * SEO head for the basic theme. Generator string variance lives
+ * in `src/themes/basic/anti-footprint.ts` (most picks are NULL —
+ * no tag — with a long tail of real SSG versions like Hugo /
+ * Jekyll / Astro / Eleventy).
  */
-import { basicGenerator } from '../../../lib/fingerprint';
+import { getAntiFootprint } from '../../../lib/anti-footprint/registry';
 import type { AvailableLocale, Page } from '../../../lib/foundry';
-import type { SeoExtras } from '../../../lib/seo';
 import SeoCore from '../../../components/SeoCore.astro';
 
 interface Props {
@@ -23,10 +20,10 @@ interface Props {
     canonicalUrl?: string;
 }
 
-const generator = basicGenerator(Astro.locals.tenant.website.hostname);
-const basicExtras: SeoExtras = {
-    extraMeta: generator ? [{ name: 'generator', content: generator }] : [],
-};
+const extras = getAntiFootprint('basic').seoExtras(
+    Astro.locals.tenant.website.slug,
+    Astro.locals.tenant.website.fingerprint_preset,
+);
 ---
 
-<SeoCore {...Astro.props} extras={basicExtras} />
+<SeoCore {...Astro.props} extras={extras} />

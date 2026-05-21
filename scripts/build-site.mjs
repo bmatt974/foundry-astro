@@ -63,6 +63,10 @@ child.on('exit', (code) => {
     // Post-build: per-theme CSS path mimicry. The script reads the
     // tenant template via /resolve and either rewrites the link or
     // bails out (basic theme keeps Astro defaults).
-    const mimic = spawn('node', ['scripts/mimic-cms-assets.mjs'], { stdio: 'inherit', env });
+    const mimic = spawn(
+        'node',
+        ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', 'scripts/mimic-cms-assets.ts'],
+        { stdio: 'inherit', env },
+    );
     mimic.on('exit', (mimicCode) => process.exit(mimicCode ?? 0));
 });

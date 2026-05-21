@@ -136,6 +136,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         experiments: resolved.experiments,
         team: resolved.team,
         primaryAuthor: resolved.primary_author,
+        injections: resolved.injections ?? [],
     };
 
     // Resolve the active locale against the tenant's locale rows,

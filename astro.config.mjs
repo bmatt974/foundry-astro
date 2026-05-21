@@ -79,16 +79,6 @@ const HMR_CLIENT_PORT = process.env.HMR_CLIENT_PORT
     ? Number.parseInt(process.env.HMR_CLIENT_PORT, 10)
     : undefined;
 
-// `prerender` exports in pages must resolve to a literal boolean. Vite
-// `define` replaces `__ASTRO_PRERENDER__` *before* Astro analyses the
-// frontmatter, so pages can flip behaviour per-environment.
-//
-// Driven by the ASTRO_PRERENDER env var:
-//   - `npm run build` / `npm run build:site <hostname>` set it to "true"
-//     → pages are statically prerendered into dist/client/**.html
-//   - `npm run dev` leaves it unset → false → every route runs SSR, the
-//     middleware sees real query params + cookies, so `?theme=…`
-//     overrides work on every page locally.
 // Multi-tenant builds drop each website's artefacts under
 // `dist/<hostname>/` so successive `build:site` runs don't overwrite
 // each other and several sites can be served in parallel locally.
