@@ -90,6 +90,9 @@ child.on('exit', (code) => {
     runPostBuild([
         // 1. Per-theme CSS path mimicry + fake responses.
         'scripts/mimic-cms-assets.ts',
+        // 2. PurgeCSS — drops selectors no rendered HTML uses, on
+        //    top of Tailwind's codebase-level purge.
+        'scripts/purge-css.ts',
     ], env);
 });
 
