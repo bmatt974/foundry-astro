@@ -200,6 +200,16 @@ export default defineConfig({
     },
     vite: {
         plugins: [tailwindcss()],
+        // Inline `WEBSITE_BUILD_TEMPLATE` as a literal so the theme
+        // registry's `if/else` branches collapse via Rollup DCE in
+        // production builds — no `import.meta.env` lookup at runtime,
+        // and unused theme `import()` chunks (and their CSS!) get
+        // tree-shaken out. Empty string is the fallback for builds
+        // that didn't pin a template (e.g. `astro build` invoked
+        // directly without `build-site.mjs`).
+        define: {
+            __ACTIVE_TEMPLATE__: JSON.stringify(process.env.WEBSITE_BUILD_TEMPLATE ?? ''),
+        },
         server: {
             // Multi-tenant dev needs to accept arbitrary Host headers
             // (each seeded `WebsiteLocale.hostname` is a potential value).
