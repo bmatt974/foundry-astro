@@ -546,6 +546,10 @@ export interface SitemapUrl {
     target?: string;
     /** Only set when `kind === 'redirect'` — HTTP status (default 301). */
     status?: 301 | 302 | 307 | 308;
+    /** Last-modified timestamp for page / author entries — ISO8601.
+     *  Used by the build's sitemap.xml generator. Absent for
+     *  landings and redirects. */
+    lastmod?: string;
 }
 
 /**
