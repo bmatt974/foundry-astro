@@ -1,0 +1,38 @@
+---
+/**
+ * Bordered CTA variant — html5up Editorial–style: outlined card with
+ * no fill, outlined button. Static-site aesthetic, blends with the
+ * "hand-coded blog from 2015" pattern that wins long-tail travel
+ * SERPs (see romesite.com / partir-a-rome.com etc.).
+ */
+import type { PageBlock } from '../../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const content = (block.content ?? {}) as {
+    label?: string;
+    url?: string;
+    description?: string;
+};
+---
+
+<section
+    class="cta cta--bordered my-8 border p-6 text-center"
+    style="border-radius: var(--radius-card, 0.5rem); box-shadow: var(--shadow-card, 0 1px 2px 0 rgba(0,0,0,0.05));"
+>
+    {content.description && (
+        <p class="brand-text-muted mb-4">{content.description}</p>
+    )}
+    {content.url && content.label && (
+        <a
+            href={content.url}
+            class="brand-text-primary inline-block border-2 px-6 py-3 font-medium hover:opacity-80"
+            style="border-color: currentColor; border-radius: var(--radius-button, 0.375rem);"
+        >
+            {content.label}
+        </a>
+    )}
+</section>
