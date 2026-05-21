@@ -60,13 +60,28 @@ child.on('exit', (code) => {
     if (code !== 0) {
         process.exit(code ?? 0);
     }
-    // Post-build: per-theme CSS path mimicry. The script reads the
-    // tenant template via /resolve and either rewrites the link or
-    // bails out (basic theme keeps Astro defaults).
-    const mimic = spawn(
+    // Post-build chain runs sequentially. Each step exits non-zero
+    // on failure and short-circuits the chain.
+    runPostBuild([
+        // 1. Per-theme CSS path mimicry + fake responses.
+        'scripts/mimic-cms-assets.ts',
+    ], env);
+});
+
+function runPostBuild(scripts, env) {
+    if (scripts.length === 0) {
+        process.exit(0);
+    }
+    const [next, ...rest] = scripts;
+    const child = spawn(
         'node',
-        ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', 'scripts/mimic-cms-assets.ts'],
+        ['--experimental-strip-types', '--no-warnings=ExperimentalWarning', next],
         { stdio: 'inherit', env },
     );
-    mimic.on('exit', (mimicCode) => process.exit(mimicCode ?? 0));
-});
+    child.on('exit', (code) => {
+        if (code !== 0) {
+            process.exit(code ?? 0);
+        }
+        runPostBuild(rest, env);
+    });
+}

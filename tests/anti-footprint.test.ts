@@ -44,6 +44,28 @@ test('every config has at least one CSS url template', () => {
     }
 });
 
+test('sitemap style: when xslHref is set, xslBody is non-empty XSL', () => {
+    for (const name of antiFootprintTemplates()) {
+        const { sitemap } = getAntiFootprint(name);
+        if (sitemap.xslHref === null) {
+            assert.equal(sitemap.xslBody, null, `${name}: xslHref null but xslBody set`);
+            continue;
+        }
+        assert.ok(sitemap.xslHref.startsWith('/'), `${name}: xslHref missing leading slash`);
+        assert.ok(sitemap.xslBody && sitemap.xslBody.length > 0, `${name}: xslHref set but xslBody empty`);
+        assert.match(sitemap.xslBody, /<xsl:stylesheet\b/, `${name}: xslBody is not XSL`);
+    }
+});
+
+test('sitemap xsl paths fingerprint the claimed CMS', () => {
+    // The XSL path is itself a CMS giveaway — wp-classic must
+    // expose Yoast's `/main-sitemap.xsl`, drupal-bartik must
+    // expose Simple Sitemap's `/sitemap_generator/...` path.
+    assert.equal(getAntiFootprint('wp-classic').sitemap.xslHref, '/main-sitemap.xsl');
+    assert.equal(getAntiFootprint('drupal-bartik').sitemap.xslHref, '/sitemap_generator/default/sitemap.xsl');
+    assert.equal(getAntiFootprint('basic').sitemap.xslHref, null);
+});
+
 test('every config produces stable seoExtras per hostname', () => {
     for (const name of antiFootprintTemplates()) {
         const config = getAntiFootprint(name);

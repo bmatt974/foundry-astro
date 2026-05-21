@@ -48,6 +48,34 @@ export interface ThemeAntiFootprint {
         ctx: FakeResponseContext,
         presetOverride?: string | null,
     ): Promise<FakeResponseSpec[]>;
+
+    /**
+     * Sitemap presentation layer. Real CMSs almost always ship a
+     * client-side XSL stylesheet so a human visiting `/sitemap.xml`
+     * sees a styled HTML table instead of raw XML. The XSL path is
+     * itself a CMS fingerprint (`/main-sitemap.xsl` = Yoast,
+     * `/sitemap_generator/default/sitemap.xsl` = Drupal Simple
+     * Sitemap), so we vary it per theme. `null` = bare XML, which
+     * is the fingerprint of a hand-coded site.
+     */
+    readonly sitemap: SitemapStyle;
+}
+
+/**
+ * How a theme wants its `/sitemap.xml` and sub-sitemaps presented
+ * to humans. `null` fields skip the corresponding emission.
+ */
+export interface SitemapStyle {
+    /** Public URL of the XSL stylesheet, leading slash. */
+    readonly xslHref: string | null;
+    /** Raw XSL body served at `xslHref`. Typically imported from
+     *  the theme's `sitemap.xsl` sibling via `?raw`. */
+    readonly xslBody: string | null;
+    /** Optional HTML/XML comment inserted right after the
+     *  `<?xml-stylesheet?>` declaration. Real CMSs frequently
+     *  leave a giveaway comment — emulating that reinforces the
+     *  fingerprint. */
+    readonly generatorComment: string | null;
 }
 
 /**
