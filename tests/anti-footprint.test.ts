@@ -66,6 +66,35 @@ test('sitemap xsl paths fingerprint the claimed CMS', () => {
     assert.equal(getAntiFootprint('basic').sitemap.xslHref, null);
 });
 
+test('robots.txt: every theme declares one with the sitemap placeholder', () => {
+    for (const name of antiFootprintTemplates()) {
+        const body = getAntiFootprint(name).robotsTxt;
+        assert.ok(body.length > 0, `${name}: robotsTxt is empty`);
+        assert.match(body, /^User-agent: \*/m, `${name}: robotsTxt missing User-agent: *`);
+        assert.match(body, /\{sitemap_url\}/, `${name}: robotsTxt missing {sitemap_url} placeholder`);
+    }
+});
+
+test('robots.txt fingerprints the claimed CMS', () => {
+    // Each theme's robots.txt should carry the markers a crawler
+    // would associate with the claimed CMS — and NOT the markers
+    // of the others.
+    const wp = getAntiFootprint('wp-classic').robotsTxt;
+    assert.match(wp, /Disallow: \/wp-admin\//, 'wp-classic: missing /wp-admin/ disallow');
+    assert.match(wp, /Allow: \/wp-admin\/admin-ajax\.php/, 'wp-classic: missing admin-ajax carve-out');
+    assert.doesNotMatch(wp, /\/core\//, 'wp-classic: leaks Drupal /core/ path');
+
+    const drupal = getAntiFootprint('drupal-bartik').robotsTxt;
+    assert.match(drupal, /Disallow: \/core\//, 'drupal-bartik: missing /core/ disallow');
+    assert.match(drupal, /Crawl-delay: 10/, 'drupal-bartik: missing Drupal-typical Crawl-delay');
+    assert.match(drupal, /Disallow: \/user\/login/, 'drupal-bartik: missing Drupal /user/login disallow');
+    assert.doesNotMatch(drupal, /\/wp-admin\//, 'drupal-bartik: leaks WordPress /wp-admin/');
+
+    const basic = getAntiFootprint('basic').robotsTxt;
+    assert.doesNotMatch(basic, /\/wp-admin\//, 'basic: leaks WordPress /wp-admin/');
+    assert.doesNotMatch(basic, /\/core\//, 'basic: leaks Drupal /core/');
+});
+
 test('every config produces stable seoExtras per hostname', () => {
     for (const name of antiFootprintTemplates()) {
         const config = getAntiFootprint(name);
