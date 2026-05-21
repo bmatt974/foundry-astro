@@ -129,6 +129,10 @@ if (kind === 'page') {
         return Astro.rewrite('/404');
     }
     Astro.locals.pagePublishedAt = pageData.published_at ?? pageData.translation?.published_at ?? null;
+    // Hub / page / pattern-scoped injections live on the page
+    // response; the Layout merges them with `tenant.injections`
+    // (website-scope) at render time.
+    Astro.locals.pageInjections = pageData.injections ?? [];
 } else if (kind === 'author') {
     const slug = ref.startsWith('author:') ? ref.slice('author:'.length) : null;
     if (!slug) {

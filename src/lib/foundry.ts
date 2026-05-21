@@ -132,6 +132,18 @@ export interface Page {
      *  already applied — an empty array means truly no byline. */
     authors: Author[];
     available_locales: AvailableLocale[];
+    /** Per-page custom HTML injections (hub-scoped / page-scoped /
+     *  pattern-scoped). `WebsiteCustomInjection.scope_type='website'`
+     *  rows are NOT included here — those ship on /resolve and
+     *  stay cached host-wide. */
+    injections: PageInjection[];
+}
+
+export interface PageInjection {
+    position: 'head' | 'body_start' | 'body_end';
+    label: string;
+    body: string;
+    scope_type: 'hub' | 'page' | 'pattern';
 }
 
 export type DeployProvider =

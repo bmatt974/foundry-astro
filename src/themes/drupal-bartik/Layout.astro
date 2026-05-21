@@ -23,9 +23,12 @@ const websiteName = tenant?.website.name ?? '';
 
 // Admin-supplied raw HTML injections — see basic/Layout.astro for
 // the contract.
-const injections = tenant?.injections ?? [];
-const injectionsAt = (pos: 'head' | 'body_start' | 'body_end') =>
-    injections.filter((i) => i.position === pos && (!i.locale || i.locale === locale));
+const websiteInjections = tenant?.injections ?? [];
+const pageInjections = Astro.locals.pageInjections ?? [];
+const injectionsAt = (pos: 'head' | 'body_start' | 'body_end') => [
+    ...websiteInjections.filter((i) => i.position === pos && (!i.locale || i.locale === locale)),
+    ...pageInjections.filter((i) => i.position === pos),
+];
 const headInjections = injectionsAt('head');
 const bodyStartInjections = injectionsAt('body_start');
 const bodyEndInjections = injectionsAt('body_end');
