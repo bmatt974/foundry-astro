@@ -96,6 +96,14 @@ const config: ThemeAntiFootprint = {
         generatorComment: null,
     },
 
+    // Two-line robots.txt — what a hand-coded / minimal SSG site
+    // typically ships. Skipping any Disallow rules also signals
+    // "no specific paths to hide", consistent with the basic
+    // theme's hand-built, no-admin posture.
+    robotsTxt: `User-agent: *
+Sitemap: {sitemap_url}
+`,
+
     cssUrlTemplates: [
         '/assets/main.css?v={hash}',
         '/static/main.css?v={hash}',

@@ -59,6 +59,18 @@ export interface ThemeAntiFootprint {
      * is the fingerprint of a hand-coded site.
      */
     readonly sitemap: SitemapStyle;
+
+    /**
+     * robots.txt body the theme wants to serve at `/robots.txt`.
+     * Each real CMS ships a recognisable robots.txt — Yoast adds
+     * `Disallow: /wp-admin/` + the admin-ajax.php carve-out,
+     * Drupal core lists `/core/`, `/profiles/`, the user/login
+     * paths, etc. The {@link ThemeAntiFootprint} integration
+     * substitutes `{sitemap_url}` with the actual sitemap index URL
+     * before serving — themes position the `Sitemap:` line wherever
+     * they want.
+     */
+    readonly robotsTxt: string;
 }
 
 /**

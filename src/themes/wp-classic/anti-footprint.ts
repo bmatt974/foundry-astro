@@ -118,6 +118,17 @@ const config: ThemeAntiFootprint = {
         generatorComment: null,
     },
 
+    // WordPress core's default robots.txt — `/wp-admin/` is the
+    // unmistakable WP giveaway, plus the standard admin-ajax.php
+    // carve-out so AJAX endpoints stay crawlable. Yoast / RankMath
+    // / WP itself all converge on this exact shape.
+    robotsTxt: `User-agent: *
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+
+Sitemap: {sitemap_url}
+`,
+
     cssUrlTemplates: [
         '/wp-content/themes/{site}/style.css?ver={hash}',
         '/wp-content/themes/{site}-theme/style.css?ver={hash}',
