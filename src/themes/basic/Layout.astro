@@ -28,13 +28,19 @@ const footerItems = tenant
     : [];
 const websiteName = tenant?.website.name ?? '';
 
-// Admin-supplied raw HTML injections from Foundry's `Website >
-// Custom HTML injections` panel. Filtered per-position (head /
-// body_start / body_end) and per-locale. Bodies are validated
-// server-side at insert time — see `App\Rules\SafeHtmlInjection`.
-const injections = tenant?.injections ?? [];
-const injectionsAt = (pos: 'head' | 'body_start' | 'body_end') =>
-    injections.filter((i) => i.position === pos && (!i.locale || i.locale === locale));
+// Admin-supplied raw HTML injections — website-scope come from
+// `tenant.injections` (cached host-wide), hub/page/pattern-scope
+// come from `Astro.locals.pageInjections` set by the catch-all
+// after the page resolves. Locale filtering applies only to
+// website-scope rows (page-level rows are already scoped server-
+// side). Bodies are validated server-side at insert time — see
+// `App\Rules\SafeHtmlInjection`.
+const websiteInjections = tenant?.injections ?? [];
+const pageInjections = Astro.locals.pageInjections ?? [];
+const injectionsAt = (pos: 'head' | 'body_start' | 'body_end') => [
+    ...websiteInjections.filter((i) => i.position === pos && (!i.locale || i.locale === locale)),
+    ...pageInjections.filter((i) => i.position === pos),
+];
 const headInjections = injectionsAt('head');
 const bodyStartInjections = injectionsAt('body_start');
 const bodyEndInjections = injectionsAt('body_end');

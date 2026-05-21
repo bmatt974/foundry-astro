@@ -81,6 +81,14 @@ declare global {
              * `useRoutes(localeRow)`.
              */
             route: RouteHelper;
+            /**
+             * Per-page raw HTML injection list — hub-scoped / page-
+             * scoped / pattern-scoped rows from the page response
+             * (the website-scope ones already live on tenant.injections).
+             * Set by the catch-all after fetching pageData; Layouts
+             * merge with `tenant.injections` at render time.
+             */
+            pageInjections?: import('./lib/foundry').PageInjection[];
         }
     }
 
