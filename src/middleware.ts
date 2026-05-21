@@ -58,35 +58,42 @@ export const onRequest = defineMiddleware(async (context, next) => {
         });
     }
 
-    // Build-time path: Astro runs middleware for prerendered pages but
-    // synthesises a request whose headers aren't usable (and trigger a
-    // warning if accessed). Resolve the tenant from the env-pinned slug
-    // — each static build is scoped to one site.
-    let resolved: TenantResolution | null;
-    if (context.isPrerendered) {
+    // Resolve which tenant this request belongs to. Three layers:
+    //
+    //   1. `Astro.url.hostname` — populated even for prerendered
+    //      routes in dev mode where it reflects the URL the
+    //      browser navigated to. Always tried first.
+    //   2. The real `Host` header — only consulted for non-
+    //      prerendered routes (Astro logs a warning if `headers`
+    //      is read on a prerender context, so we skip it there).
+    //   3. `WEBSITE_BUILD_HOSTNAME` — env fallback used at static
+    //      build time when no real request exists (Astro.url then
+    //      carries a placeholder like `localhost`).
+    let resolved: TenantResolution | null = null;
+    const urlHost = context.url.hostname.toLowerCase();
+    const isPlaceholderHost = urlHost === 'localhost' || urlHost === '127.0.0.1' || urlHost === '';
+    let candidate: string | null = isPlaceholderHost ? null : urlHost;
+    if (!candidate && !context.isPrerendered) {
+        const headerHost = context.request.headers.get('host')?.split(':')[0].toLowerCase();
+        candidate = headerHost ?? null;
+    }
+
+    if (candidate) {
+        resolved = await resolveHost(candidate);
+        if (resolved) {
+            resolved.website.hostname = candidate;
+        }
+    }
+    if (!resolved && context.isPrerendered) {
         resolved = await resolveTenantForBuild();
         if (!resolved) {
             throw new Error(
                 'WEBSITE_BUILD_HOSTNAME is required for prerendered builds.',
             );
         }
-    } else {
-        const rawHost = context.request.headers.get('host');
-        if (!rawHost) {
-            return new Response('Missing Host header', { status: 400 });
-        }
-        // Strip the port (`:4321`) before resolving — the backend stores bare
-        // hostnames in `website_locales.hostname`. Lowercase for case-insensitive
-        // matching against the seeded hostnames.
-        const host = rawHost.split(':')[0].toLowerCase();
-        resolved = await resolveHost(host);
-        if (!resolved) {
-            return new Response('Website not configured', { status: 404 });
-        }
-        // Inject the host we used to resolve so downstream fetch calls
-        // can key API URLs by the same hostname (mirrors the build-time
-        // resolveTenantForBuild() behaviour).
-        resolved.website.hostname = host;
+    }
+    if (!resolved) {
+        return new Response('Website not configured', { status: 404 });
     }
 
     let template = resolved.website.template ?? DEFAULT_TEMPLATE;

@@ -66,8 +66,40 @@ export async function getStaticPaths() {
         }));
 }
 
-const { kind, locale, ref } = Astro.props as RouteProps;
+// In production builds the catch-all is prerendered and props come
+// from `getStaticPaths` above. In `npm run dev` (SSR) those props
+// are undefined, so we fall back to a runtime lookup against the
+// same `sitemap-urls` endpoint — one extra round-trip per request,
+// fine for local development and keeps the URL → (kind, ref, locale)
+// resolution as ONE source of truth (the PHP controller).
 const tenant = Astro.locals.tenant;
+async function resolveRouteProps(): Promise<RouteProps | null> {
+    const fromBuild = Astro.props as Partial<RouteProps>;
+    if (fromBuild.kind) {
+        return fromBuild as RouteProps;
+    }
+    const urls = await fetchSitemapUrls(tenant.website.hostname, {});
+    const requestedPath = Astro.url.pathname;
+    const match = urls.find((u) => u.path === requestedPath || u.path === `${requestedPath}/`);
+    if (!match || match.kind === 'redirect') {
+        return null;
+    }
+    return {
+        kind: match.kind as Exclude<SitemapUrl['kind'], 'redirect'>,
+        locale: match.locale,
+        ref: match.ref,
+    };
+}
+const resolved = await resolveRouteProps();
+if (resolved === null) {
+    // Internally route to the themed 404 page — the catch-all
+    // matches every URL via `[...path]` so unmatched routes never
+    // reach Astro's own 404 fallback. Rewriting hands rendering
+    // off to `src/pages/404.astro` which keeps tenant + locale
+    // context and sets `Astro.response.status = 404`.
+    return Astro.rewrite('/404');
+}
+const { kind, locale, ref } = resolved;
 
 // Mirror the props-driven locale on `Astro.locals` so deep
 // components (Comparison block, formatters, byline) keep reading
@@ -94,7 +126,7 @@ if (kind === 'page') {
         : fullPath;
     pageData = await fetchPage(locale, slug, tenant.website.hostname);
     if (!pageData) {
-        return new Response('Page not found', { status: 404 });
+        return Astro.rewrite('/404');
     }
     Astro.locals.pagePublishedAt = pageData.published_at ?? pageData.translation?.published_at ?? null;
 } else if (kind === 'author') {
@@ -104,7 +136,7 @@ if (kind === 'page') {
     }
     authorDetail = await fetchAuthorDetail(locale, slug, tenant.website.hostname);
     if (!authorDetail) {
-        return new Response('Author not found', { status: 404 });
+        return Astro.rewrite('/404');
     }
 } else if (kind === 'landing') {
     sitemap = await fetchSitemap(locale, tenant.website.hostname);
