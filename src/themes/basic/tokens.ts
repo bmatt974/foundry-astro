@@ -18,7 +18,7 @@
  *     `<html>` per request, overriding the defaults via specificity.
  */
 
-import { pickFromList } from '../../lib/anti-footprint/util';
+import { pickFromList } from '../../lib/anti-footprint/util.ts';
 
 interface ThemeConfig {
     colors?: {

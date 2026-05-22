@@ -55,14 +55,17 @@ for (const cssFile of cssFiles) {
     const result = await new PurgeCSS().purge({
         css: [cssFile],
         content: htmlFiles,
-        // Keep CSS variables, keyframes and font-faces even if the
-        // selector graph can't see them being referenced — they're
-        // referenced indirectly via `var(...)` / `animation: …` /
-        // `font-family: …`, and stripping them breaks rendering.
-        safelist: { greedy: [/^--/, /^@/] },
-        variables: true,
+        // Keep keyframes and font-faces even if the selector graph
+        // can't see them being referenced — they're triggered
+        // indirectly via `animation: …` / `font-family: …`.
         keyframes: true,
         fontFace: true,
+        // CSS variables: never strip. Some vars (e.g. seeded
+        // `--radius-card`, `--shadow-card`) are emitted in `:root`
+        // by the post-build root-rule injector specifically for
+        // future component styling — they may not be referenced
+        // by the SOURCE CSS yet, but ARE intended to ship.
+        variables: false,
     });
 
     const purged = result.find((r) => r.file === cssFile);

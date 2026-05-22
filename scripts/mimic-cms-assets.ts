@@ -48,7 +48,7 @@ if (resolution === null) {
     console.warn('[mimic-cms-assets] Could not resolve website for', hostname, '— skipping.');
     process.exit(0);
 }
-const { template, websiteSlug, fingerprintPreset } = resolution;
+const { template, websiteSlug, fingerprintPreset, themeConfig } = resolution;
 if (!antiFootprintTemplates().includes(template)) {
     console.log(`[mimic-cms-assets] Template '${template}' has no anti-footprint config — skipping.`);
     process.exit(0);
@@ -102,8 +102,15 @@ await fs.mkdir(path.dirname(targetAbsPath), { recursive: true });
 // theme never ship byte-identical bundles — the header carries the
 // slug, the theme name and a per-site version string. Cross-site
 // MD5 lookups stop linking the network in one query.
+//
+// Right after the header, inject a `:root { … }` block carrying the
+// per-site theme tokens (colors, fonts, density + seeded radius /
+// shadow / spacing). The Astro Layout no longer emits an inline
+// `style=` on <html> — shaves ~460 bytes off every page and lets
+// the browser cache one stylesheet for the whole site.
 const sourceCss = await fs.readFile(path.join(clientDir, '_astro', cssFile), 'utf-8');
-await fs.writeFile(targetAbsPath, cssHeader.body + sourceCss);
+const rootRule = await buildRootRule(template, themeConfig, websiteSlug);
+await fs.writeFile(targetAbsPath, cssHeader.body + rootRule + sourceCss);
 
 const htmlFiles = await collectHtmlFiles(clientDir);
 let rewriteCount = 0;
@@ -157,10 +164,30 @@ console.log(
 // Helpers
 // ──────────────────────────────────────────────
 
+/**
+ * Build the `:root { … }` block carrying per-site theme tokens, sourced
+ * from the active theme's `tokens.ts`. Empty (no rule) when the theme
+ * has no per-site customisation — keeps the CSS clean.
+ */
+async function buildRootRule(
+    template: string,
+    themeConfig: Record<string, unknown>,
+    websiteSlug: string,
+): Promise<string> {
+    const tokens = await import(`../src/themes/${template}/tokens.ts`);
+    const declarations = tokens.css(themeConfig, websiteSlug);
+    if (typeof declarations !== 'string' || declarations === '') {
+        return '';
+    }
+
+    return `:root{${declarations}}\n`;
+}
+
 async function resolveWebsite(host: string): Promise<{
     template: string;
     websiteSlug: string;
     fingerprintPreset: string | null;
+    themeConfig: Record<string, unknown>;
 } | null> {
     const apiBase = (process.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1').replace(/\/+$/, '');
     const previewToken = process.env.FOUNDRY_PREVIEW_TOKEN ?? null;
@@ -178,10 +205,11 @@ async function resolveWebsite(host: string): Promise<{
         const template = body?.data?.website?.template ?? null;
         const websiteSlug = body?.data?.website?.slug ?? null;
         const fingerprintPreset = body?.data?.website?.fingerprint_preset ?? null;
+        const themeConfig = (body?.data?.website?.theme_config ?? {}) as Record<string, unknown>;
         if (!template || !websiteSlug) {
             return null;
         }
-        return { template, websiteSlug, fingerprintPreset };
+        return { template, websiteSlug, fingerprintPreset, themeConfig };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.warn('[mimic-cms-assets] /resolve fetch failed:', message);
