@@ -1,40 +1,24 @@
 ---
 /**
- * Top-N list of places (POIs, attractions, etc.) for the wp-classic
- * theme. Mirrors the contract of basic/blocks/TopList.astro but uses
- * WP-block-template class names so the rendered source reads like the
- * output of WordPress core's query-loop / post-template blocks.
- *
- * Content shape (PlacesTopListSource output):
- *   { heading: string, items: Array<{ place_id, name, type, image }> }
+ * TopList — wp-classic theme. WP block-template class names so the
+ * source reads like WordPress core's query-loop / post-template
+ * blocks. Parsing lives in `lib/blocks/toplist.ts`.
  */
 import type { PageBlock } from '../../../lib/foundry';
+import { humaniseType, parseTopList } from '../../../lib/blocks/toplist';
 import { imageSrcset, imageUrl } from '../../../lib/image';
-
-interface Item {
-    place_id?: number;
-    name?: string;
-    type?: string;
-    image?: string | null;
-    description?: string;
-    url?: string;
-    rank?: number;
-}
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { heading?: string; items?: Item[] };
-const items = (content.items ?? []).filter((item) => item && (item.name || item.place_id));
+const { heading, items } = parseTopList(block);
 ---
 
 {items.length > 0 && (
     <section class="wp-block-group wp-block-group--top-list">
-        {content.heading && (
-            <h2 class="wp-block-heading">{content.heading}</h2>
-        )}
+        {heading && <h2 class="wp-block-heading">{heading}</h2>}
         <ul class="wp-block-post-template wp-block-post-template--top-list">
             {items.map((item) => (
                 <li class="wp-block-post wp-block-post--place">
@@ -44,7 +28,7 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                                 src={imageUrl(item.image, { width: 480 })}
                                 srcset={imageSrcset(item.image, [320, 480, 800, 1200])}
                                 sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
-                                alt={item.name ?? ''}
+                                alt={item.name}
                                 loading="lazy"
                                 width="480"
                                 height="360"
@@ -56,11 +40,7 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                         </div>
                     )}
                     <div class="wp-block-post__body">
-                        {item.type && (
-                            <p class="wp-block-post-terms">
-                                {item.type.replace(/_/g, ' ')}
-                            </p>
-                        )}
+                        {item.type && <p class="wp-block-post-terms">{humaniseType(item.type)}</p>}
                         <h3 class="wp-block-post-title">
                             {item.url ? (
                                 <a href={item.url} class="wp-block-post-title__link">{item.name}</a>

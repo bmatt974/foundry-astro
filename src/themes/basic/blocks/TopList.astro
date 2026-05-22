@@ -1,44 +1,25 @@
 ---
 /**
- * Top-N list of places (POIs, attractions, etc.). The most common
- * block type by far on SERP-driven sites — see `culture-a-rome` which
- * stacks 20 of these. Renders as a responsive grid of cards so the
- * page reads like a real "top 10" article.
- *
- * Content shape (PlacesTopListSource output):
- *   { heading: string, items: Array<{ place_id, name, type, image }> }
- *
- * Future extensions handled gracefully by optional chaining:
- * `description`, `rank`, `url`, `coordinates`. When the backend starts
- * emitting them they'll surface without further frontend changes.
+ * TopList — basic theme: responsive card grid. Parsing + filtering
+ * live in `lib/blocks/toplist.ts`.
  */
 import type { PageBlock } from '../../../lib/foundry';
+import { humaniseType, parseTopList } from '../../../lib/blocks/toplist';
 import { imageSrcset, imageUrl } from '../../../lib/image';
-
-interface Item {
-    place_id?: number;
-    name?: string;
-    type?: string;
-    image?: string | null;
-    description?: string;
-    url?: string;
-    rank?: number;
-}
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { heading?: string; items?: Item[] };
-const items = (content.items ?? []).filter((item) => item && (item.name || item.place_id));
+const { heading, items, anchorId } = parseTopList(block);
 ---
 
 {items.length > 0 && (
     <section class="my-10">
-        {content.heading && (
-            <h2 class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
-                {content.heading}
+        {heading && (
+            <h2 id={anchorId} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
+                {heading}
             </h2>
         )}
         <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -50,7 +31,7 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                                 src={imageUrl(item.image, { width: 480 })}
                                 srcset={imageSrcset(item.image, [320, 480, 800, 1200])}
                                 sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
-                                alt={item.name ?? ''}
+                                alt={item.name}
                                 loading="lazy"
                                 width="480"
                                 height="360"
@@ -67,7 +48,7 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                     <div class="p-4">
                         {item.type && (
                             <p class="brand-text-muted mb-1 text-xs uppercase tracking-wider">
-                                {item.type.replace(/_/g, ' ')}
+                                {humaniseType(item.type)}
                             </p>
                         )}
                         <h3 class="text-base font-semibold leading-snug">
