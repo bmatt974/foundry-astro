@@ -18,6 +18,16 @@ export const prerender = false;
 
 import type { BlockType, PageBlock } from '../../lib/foundry';
 import { getTheme, listThemes } from '../../themes/registry';
+// Pull every theme's stylesheet into the preview bundle so the
+// dispatched blocks render with their full styling. Without this,
+// `theme.Block` ships its markup but Tailwind / hand-written CSS
+// for each theme stays unloaded and the cards look bare. Theme
+// stylesheets use disjoint class namespaces (wp-block-*, block--*,
+// Bootstrap, basic .brand-*) so they coexist without collisions.
+import '../../themes/basic/styles.css';
+import '../../themes/bootstrap-classic/styles.css';
+import '../../themes/drupal-bartik/styles.css';
+import '../../themes/wp-classic/styles.css';
 
 if (import.meta.env.PROD) {
     return new Response('Not found', { status: 404 });
@@ -131,15 +141,15 @@ const samples: { label: string; block: PageBlock }[] = [
 // to render faithfully. bootstrap-classic's components emit Bootstrap
 // class names; without the CDN sheet `.row` / `.col-md-*` / `.btn`
 // stay unstyled. Other themes ship their own self-contained CSS via
-// Layout's `<style>` chain, so this is the only special case.
+// the static imports above, so this is the only special case.
 const externalStylesheets = themeName === 'bootstrap-classic'
     ? ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css']
     : [];
 
-// Preview body width: bootstrap-classic needs a wide canvas to hit
-// the `lg` breakpoint (≥ 992px) so TopList shows its 3-column grid.
-// Other themes look fine at 960px.
-const bodyMaxWidth = themeName === 'bootstrap-classic' ? '1240px' : '960px';
+// Uniform preview width across themes so visual diffs across themes
+// stay meaningful — 1200px is wide enough to trigger every theme's
+// `lg` breakpoint (TopList 3-column grid on basic / bootstrap).
+const bodyMaxWidth = '1200px';
 ---
 
 <!doctype html>
