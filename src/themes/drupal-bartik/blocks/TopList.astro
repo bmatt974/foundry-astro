@@ -1,40 +1,24 @@
 ---
 /**
- * Top-N list of places (POIs, attractions) for drupal-bartik. Renders
- * as a views grid of node--teaser entries — what a Drupal site would
- * output from a Views block configured with the "Grid of teasers"
- * format on a content type that has a cover image field.
- *
- * Content shape (PlacesTopListSource output):
- *   { heading: string, items: Array<{ place_id, name, type, image }> }
+ * TopList — drupal-bartik theme. Views grid of node--teaser entries
+ * (Drupal Views "Grid of teasers" output). Parsing lives in
+ * `lib/blocks/toplist.ts`.
  */
 import type { PageBlock } from '../../../lib/foundry';
+import { humaniseType, parseTopList } from '../../../lib/blocks/toplist';
 import { imageSrcset, imageUrl } from '../../../lib/image';
-
-interface Item {
-    place_id?: number;
-    name?: string;
-    type?: string;
-    image?: string | null;
-    description?: string;
-    url?: string;
-    rank?: number;
-}
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { heading?: string; items?: Item[] };
-const items = (content.items ?? []).filter((item) => item && (item.name || item.place_id));
+const { heading, items } = parseTopList(block);
 ---
 
 {items.length > 0 && (
     <div class="block block--type-top-list">
-        {content.heading && (
-            <h2 class="block__title">{content.heading}</h2>
-        )}
+        {heading && <h2 class="block__title">{heading}</h2>}
         <div class="view view--top-list view-display-id-block_grid">
             <ul class="views-view-grid">
                 {items.map((item) => (
@@ -45,7 +29,7 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                                     src={imageUrl(item.image, { width: 480 })}
                                     srcset={imageSrcset(item.image, [320, 480, 800, 1200])}
                                     sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
-                                    alt={item.name ?? ''}
+                                    alt={item.name}
                                     loading="lazy"
                                     width="480"
                                     height="360"
@@ -58,21 +42,13 @@ const items = (content.items ?? []).filter((item) => item && (item.name || item.
                         )}
                         <div class="node__teaser-body">
                             {item.type && (
-                                <p class="views-field views-field--field-type">
-                                    {item.type.replace(/_/g, ' ')}
-                                </p>
+                                <p class="views-field views-field--field-type">{humaniseType(item.type)}</p>
                             )}
                             <h3 class="views-field views-field--title">
-                                {item.url ? (
-                                    <a href={item.url}>{item.name}</a>
-                                ) : (
-                                    item.name
-                                )}
+                                {item.url ? <a href={item.url}>{item.name}</a> : item.name}
                             </h3>
                             {item.description && (
-                                <p class="views-field views-field--field-description">
-                                    {item.description}
-                                </p>
+                                <p class="views-field views-field--field-description">{item.description}</p>
                             )}
                         </div>
                     </li>

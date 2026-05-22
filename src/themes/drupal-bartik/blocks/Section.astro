@@ -1,25 +1,23 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
-import { slugify } from '../../../lib/toc';
-import Markdown from '../components/Markdown.astro';
+import { parseSection } from '../../../lib/blocks/section';
 import Block from '../components/Block.astro';
+import Markdown from '../components/Markdown.astro';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as { title?: string; body?: string };
+const { title, body, anchorId, hasChildren } = parseSection(block);
 ---
 
 <section class="block block--type-section">
-    {content.title && (
-        <h2 id={slugify(content.title)} class="block__title">
-            {content.title}
-        </h2>
+    {title && (
+        <h2 id={anchorId} class="block__title">{title}</h2>
     )}
-    {content.body && <Markdown text={content.body} />}
-    {block.children.length > 0 && (
+    {body && <Markdown text={body} />}
+    {hasChildren && (
         <div class="block--type-section__children">
             {block.children.map((child) => <Block block={child} />)}
         </div>
