@@ -29,15 +29,13 @@ const themeName = requestedTheme && themes.includes(requestedTheme)
     ? requestedTheme
     : (Astro.locals.tenant?.website.template ?? 'basic');
 
-const VIEWPORTS = {
-    mobile: { label: 'Mobile (375px)', width: 375 },
-    tablet: { label: 'Tablet (768px)', width: 768 },
-    desktop: { label: 'Desktop (1200px)', width: 1200 },
-} as const;
-type Viewport = keyof typeof VIEWPORTS;
-const requestedVw = Astro.url.searchParams.get('vw') as Viewport | null;
-const viewport: Viewport = requestedVw && requestedVw in VIEWPORTS ? requestedVw : 'desktop';
-const iframeWidth = VIEWPORTS[viewport].width;
+const VIEWPORTS = [
+    { id: 'mobile', label: 'Mobile (375px)', width: 375 },
+    { id: 'tablet', label: 'Tablet (768px)', width: 768 },
+    { id: 'desktop', label: 'Desktop (1200px)', width: 1200 },
+] as const;
+const requestedVw = Astro.url.searchParams.get('vw');
+const viewport = VIEWPORTS.find((v) => v.id === requestedVw) ?? VIEWPORTS[2];
 
 const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
 ---
@@ -47,13 +45,14 @@ const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Block preview — {themeName} ({viewport})</title>
+        <title>{`Block preview — ${themeName} (${viewport.id})`}</title>
         <style>
             * { box-sizing: border-box; }
             body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #1f2937; background: #f9fafb; min-height: 100vh; }
             .toolbar { position: sticky; top: 0; z-index: 10; background: white; border-bottom: 1px solid #e5e7eb; padding: 0.75rem 1.25rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
             .toolbar h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #111827; }
             .toolbar-group { display: flex; gap: 0.5rem; align-items: center; }
+            .toolbar-group--right { margin-left: auto; }
             .toolbar-group .label { font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
             .toolbar a {
                 color: #4f46e5;
@@ -92,14 +91,14 @@ const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
             <div class="toolbar-group">
                 <span class="label">Theme</span>
                 {themes.map((name) => (
-                    <a href={`/dev/preview?theme=${name}&vw=${viewport}`} class={name === themeName ? 'active' : ''}>{name}</a>
+                    <a href={`/dev/preview?theme=${name}&vw=${viewport.id}`} class={name === themeName ? 'active' : ''}>{name}</a>
                 ))}
             </div>
 
-            <div class="toolbar-group">
+            <div class="toolbar-group toolbar-group--right">
                 <span class="label">Viewport</span>
-                {(Object.entries(VIEWPORTS) as [Viewport, typeof VIEWPORTS[Viewport]][]).map(([key, def]) => (
-                    <a href={`/dev/preview?theme=${themeName}&vw=${key}`} class={key === viewport ? 'active' : ''}>{def.label}</a>
+                {VIEWPORTS.map((v) => (
+                    <a href={`/dev/preview?theme=${themeName}&vw=${v.id}`} class={v.id === viewport.id ? 'active' : ''}>{v.label}</a>
                 ))}
             </div>
         </div>
@@ -109,7 +108,7 @@ const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
                 class="frame"
                 src={iframeSrc}
                 title={`Block preview — ${themeName}`}
-                style={`max-width: ${iframeWidth}px`}
+                style={`max-width: ${viewport.width}px`}
             ></iframe>
         </div>
     </body>
