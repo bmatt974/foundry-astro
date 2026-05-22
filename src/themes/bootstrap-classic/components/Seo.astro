@@ -1,0 +1,29 @@
+---
+/**
+ * SEO head for the basic theme. Generator string variance lives
+ * in `src/themes/basic/anti-footprint.ts` (most picks are NULL —
+ * no tag — with a long tail of real SSG versions like Hugo /
+ * Jekyll / Astro / Eleventy).
+ */
+import { getAntiFootprint } from '../../../lib/anti-footprint/registry';
+import type { AvailableLocale, Page } from '../../../lib/foundry';
+import SeoCore from '../../../components/SeoCore.astro';
+
+interface Props {
+    page: Page | null;
+    locale: string;
+    type?: 'article' | 'website';
+    title?: string;
+    description?: string;
+    noindex?: boolean;
+    availableLocales?: AvailableLocale[];
+    canonicalUrl?: string;
+}
+
+const extras = getAntiFootprint('basic').seoExtras(
+    Astro.locals.tenant.website.slug,
+    Astro.locals.tenant.website.fingerprint_preset,
+);
+---
+
+<SeoCore {...Astro.props} extras={extras} />

@@ -1,0 +1,51 @@
+---
+/**
+ * Footer for bootstrap-classic. Vanilla Bootstrap markup —
+ * `.container`, `.row`, `.col-md-*`, `.text-muted`, plus the
+ * `.list-unstyled` + `.list-inline` patterns for the menu strip.
+ */
+import type { MenuItem } from '../../../lib/foundry';
+import { splitLinkBody, useTranslations } from '../../../lib/i18n';
+import Menu from './Menu.astro';
+
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+    items: MenuItem[];
+}
+
+const { websiteName, currentLocale, items } = Astro.props;
+const year = new Date().getUTCFullYear();
+const route = Astro.locals.route;
+
+const t = useTranslations(currentLocale, Astro.locals.wording);
+const disclosureHref = items
+    .map((item) => item.href)
+    .find((href): href is string =>
+        typeof href === 'string' && /disclos|affilia/i.test(href));
+const [disclosureLead, disclosureTrail] = splitLinkBody(
+    t('footer.affiliateDisclosure.body'),
+);
+const disclosureLinkText = t('footer.affiliateDisclosure.linkText');
+---
+
+<footer>
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <a href={route('home', {})} class="text-decoration-none fw-medium">{websiteName}</a>
+                <span class="text-secondary ms-2 small">© {year}</span>
+            </div>
+            {items.length > 0 && (
+                <div class="col-md-8 text-md-end">
+                    <nav aria-label="Site links">
+                        <Menu items={items} class="list-inline mb-0" />
+                    </nav>
+                </div>
+            )}
+        </div>
+        <p class="text-secondary small mt-3 mb-0">{disclosureLead}{disclosureHref
+            ? <a href={disclosureHref}>{disclosureLinkText}</a>
+            : disclosureLinkText}{disclosureTrail}</p>
+    </div>
+</footer>

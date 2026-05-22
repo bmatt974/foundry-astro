@@ -1,0 +1,52 @@
+---
+import type { NavNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    nav: {
+        parent: NavNode | null;
+        children: NavNode[];
+        siblings: NavNode[];
+    };
+}
+
+const { nav } = Astro.props;
+const route = Astro.locals.route;
+const hasContent = nav.parent !== null || nav.children.length > 0 || nav.siblings.length > 0;
+const hrefFor = (slug: string | null | undefined) =>
+    slug ? route('page', { slug }) : route('home', {});
+---
+
+{hasContent && (
+    <nav class="brand-border brand-text-muted mt-16 border-t pt-6 text-sm">
+        {nav.parent && (
+            <p class="mb-2">
+                ↑ <a href={hrefFor(nav.parent.slug)} class="brand-link">{nav.parent.title}</a>
+            </p>
+        )}
+        {nav.children.length > 0 && (
+            <div class="mb-4">
+                <p class="mb-2 font-medium">Sous-pages</p>
+                <ul class="list-disc pl-5">
+                    {nav.children.map((c) => (
+                        <li>
+                            <a href={hrefFor(c.slug)} class="brand-link">{c.title}</a>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+        {nav.siblings.length > 0 && (
+            <div>
+                <p class="mb-2 font-medium">À voir aussi</p>
+                <ul class="list-disc pl-5">
+                    {nav.siblings.map((s) => (
+                        <li>
+                            <a href={hrefFor(s.slug)} class="brand-link">{s.title}</a>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        )}
+    </nav>
+)}

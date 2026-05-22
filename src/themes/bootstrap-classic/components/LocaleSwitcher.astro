@@ -1,0 +1,69 @@
+---
+/**
+ * Language switcher. Renders one link per enabled website locale.
+ *
+ * When `pageLocales` is provided (detail pages), each link points to the
+ * page's own slug in that locale. When omitted (locale index, error
+ * pages), links fall back to the locale root `/${locale}/`.
+ *
+ * Locales that don't have a translation of the current page are still
+ * shown but disabled, signalling to the reader "this content isn't
+ * available in that language yet" rather than silently 404ing.
+ */
+import type { AvailableLocale, WebsiteLocale } from '../../../lib/foundry';
+import { useRoutes } from '../../../lib/routes';
+
+interface Props {
+    currentLocale: string;
+    websiteLocales: WebsiteLocale[];
+    /** Per-page translation availability — omitted on the locale index. */
+    pageLocales?: AvailableLocale[];
+}
+
+const { currentLocale, websiteLocales, pageLocales } = Astro.props;
+
+const enabled = websiteLocales.filter((l) => l.enabled);
+const pageLocaleMap = new Map((pageLocales ?? []).map((p) => [p.locale, p.slug ?? '']));
+---
+
+{enabled.length > 1 && (
+    <nav class="flex items-center gap-2 text-sm" aria-label="Switch language">
+        {enabled.map((l) => {
+            const isCurrent = l.locale === currentLocale;
+            const pageSlug = pageLocaleMap.get(l.locale);
+            const hasPage = pageLocales === undefined || pageLocaleMap.has(l.locale);
+            const r = useRoutes(l);
+            const href = pageSlug !== undefined && pageSlug !== ''
+                ? r('page', { slug: pageSlug })
+                : r('home', {});
+
+            if (isCurrent) {
+                return (
+                    <span class="rounded-md bg-gray-100 px-2 py-1 font-semibold uppercase text-gray-900">
+                        {l.locale}
+                    </span>
+                );
+            }
+
+            if (!hasPage) {
+                return (
+                    <span
+                        class="rounded-md px-2 py-1 uppercase text-gray-400"
+                        title={`Not available in ${l.locale}`}
+                    >
+                        {l.locale}
+                    </span>
+                );
+            }
+
+            return (
+                <a
+                    href={href}
+                    class="rounded-md px-2 py-1 uppercase text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                >
+                    {l.locale}
+                </a>
+            );
+        })}
+    </nav>
+)}

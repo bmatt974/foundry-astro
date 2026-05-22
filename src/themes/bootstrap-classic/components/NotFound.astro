@@ -1,0 +1,26 @@
+---
+/**
+ * Custom 404 page for the basic theme. Rendered at the bare
+ * `dist/404.html` via the catch-all 404 route; every static host
+ * (Cloudflare Pages / Vercel / Netlify / S3+CloudFront) picks it
+ * up automatically without extra config.
+ */
+import { useTranslations } from '../../../lib/i18n';
+
+interface Props {
+    locale: string;
+}
+
+const { locale } = Astro.props;
+const t = useTranslations(locale, Astro.locals.wording);
+const homeHref = `/${locale}/`;
+---
+
+<section class="brand-container mx-auto max-w-2xl px-4 py-24 text-center">
+    <p class="brand-text-muted mb-4 font-mono text-sm uppercase tracking-wider">404</p>
+    <h1 class="mb-6 text-4xl font-bold tracking-tight">{t('notFound.title')}</h1>
+    <p class="brand-text-muted mb-10 text-lg leading-relaxed">{t('notFound.body')}</p>
+    <a href={homeHref} class="brand-bg-primary inline-block rounded-md px-6 py-3 font-medium text-white hover:opacity-90">
+        {t('notFound.cta')} →
+    </a>
+</section>

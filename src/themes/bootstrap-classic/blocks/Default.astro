@@ -1,0 +1,28 @@
+---
+/**
+ * Fallback renderer for block types that don't have a dedicated component
+ * yet. Dumps the raw payload as JSON so it's visible during development
+ * what data the backend is sending. Replace by registering a real
+ * component in this theme's `components/Block.astro` once you build it.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+---
+
+<section class="my-6 rounded-md border border-dashed border-amber-400 bg-amber-50 p-4">
+    <p class="mb-2 text-sm font-medium text-amber-700">
+        Unsupported block type: <code>{block.block_type}</code>
+        {block.cluster_block_key && <> (<code>{block.cluster_block_key}</code>)</>}
+    </p>
+    <pre class="overflow-x-auto text-xs text-amber-900">{JSON.stringify(block.content, null, 2)}</pre>
+    {block.children.length > 0 && (
+        <p class="mt-2 text-xs text-amber-700">
+            …and {block.children.length} nested children
+        </p>
+    )}
+</section>

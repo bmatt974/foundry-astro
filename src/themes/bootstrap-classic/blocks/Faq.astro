@@ -1,0 +1,42 @@
+---
+/**
+ * FAQ — vanilla Bootstrap 5 accordion markup. Uses the
+ * `.accordion`, `.accordion-item`, `.accordion-header`,
+ * `.accordion-button`, `.accordion-collapse`, `.accordion-body`
+ * structure straight from the Bootstrap docs. The collapse
+ * behaviour needs Bootstrap's JS to be loaded — Layout doesn't
+ * ship it yet, so the items just expand on focus thanks to
+ * `<details>` fallback. Both options work; sticking with
+ * `<details>` keeps the page JS-free.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { parseFaq } from '../../../lib/blocks/faq';
+import Markdown from '../components/Markdown.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const { title, items, anchorId } = parseFaq(block);
+---
+
+{items.length > 0 && (
+    <section class="my-4">
+        {title && (
+            <h2 id={anchorId} class="h3 mb-3">{title}</h2>
+        )}
+        <div class="accordion">
+            {items.map((qa) => (
+                <details class="accordion-item">
+                    <summary class="accordion-header py-2 px-3 fw-semibold">
+                        {qa.question}
+                    </summary>
+                    <div class="accordion-body">
+                        <Markdown text={qa.answer} size="sm" />
+                    </div>
+                </details>
+            ))}
+        </div>
+    </section>
+)}

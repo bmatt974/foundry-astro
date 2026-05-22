@@ -1,0 +1,45 @@
+---
+/**
+ * Article breadcrumb — ancestor chain rendered as a single inline
+ * trail. The leading "Home" item points at `/{locale}/`, intermediate
+ * items at their resolved slug; the current page shows as plain text
+ * (no link, since you're already on it).
+ *
+ * Renders nothing when `breadcrumb` is empty — most root-level pages.
+ */
+import type { NavNode } from '../../../lib/foundry';
+
+interface Props {
+    locale: string;
+    breadcrumb: NavNode[];
+    currentTitle?: string;
+    websiteName?: string;
+}
+
+const { breadcrumb, currentTitle, websiteName } = Astro.props;
+const route = Astro.locals.route;
+---
+
+{breadcrumb.length > 0 && (
+    <nav class="brand-text-muted mb-6 text-sm" aria-label="Breadcrumb">
+        <ol class="flex flex-wrap items-center gap-x-2">
+            {websiteName && (
+                <li>
+                    <a href={route('home', {})} class="brand-link">{websiteName}</a>
+                </li>
+            )}
+            {breadcrumb.map((node) => (
+                <li class="flex items-center gap-x-2 before:content-['/'] before:opacity-50">
+                    {node.slug
+                        ? <a href={route('page', { slug: node.slug })} class="brand-link">{node.title}</a>
+                        : <span>{node.title}</span>}
+                </li>
+            ))}
+            {currentTitle && (
+                <li class="flex items-center gap-x-2 before:content-['/'] before:opacity-50" aria-current="page">
+                    <span>{currentTitle}</span>
+                </li>
+            )}
+        </ol>
+    </nav>
+)}

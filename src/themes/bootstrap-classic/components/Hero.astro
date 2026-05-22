@@ -1,0 +1,34 @@
+---
+/**
+ * Optional full-width image at the top of an article. Renders nothing
+ * when no image is available — the page falls back to the bare
+ * <PageHeader />.
+ *
+ * The image source is decided upstream by the page (page.cover_image
+ * first, then sourceable.cover_image) and passed here as a string.
+ * Resized via lib/image.ts so we don't ship the 4 MB original from
+ * Wikimedia / TripAdvisor.
+ */
+import { imageSrcset, imageUrl } from '../../../lib/image';
+
+interface Props {
+    image: string | null;
+    alt: string;
+}
+
+const { image, alt } = Astro.props;
+---
+
+{image && (
+    <figure class="brand-border -mx-4 mb-10 overflow-hidden border-b sm:mx-0 sm:rounded-lg sm:border">
+        <img
+            src={imageUrl(image, { width: 1200 })}
+            srcset={imageSrcset(image, [640, 960, 1200, 1600])}
+            sizes="(min-width: 768px) 768px, 100vw"
+            alt={alt}
+            width="1200"
+            height="675"
+            class="aspect-[16/9] h-auto w-full object-cover"
+        />
+    </figure>
+)}
