@@ -1,11 +1,19 @@
 /**
- * Per-site theme tokens for wp-classic. Same shape as the basic
- * theme's tokens.ts so a website's `theme_config` is portable across
- * themes — only the rendered CSS class names differ.
+ * Per-site theme tokens for wp-classic. Emits the EXACT custom-
+ * property names a WordPress 6+ block theme would expose (sourced
+ * from `theme.json`):
  *
- * Emitted as a CSS declaration list (no `:root {}` wrapper) for an
- * inline `style=` on `<html>`; specificity (1,0,0,0) beats the
- * defaults defined in `styles.css`.
+ *   --wp--preset--color--primary / contrast / base / neutral / accent
+ *   --wp--preset--font--body / headings
+ *   --wp--style--global--content-size
+ *
+ * Reading the rendered CSS, a crawler/inspector sees the same vars
+ * an authentic WordPress site would expose — no portable `--brand-*`
+ * intermediate that would link our sites together as a network.
+ *
+ * The Filament `theme_config` JSON still uses semantic keys
+ * (`colors.primary`, `fonts.body`, `density`) — this file is the
+ * theme-specific *mapping* from those keys to the var names served.
  */
 
 interface ThemeConfig {
@@ -36,14 +44,14 @@ export function css(themeConfig: Record<string, unknown>, _websiteSlug = ''): st
     const density = cfg.density;
 
     const declarations: Record<string, string | undefined> = {
-        '--brand-primary': colors.primary,
-        '--brand-text': colors.text,
-        '--brand-background': colors.background,
-        '--brand-muted': colors.muted,
-        '--brand-border': colors.border,
-        '--font-body': fonts.body,
-        '--font-headings': fonts.headings,
-        '--layout-max-width': density ? DENSITY_CONTENT_WIDTH[density] : undefined,
+        '--wp--preset--color--primary': colors.primary,
+        '--wp--preset--color--contrast': colors.text,
+        '--wp--preset--color--base': colors.background,
+        '--wp--preset--color--neutral': colors.muted,
+        '--wp--preset--color--accent': colors.border,
+        '--wp--preset--font--body': fonts.body,
+        '--wp--preset--font--headings': fonts.headings,
+        '--wp--style--global--content-size': density ? DENSITY_CONTENT_WIDTH[density] : undefined,
     };
 
     return Object.entries(declarations)

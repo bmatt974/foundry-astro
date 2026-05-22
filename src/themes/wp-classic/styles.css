@@ -31,20 +31,6 @@ a { color: inherit; }
     --wp--style--global--wide-size: 1100px;
 }
 
-/* Map the contract's --brand-* tokens (what `tokens.ts` emits) onto
-   the wp-* preset names that the rest of this stylesheet consumes.
-   Keeps the public token shape identical between themes. */
-:root {
-    --wp--preset--color--primary: var(--brand-primary, #007cba);
-    --wp--preset--color--contrast: var(--brand-text, #000000);
-    --wp--preset--color--base: var(--brand-background, #ffffff);
-    --wp--preset--color--neutral: var(--brand-muted, #6c757d);
-    --wp--preset--color--accent: var(--brand-border, #dcdcde);
-    --wp--preset--font--body: var(--font-body, "Source Serif Pro", Georgia, serif);
-    --wp--preset--font--headings: var(--font-headings, "Source Serif Pro", Georgia, serif);
-    --wp--style--global--content-size: var(--layout-max-width, 720px);
-}
-
 /* ─── Global ───────────────────────────────────────────────────── */
 
 body.wp-site {

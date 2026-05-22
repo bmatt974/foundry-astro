@@ -32,20 +32,6 @@ a { color: inherit; }
     --layout-wide-width: 1200px;
 }
 
-/* Map portable --brand-* tokens (from theme_config) onto the local
-   --color-* / --font-family-* names that the rest of the stylesheet
-   consumes. Keeps theme_config swappable across themes. */
-:root {
-    --color-primary: var(--brand-primary, #0074bd);
-    --color-text: var(--brand-text, #2d2d2d);
-    --color-bg: var(--brand-background, #ffffff);
-    --color-muted: var(--brand-muted, #595959);
-    --color-border: var(--brand-border, #cccccc);
-    --font-family-body: var(--font-body, "Lora", Georgia, "Times New Roman", serif);
-    --font-family-headings: var(--font-headings, "Source Sans 3", "Helvetica Neue", Arial, sans-serif);
-    --layout-content-width: var(--layout-max-width, 780px);
-}
-
 /* ─── Global ───────────────────────────────────────────────────── */
 
 body.layout-container {
