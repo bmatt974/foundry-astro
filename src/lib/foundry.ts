@@ -117,6 +117,11 @@ export interface Page {
     page_type: string | null;
     template: string | null;
     is_indexable: boolean;
+    /** Admin override for the per-page SEO surface (`featured` /
+     *  `standard` / `light`). `null` = let the frontend's
+     *  `computePageTier()` decide (page_type defaults + presence of
+     *  Comparison blocks, then a seeded distribution). */
+    seo_tier: 'featured' | 'standard' | 'light' | null;
     cover_image: string | null;
     position: number;
     published_at: string | null;
