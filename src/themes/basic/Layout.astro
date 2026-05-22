@@ -19,11 +19,15 @@ const { title, description, locale = 'en' } = Astro.props;
 // stylesheet for the whole site.
 const tenant = Astro.locals.tenant;
 
-// Pre-fetch the footer menu — memoised 60s per (host, locale,
-// location) so every page render isn't a fresh round-trip.
-const footerItems = tenant
-    ? await fetchMenu('footer', locale, tenant.website.hostname)
-    : [];
+// Pre-fetch header + footer menus in parallel — memoised 60s per
+// (host, locale, location) so every page render isn't a fresh
+// round-trip.
+const [headerItems, footerItems] = tenant
+    ? await Promise.all([
+        fetchMenu('header', locale, tenant.website.hostname),
+        fetchMenu('footer', locale, tenant.website.hostname),
+    ])
+    : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 // Admin-supplied raw HTML injections — website-scope come from
@@ -58,7 +62,7 @@ const bodyEndInjections = injectionsAt('body_end');
     </head>
     <body class="antialiased">
         {bodyStartInjections.map((i) => <Fragment set:html={i.body} />)}
-        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+        <SiteHeader websiteName={websiteName} currentLocale={locale} items={headerItems}>
             <slot name="locale-switcher" />
         </SiteHeader>
 

@@ -1,24 +1,34 @@
 ---
 /**
  * Top header for the basic theme. Site name on the left links back to
- * the locale root. Locale switcher slot on the right is forwarded by
- * the Layout (the page renders <LocaleSwitcher slot="locale-switcher" />
- * directly on the Layout; Layout reroutes it here as the default slot).
+ * the locale root, primary menu in the middle (when populated), locale
+ * switcher slot on the right (forwarded by Layout).
  */
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
 interface Props {
     websiteName: string;
     currentLocale: string;
+    items: MenuItem[];
 }
 
-const { websiteName } = Astro.props;
+const { websiteName, items } = Astro.props;
 const route = Astro.locals.route;
 ---
 
 <header class="brand-border border-b">
-    <div class="brand-container flex items-center justify-between gap-4 px-4 py-4">
+    <div class="brand-container flex flex-wrap items-center justify-between gap-4 px-4 py-4">
         <a href={route('home', {})} class="text-base font-semibold tracking-tight hover:opacity-70">
             {websiteName}
         </a>
-        <slot />
+        {items.length > 0 && (
+            <nav aria-label="Primary" class="order-3 w-full sm:order-2 sm:w-auto">
+                <Menu items={items} class="flex flex-wrap gap-x-4 gap-y-1 text-sm" />
+            </nav>
+        )}
+        <div class="order-2 sm:order-3">
+            <slot />
+        </div>
     </div>
 </header>

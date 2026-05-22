@@ -24,9 +24,12 @@ interface Props {
 const { title, description, locale = 'en' } = Astro.props;
 const tenant = Astro.locals.tenant;
 
-const footerItems = tenant
-    ? await fetchMenu('footer', locale, tenant.website.hostname)
-    : [];
+const [headerItems, footerItems] = tenant
+    ? await Promise.all([
+        fetchMenu('header', locale, tenant.website.hostname),
+        fetchMenu('footer', locale, tenant.website.hostname),
+    ])
+    : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 const websiteInjections = tenant?.injections ?? [];
@@ -55,7 +58,7 @@ const bodyEndInjections = injectionsAt('body_end');
     </head>
     <body>
         {bodyStartInjections.map((i) => <Fragment set:html={i.body} />)}
-        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+        <SiteHeader websiteName={websiteName} currentLocale={locale} items={headerItems}>
             <slot name="locale-switcher" />
         </SiteHeader>
 

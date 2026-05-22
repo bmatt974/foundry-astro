@@ -1,18 +1,19 @@
 ---
 /**
- * Top navbar for bootstrap-classic. Vanilla Bootstrap 5 navbar
- * markup (`.navbar`, `.navbar-brand`, `.navbar-collapse`,
- * `.nav-link`). No JS — the mobile toggler ships its data-bs-*
- * attribute and works once Bootstrap's bundle.js is loaded (it
- * isn't here yet — adding it would be a follow-up if hamburger
- * menus on phone become a need).
+ * Top navbar for bootstrap-classic. Vanilla Bootstrap 5 markup —
+ * `.navbar`, `.navbar-brand`, `.navbar-nav`, `.nav-link`. Primary
+ * menu items render inline (no mobile collapse toggle yet — needs
+ * Bootstrap's bundle.js, deferred until a phone-first need arises).
  */
+import type { MenuItem } from '../../../lib/foundry';
+
 interface Props {
     websiteName: string;
     currentLocale: string;
+    items: MenuItem[];
 }
 
-const { websiteName } = Astro.props;
+const { websiteName, items } = Astro.props;
 const route = Astro.locals.route;
 ---
 
@@ -21,6 +22,22 @@ const route = Astro.locals.route;
         <a class="navbar-brand fw-semibold" href={route('home', {})}>
             {websiteName}
         </a>
+        {items.length > 0 && (
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+                {items.map((item) => (
+                    <li class="nav-item">
+                        <a
+                            class="nav-link"
+                            href={item.href ?? '#'}
+                            target={item.open_in_new_tab ? '_blank' : undefined}
+                            rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                        >
+                            {item.label}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        )}
         <div class="ms-auto">
             <slot />
         </div>

@@ -1,10 +1,19 @@
 ---
+/**
+ * Top header for drupal-bartik. Mirrors a Drupal Olivero install:
+ * `.region--header` wrapping a branding block + a
+ * `.block--system-menu-block-main` for the primary menu.
+ */
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
 interface Props {
     websiteName: string;
     currentLocale: string;
+    items: MenuItem[];
 }
 
-const { websiteName } = Astro.props;
+const { websiteName, items } = Astro.props;
 const route = Astro.locals.route;
 ---
 
@@ -13,6 +22,11 @@ const route = Astro.locals.route;
         <div class="block block--system-branding">
             <a href={route('home', {})} class="site-branding__name">{websiteName}</a>
         </div>
+        {items.length > 0 && (
+            <nav class="block block--system-menu-block-main" aria-label="Primary">
+                <Menu items={items} class="menu menu--main" />
+            </nav>
+        )}
         <slot />
     </div>
 </header>

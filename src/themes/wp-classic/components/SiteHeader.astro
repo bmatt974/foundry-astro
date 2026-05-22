@@ -1,16 +1,30 @@
 ---
+/**
+ * Top header for wp-classic. Mimics WP block-theme site header
+ * markup — `.wp-site-header`, `.wp-block-site-title`,
+ * `.wp-block-navigation` for the primary menu.
+ */
+import type { MenuItem } from '../../../lib/foundry';
+import Menu from './Menu.astro';
+
 interface Props {
     websiteName: string;
     currentLocale: string;
+    items: MenuItem[];
 }
 
-const { websiteName } = Astro.props;
+const { websiteName, items } = Astro.props;
 const route = Astro.locals.route;
 ---
 
 <header class="wp-site-header">
     <div class="wp-block-group">
         <a href={route('home', {})} class="wp-site-blog-title">{websiteName}</a>
+        {items.length > 0 && (
+            <nav class="wp-block-navigation" aria-label="Primary">
+                <Menu items={items} class="wp-block-navigation__container" />
+            </nav>
+        )}
         <slot />
     </div>
 </header>

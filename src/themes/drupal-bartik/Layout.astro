@@ -16,9 +16,12 @@ const tenant = Astro.locals.tenant;
 // `mimic-cms-assets` post-build pass — see basic/Layout.astro for
 // the rationale.
 
-const footerItems = tenant
-    ? await fetchMenu('footer', locale, tenant.website.hostname)
-    : [];
+const [headerItems, footerItems] = tenant
+    ? await Promise.all([
+        fetchMenu('header', locale, tenant.website.hostname),
+        fetchMenu('footer', locale, tenant.website.hostname),
+    ])
+    : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 // Admin-supplied raw HTML injections — see basic/Layout.astro for
@@ -48,7 +51,7 @@ const bodyEndInjections = injectionsAt('body_end');
     </head>
     <body class="layout-container">
         {bodyStartInjections.map((i) => <Fragment set:html={i.body} />)}
-        <SiteHeader websiteName={websiteName} currentLocale={locale}>
+        <SiteHeader websiteName={websiteName} currentLocale={locale} items={headerItems}>
             <slot name="locale-switcher" />
         </SiteHeader>
 
