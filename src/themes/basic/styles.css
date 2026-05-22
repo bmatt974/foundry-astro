@@ -3,61 +3,110 @@
 @plugin "@tailwindcss/typography";
 
 /**
- * Default theme tokens — overridden per-site by Layout.astro injecting
- * a `:root { … }` block built from `tokens.ts`. Keep these neutral and
- * readable so a misconfigured site still renders.
+ * Default theme tokens — overridden per-site by tokens.ts injecting
+ * a `:root { … }` rule into the served CSS (post-build). Keep these
+ * neutral and readable so a misconfigured site still renders nicely.
+ *
+ * Palette leans warm-neutral instead of the cool grey defaults so an
+ * "out of the box" basic site feels editorial / travel-publication
+ * rather than admin-dashboard.
  */
 :root {
-    --brand-primary: #4f46e5;
-    --brand-text: #111827;
-    --brand-background: #ffffff;
-    --brand-muted: #6b7280;
-    --brand-border: #e5e7eb;
-    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --font-headings: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --brand-primary: #b85c2c;          /* warm terracotta */
+    --brand-text: #1c1410;             /* deep espresso */
+    --brand-background: #fbf8f5;       /* off-white paper */
+    --brand-muted: #67514a;             /* warm grey */
+    --brand-border: #e8dcd0;           /* soft sand */
+    --font-body: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+    --font-headings: ui-serif, Georgia, Cambria, "Times New Roman", serif;
     --layout-max-width: 48rem;
+
+    /* Seeded design tokens — per-site picks from tokens.ts. Defaults
+     *  here so dev / preview without a resolved tenant still renders
+     *  something polished. */
+    --radius-card: 8px;
+    --radius-button: 6px;
+    --shadow-card: 0 1px 2px 0 rgba(28, 20, 16, 0.05);
+    --section-spacing: 3rem;
 }
 
 body {
     background: var(--brand-background);
     color: var(--brand-text);
     font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headings);
+    color: var(--brand-text);
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
+h1 { font-size: 2.5rem; }
+h2 { font-size: 1.875rem; }
+h3 { font-size: 1.375rem; }
 
-/* Utility classes consuming the brand tokens — keep template syntax
-   Tailwind-flavoured while routing colour/font through CSS variables
-   so per-site theme_config can override without touching markup. */
+p { margin: 0 0 1em; }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--brand-primary); text-decoration: none; transition: opacity 0.15s ease; }
+a:hover { opacity: 0.75; }
+
+img { display: block; }
+
+/* ─── Brand helpers ─────────────────────────────────────── */
+
 .brand-container {
     max-width: var(--layout-max-width);
     margin-left: auto;
     margin-right: auto;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
 }
-.brand-text-primary {
-    color: var(--brand-primary);
-}
-.brand-bg-primary {
-    background-color: var(--brand-primary);
-}
-.brand-text-muted {
-    color: var(--brand-muted);
-}
-.brand-border {
-    border-color: var(--brand-border);
-}
+.brand-text-primary { color: var(--brand-primary); }
+.brand-bg-primary { background-color: var(--brand-primary); }
+.brand-text-muted { color: var(--brand-muted); }
+.brand-border { border-color: var(--brand-border); }
 .brand-link {
     color: var(--brand-primary);
-}
-.brand-link:hover {
     text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+.brand-link:hover { opacity: 0.75; }
+
+/* Buttons (used by CTA + various blocks). The `.brand-bg-primary`
+   helper + inline rounded picks up the seeded radius, but a button
+   needs more substance than a flat fill — subtle elevation +
+   crisp focus ring. */
+a.brand-bg-primary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    box-shadow: 0 1px 2px rgba(28, 20, 16, 0.08), 0 0 0 1px rgba(28, 20, 16, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+a.brand-bg-primary:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(28, 20, 16, 0.12), 0 0 0 1px rgba(28, 20, 16, 0.04);
 }
 
-/* Re-route @tailwindcss/typography's prose colors through the brand
-   tokens so markdown bodies inherit the site's palette without an
-   extra <style> per page. */
+/* ─── Section rhythm ─────────────────────────────────────── */
+
+/* Generous vertical spacing between blocks — the seeded
+   `--section-spacing` picks the per-site flavour but we have a
+   reasonable default for dev. */
+section.my-8, section.my-10, section.my-12 { margin-block: var(--section-spacing); }
+
+/* ─── Prose (markdown body) ─────────────────────────────── */
+
 .prose {
     --tw-prose-body: var(--brand-text);
     --tw-prose-headings: var(--brand-text);
@@ -66,9 +115,31 @@ h1, h2, h3, h4, h5, h6 {
     --tw-prose-bullets: var(--brand-muted);
     --tw-prose-counters: var(--brand-muted);
     --tw-prose-quotes: var(--brand-text);
-    --tw-prose-quote-borders: var(--brand-border);
+    --tw-prose-quote-borders: var(--brand-primary);
     --tw-prose-hr: var(--brand-border);
     --tw-prose-code: var(--brand-text);
     --tw-prose-th-borders: var(--brand-border);
     --tw-prose-td-borders: var(--brand-border);
+    line-height: 1.7;
+}
+
+.prose blockquote {
+    font-style: italic;
+    border-left-width: 3px;
+    padding-left: 1.25rem;
+}
+.prose hr {
+    margin-block: 2.5rem;
+    border-top-width: 1px;
+}
+
+/* ─── Card-like containers (used by KeyFacts / TopList / Cta) */
+
+/* Soft default shadow + tighter focus ring so block cards feel
+   refined rather than the flat Tailwind defaults. */
+.shadow-sm, .shadow-md {
+    box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+.hover\:shadow-md:hover {
+    box-shadow: 0 6px 16px rgba(28, 20, 16, 0.10), 0 2px 4px rgba(28, 20, 16, 0.06);
 }
