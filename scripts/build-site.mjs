@@ -93,6 +93,10 @@ child.on('exit', (code) => {
         // 2. PurgeCSS — drops selectors no rendered HTML uses, on
         //    top of Tailwind's codebase-level purge.
         'scripts/purge-css.ts',
+        // 3. Anti-footprint "human imperfection" injection — stale
+        //    HTML comments + occasional missing loading=lazy. Runs
+        //    last so its mutations land in the final dist.
+        'scripts/inject-imperfections.ts',
     ], env);
 });
 
