@@ -13,9 +13,13 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 {items.length > 0 && (
     <ul class:list={['menu', depth === 0 && className]}>
         {items.map((item) => {
+            const hasChildren = item.children.length > 0;
+            const isHeading = item.type === 'heading';
+            const isExpandable = hasChildren && !isHeading && depth === 0;
             const itemClass = [
                 'menu-item',
                 `menu-item--${item.type}`,
+                isExpandable && 'menu-item--expanded',
                 item.css_class,
             ].filter(Boolean).join(' ');
 
@@ -25,11 +29,11 @@ const { items, class: className = '', depth = 0 } = Astro.props;
             if (item.type === 'spacer') {
                 return <li class={itemClass} aria-hidden="true">&nbsp;</li>;
             }
-            if (item.type === 'heading') {
+            if (isHeading) {
                 return (
                     <li class={itemClass}>
                         <span class="menu-item__heading">{item.label}</span>
-                        {item.children.length > 0 && (
+                        {hasChildren && (
                             <Astro.self items={item.children} depth={depth + 1} />
                         )}
                     </li>
@@ -38,6 +42,27 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 
             if (!item.label) {
                 return null;
+            }
+            // Expandable items render the whole label as a button so
+            // clicking anywhere on the label opens the submenu.
+            if (isExpandable) {
+                return (
+                    <li class={itemClass}>
+                        <button
+                            type="button"
+                            class="menu-item__link menu-item__toggle"
+                            aria-controls={`menu-${item.id}`}
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                        >
+                            {item.label}
+                            <svg class="menu-item__chevron" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+                                <path d="M0 0l5 6 5-6z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        <Astro.self items={item.children} depth={depth + 1} />
+                    </li>
+                );
             }
             const href = item.href ?? '#';
             return (
@@ -51,7 +76,7 @@ const { items, class: className = '', depth = 0 } = Astro.props;
                     >
                         {item.label}
                     </a>
-                    {item.children.length > 0 && (
+                    {hasChildren && (
                         <Astro.self items={item.children} depth={depth + 1} />
                     )}
                 </li>

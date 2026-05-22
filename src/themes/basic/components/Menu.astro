@@ -29,8 +29,12 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 {items.length > 0 && (
     <ul class:list={[className, depth === 0 ? 'menu menu--root' : 'menu menu--submenu']}>
         {items.map((item) => {
+            const hasChildren = item.children.length > 0;
+            const isHeading = item.type === 'heading';
+            const isDropdown = hasChildren && !isHeading && depth === 0;
             const itemClass = [
                 `menu-item menu-item--${item.type}`,
+                isDropdown && 'menu-item--has-children',
                 item.css_class,
             ].filter(Boolean).join(' ');
 
@@ -40,11 +44,11 @@ const { items, class: className = '', depth = 0 } = Astro.props;
             if (item.type === 'spacer') {
                 return <li class={itemClass} aria-hidden="true">&nbsp;</li>;
             }
-            if (item.type === 'heading') {
+            if (isHeading) {
                 return (
                     <li class={itemClass}>
                         <span class="menu-heading">{item.label}</span>
-                        {item.children.length > 0 && (
+                        {hasChildren && (
                             <Astro.self items={item.children} depth={depth + 1} />
                         )}
                     </li>
@@ -53,9 +57,31 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 
             // link types
             const href = item.href ?? '#';
-            const isAbsent = !item.label;
-            if (isAbsent) {
+            if (!item.label) {
                 return null;
+            }
+            // Items with children render the whole label as the
+            // dropdown trigger — single click target, no separate
+            // chevron button to discover. The parent's href is
+            // dropped intentionally; editors who want a "go to
+            // parent" link should add it explicitly as a child.
+            if (isDropdown) {
+                return (
+                    <li class={itemClass} data-submenu-open="false">
+                        <button
+                            type="button"
+                            class="menu-link menu-link--trigger brand-link"
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                        >
+                            {item.label}
+                            <svg class="menu-link__chevron" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+                                <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <Astro.self items={item.children} depth={depth + 1} />
+                    </li>
+                );
             }
             return (
                 <li class={itemClass}>
@@ -68,7 +94,7 @@ const { items, class: className = '', depth = 0 } = Astro.props;
                     >
                         {item.label}
                     </a>
-                    {item.children.length > 0 && (
+                    {hasChildren && (
                         <Astro.self items={item.children} depth={depth + 1} />
                     )}
                 </li>

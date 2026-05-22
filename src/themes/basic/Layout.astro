@@ -72,5 +72,46 @@ const bodyEndInjections = injectionsAt('body_end');
 
         <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
         {bodyEndInjections.map((i) => <Fragment set:html={i.body} />)}
+
+        <script is:inline>
+            // Menu submenu toggle — items with children render the
+            // whole label as a `<button class="menu-link--trigger">`,
+            // so clicking the label opens the dropdown. Outside click
+            // closes; Esc closes.
+            (function () {
+                const containers = document.querySelectorAll('[data-submenu-open]');
+                const triggers = document.querySelectorAll('.menu-link--trigger');
+
+                function setOpen(li, open) {
+                    li.setAttribute('data-submenu-open', open ? 'true' : 'false');
+                    const btn = li.querySelector(':scope > .menu-link--trigger');
+                    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+
+                triggers.forEach(function (btn) {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const li = btn.closest('[data-submenu-open]');
+                        if (!li) return;
+                        const open = li.getAttribute('data-submenu-open') === 'true';
+                        containers.forEach(function (other) {
+                            if (other !== li) setOpen(other, false);
+                        });
+                        setOpen(li, !open);
+                    });
+                });
+
+                document.addEventListener('click', function (e) {
+                    if (e.target && e.target.closest && e.target.closest('[data-submenu-open]')) return;
+                    containers.forEach(function (li) { setOpen(li, false); });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        containers.forEach(function (li) { setOpen(li, false); });
+                    }
+                });
+            })();
+        </script>
     </body>
 </html>

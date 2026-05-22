@@ -704,3 +704,86 @@ body.wp-site {
     padding: 1rem;
     color: #7a5f00;
 }
+
+/* ─── Site header submenu (block navigation) ───────────────────── */
+/* Header items with children render a chevron toggle (`.wp-block-
+   navigation__submenu-icon`) next to the link. WP's block-nav uses
+   `aria-expanded` on the button; submenu visibility flows from that. */
+
+.wp-block-navigation .wp-block-navigation-item.has-child {
+    position: relative;
+}
+.wp-block-navigation .wp-block-navigation__submenu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    padding: 0.25rem;
+    margin-left: 0.15rem;
+    color: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    line-height: 1;
+}
+.wp-block-navigation .wp-block-navigation__submenu-icon:hover {
+    background: var(--wp--preset--color--surface, rgba(0,0,0,0.06));
+}
+.wp-block-navigation .wp-block-navigation__submenu-icon[aria-expanded="true"] svg {
+    transform: scaleY(-1);
+}
+.wp-block-navigation .has-child > .wp-block-navigation-submenu {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    min-width: 14rem;
+    background: var(--wp--preset--color--surface, #fff);
+    border: 1px solid var(--wp--preset--color--neutral-200, #e5e7eb);
+    border-radius: 4px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.12), 0 3px 6px rgba(0,0,0,0.08);
+    padding: 0.5rem;
+    margin: 0;
+    list-style: none;
+    display: none;
+    z-index: 30;
+    border-left: 0; /* override the sitemap-style border-left from the legacy submenu rule above */
+}
+.wp-block-navigation .has-child:has(> .wp-block-navigation__submenu-icon[aria-expanded="true"]) > .wp-block-navigation-submenu {
+    display: block;
+}
+.wp-block-navigation .has-child > .wp-block-navigation-submenu .wp-block-navigation-item__content {
+    display: block;
+    padding: 0.4rem 0.6rem;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.wp-block-navigation .has-child > .wp-block-navigation-submenu .wp-block-navigation-item__content:hover {
+    background: var(--wp--preset--color--neutral-100, #f3f4f6);
+}
+
+/* Parent label as button — matches `wp-block-navigation-item__content`
+   visually, but it's a `<button>` so the whole label opens the submenu
+   on click instead of forcing the user to hit the small chevron. */
+button.wp-block-navigation-item__content {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    line-height: inherit;
+}
+button.wp-block-navigation-item__content:hover {
+    background: transparent;
+    text-decoration: underline;
+}
+.wp-block-navigation__submenu-chevron {
+    transition: transform 0.12s ease;
+}
+button.wp-block-navigation-item__content[aria-expanded="true"] .wp-block-navigation__submenu-chevron {
+    transform: scaleY(-1);
+}

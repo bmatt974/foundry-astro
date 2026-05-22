@@ -143,3 +143,114 @@ section.my-8, section.my-10, section.my-12 { margin-block: var(--section-spacing
 .hover\:shadow-md:hover {
     box-shadow: 0 6px 16px rgba(28, 20, 16, 0.10), 0 2px 4px rgba(28, 20, 16, 0.06);
 }
+
+/* ─── Header menu dropdown ─────────────────────────────────────── */
+/* Items with children (`Themes` in the demo header) render a chevron
+   toggle button next to the link. The submenu is hidden by default
+   and shown when the parent `<li>` carries `data-submenu-open="true"`,
+   set by the small inline script in `SiteHeader.astro` on toggle click
+   (with outside-click close handler). */
+
+.menu--root .menu-item--has-children {
+    position: relative;
+}
+.menu--root .menu-item--has-children > .submenu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 0;
+    padding: 0.25rem;
+    margin-left: 0.15rem;
+    color: inherit;
+    cursor: pointer;
+    border-radius: 4px;
+    line-height: 1;
+    vertical-align: middle;
+    transition: background 0.12s ease, transform 0.12s ease;
+}
+.menu--root .menu-item--has-children > .submenu-toggle:hover {
+    background: var(--brand-border);
+}
+.menu--root .menu-item--has-children[data-submenu-open="true"] > .submenu-toggle svg {
+    transform: rotate(180deg);
+}
+.menu--root .menu-item--has-children > .menu--submenu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    min-width: 14rem;
+    background: var(--brand-bg, #fff);
+    border: 1px solid var(--brand-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 24px rgba(28, 20, 16, 0.12), 0 4px 8px rgba(28, 20, 16, 0.08);
+    padding: 0.5rem;
+    margin: 0;
+    list-style: none;
+    display: none;
+    z-index: 30;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.menu--root .menu-item--has-children[data-submenu-open="true"] > .menu--submenu {
+    display: flex;
+}
+.menu--root .menu-item--has-children > .menu--submenu .menu-link {
+    display: block;
+    padding: 0.45rem 0.65rem;
+    border-radius: 6px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.menu--root .menu-item--has-children > .menu--submenu .menu-link:hover {
+    background: var(--brand-border);
+}
+
+/* ─── Footer multi-column menu ─────────────────────────────────── */
+/* Heading-type items render a column header + their children
+   inline beneath. No toggle, always expanded. */
+
+.menu--root .menu-item--heading > .menu-heading {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand-muted);
+    margin-bottom: 0.4rem;
+}
+.menu--root .menu-item--heading > .menu--submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Button-as-link styling for dropdown triggers — visually identical
+   to a `<a class="menu-link brand-link">` so the parent looks like
+   the rest of the menu. */
+.menu-link--trigger {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    line-height: inherit;
+}
+.menu-link--trigger:hover,
+.menu-link--trigger:focus-visible {
+    text-decoration: underline;
+}
+.menu-link__chevron {
+    transition: transform 0.15s ease;
+}
+.menu-item--has-children[data-submenu-open="true"] > .menu-link--trigger .menu-link__chevron {
+    transform: rotate(180deg);
+}

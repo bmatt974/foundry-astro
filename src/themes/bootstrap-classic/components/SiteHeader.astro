@@ -1,9 +1,10 @@
 ---
 /**
  * Top navbar for bootstrap-classic. Vanilla Bootstrap 5 markup —
- * `.navbar`, `.navbar-brand`, `.navbar-nav`, `.nav-link`. Primary
- * menu items render inline (no mobile collapse toggle yet — needs
- * Bootstrap's bundle.js, deferred until a phone-first need arises).
+ * `.navbar`, `.navbar-brand`, `.navbar-nav`, `.nav-link`, with
+ * `.dropdown` + `.dropdown-toggle` + `.dropdown-menu` for items
+ * carrying children. Dropdown interaction comes from Bootstrap's
+ * own bundle JS loaded once in Layout.astro.
  */
 import type { MenuItem } from '../../../lib/foundry';
 
@@ -17,29 +18,73 @@ const { websiteName, items } = Astro.props;
 const route = Astro.locals.route;
 ---
 
-<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
+<nav class="navbar navbar-expand-md bg-body-tertiary border-bottom">
     <div class="container">
         <a class="navbar-brand fw-semibold" href={route('home', {})}>
             {websiteName}
         </a>
-        {items.length > 0 && (
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
-                {items.map((item) => (
-                    <li class="nav-item">
-                        <a
-                            class="nav-link"
-                            href={item.href ?? '#'}
-                            target={item.open_in_new_tab ? '_blank' : undefined}
-                            rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                        >
-                            {item.label}
-                        </a>
-                    </li>
-                ))}
-            </ul>
-        )}
-        <div class="ms-auto">
-            <slot />
+        <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#primary-nav"
+            aria-controls="primary-nav"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="primary-nav">
+            {items.length > 0 && (
+                <ul class="navbar-nav me-auto mb-2 mb-md-0 ms-md-4">
+                    {items.map((item) => {
+                        const hasChildren = item.children.length > 0 && item.type !== 'heading';
+                        if (hasChildren) {
+                            return (
+                                <li class="nav-item dropdown">
+                                    <button
+                                        class="nav-link dropdown-toggle"
+                                        type="button"
+                                        data-bs-toggle="dropdown"
+                                        aria-expanded="false"
+                                    >
+                                        {item.label}
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {item.children.map((child) => (
+                                            <li>
+                                                <a
+                                                    class="dropdown-item"
+                                                    href={child.href ?? '#'}
+                                                    target={child.open_in_new_tab ? '_blank' : undefined}
+                                                    rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                                                >
+                                                    {child.label}
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </li>
+                            );
+                        }
+                        return (
+                            <li class="nav-item">
+                                <a
+                                    class="nav-link"
+                                    href={item.href ?? '#'}
+                                    target={item.open_in_new_tab ? '_blank' : undefined}
+                                    rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                                >
+                                    {item.label}
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            <div class="ms-auto">
+                <slot />
+            </div>
         </div>
     </div>
 </nav>

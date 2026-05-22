@@ -61,5 +61,38 @@ const bodyEndInjections = injectionsAt('body_end');
 
         <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
         {bodyEndInjections.map((i) => <Fragment set:html={i.body} />)}
+
+        <script is:inline>
+            // Drupal.behaviors equivalent — the standard Drupal pattern
+            // for progressively-enhanced menus. The parent label is
+            // itself a `<button class="menu-item__link menu-item__toggle">`,
+            // so the whole label opens the dropdown.
+            (function (Drupal) {
+                Drupal.behaviors = Drupal.behaviors || {};
+                Drupal.behaviors.menuMain = {
+                    attach: function (context) {
+                        var toggles = context.querySelectorAll('.block--system-menu-block-main button.menu-item__toggle');
+                        toggles.forEach(function (toggle) {
+                            if (toggle.__bound) return;
+                            toggle.__bound = true;
+                            toggle.addEventListener('click', function (event) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                toggles.forEach(function (other) {
+                                    if (other !== toggle) other.setAttribute('aria-expanded', 'false');
+                                });
+                                var expanded = toggle.getAttribute('aria-expanded') === 'true';
+                                toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                            });
+                        });
+                        document.addEventListener('click', function (event) {
+                            if (event.target.closest('.block--system-menu-block-main .menu-item--expanded')) return;
+                            toggles.forEach(function (toggle) { toggle.setAttribute('aria-expanded', 'false'); });
+                        });
+                    },
+                };
+                Drupal.behaviors.menuMain.attach(document);
+            })(window.Drupal = window.Drupal || {});
+        </script>
     </body>
 </html>

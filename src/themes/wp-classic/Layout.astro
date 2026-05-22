@@ -61,5 +61,36 @@ const bodyEndInjections = injectionsAt('body_end');
 
         <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
         {bodyEndInjections.map((i) => <Fragment set:html={i.body} />)}
+
+        <script is:inline>
+            /* WP block-navigation submenu — the parent label is itself
+             * a `<button class="wp-block-navigation-item__content">`
+             * with `aria-haspopup="menu"`. Click toggles `aria-expanded`;
+             * CSS shows/hides the submenu based on that state. */
+            document.addEventListener('DOMContentLoaded', function () {
+                var triggers = document.querySelectorAll('button.wp-block-navigation-item__content[aria-haspopup="menu"]');
+                triggers.forEach(function (trigger) {
+                    trigger.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        triggers.forEach(function (other) {
+                            if (other !== trigger) {
+                                other.setAttribute('aria-expanded', 'false');
+                            }
+                        });
+                        var current = trigger.getAttribute('aria-expanded') === 'true';
+                        trigger.setAttribute('aria-expanded', current ? 'false' : 'true');
+                    });
+                });
+                document.addEventListener('click', function (event) {
+                    if (event.target.closest('.wp-block-navigation .has-child')) {
+                        return;
+                    }
+                    triggers.forEach(function (trigger) {
+                        trigger.setAttribute('aria-expanded', 'false');
+                    });
+                });
+            });
+        </script>
     </body>
 </html>

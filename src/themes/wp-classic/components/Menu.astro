@@ -13,9 +13,13 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 {items.length > 0 && (
     <ul class:list={[className, 'wp-block-navigation__container', depth > 0 && 'wp-block-navigation-submenu']}>
         {items.map((item) => {
+            const hasChildren = item.children.length > 0;
+            const isHeading = item.type === 'heading';
+            const isSubmenuRoot = hasChildren && !isHeading && depth === 0;
             const itemClass = [
                 'wp-block-navigation-item',
                 `wp-block-navigation-item--${item.type}`,
+                isSubmenuRoot && 'has-child',
                 item.css_class,
             ].filter(Boolean).join(' ');
 
@@ -25,11 +29,11 @@ const { items, class: className = '', depth = 0 } = Astro.props;
             if (item.type === 'spacer') {
                 return <li class={`${itemClass} wp-block-spacer`} aria-hidden="true">&nbsp;</li>;
             }
-            if (item.type === 'heading') {
+            if (isHeading) {
                 return (
                     <li class={itemClass}>
                         <span class="wp-block-navigation-item__heading">{item.label}</span>
-                        {item.children.length > 0 && (
+                        {hasChildren && (
                             <Astro.self items={item.children} depth={depth + 1} />
                         )}
                     </li>
@@ -38,6 +42,27 @@ const { items, class: className = '', depth = 0 } = Astro.props;
 
             if (!item.label) {
                 return null;
+            }
+            // Items with children render the whole label as a button —
+            // single click target. The parent's href is dropped; the
+            // dropdown itself is the destination.
+            if (isSubmenuRoot) {
+                return (
+                    <li class={itemClass}>
+                        <button
+                            type="button"
+                            class="wp-block-navigation-item__content wp-block-navigation__submenu-icon"
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                        >
+                            {item.label}
+                            <svg class="wp-block-navigation__submenu-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                                <path d="M1.5 4.5l4.5 4.5 4.5-4.5z"/>
+                            </svg>
+                        </button>
+                        <Astro.self items={item.children} depth={depth + 1} />
+                    </li>
+                );
             }
             const href = item.href ?? '#';
             return (
@@ -51,7 +76,7 @@ const { items, class: className = '', depth = 0 } = Astro.props;
                     >
                         {item.label}
                     </a>
-                    {item.children.length > 0 && (
+                    {hasChildren && (
                         <Astro.self items={item.children} depth={depth + 1} />
                     )}
                 </li>
