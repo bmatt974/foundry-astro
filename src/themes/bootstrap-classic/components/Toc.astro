@@ -1,0 +1,49 @@
+---
+/**
+ * Auto-generated table of contents. Lists every h2 / h3 the page
+ * exposes — both block-level `content.title` ids stamped by the
+ * block components and markdown-embedded headings ids stamped by
+ * the marked renderer hook in `lib/toc.ts`.
+ *
+ * Hidden under a min-headings threshold to avoid showing a one-item
+ * "Sommaire" on short pages. Tier-1 SEO differentiator on top-ranked
+ * affiliate guides (see `docs/strategy/seo/page-features-baseline.md`
+ * in the CMS repo).
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { useTranslations } from '../../../lib/i18n';
+import { extractHeadingsFromBlocks } from '../../../lib/toc';
+
+interface Props {
+    blocks: PageBlock[];
+}
+
+const { blocks } = Astro.props;
+const headings = extractHeadingsFromBlocks(blocks);
+const MIN_HEADINGS = 3;
+const t = useTranslations(Astro.locals.locale ?? 'en', Astro.locals.wording);
+const tocLabel = t('toc.label');
+---
+
+{headings.length >= MIN_HEADINGS && (
+    <nav
+        class="brand-border mb-8 rounded-lg border bg-gray-50 p-4"
+        aria-label={tocLabel}
+    >
+        <p class="brand-text-primary mb-2 text-xs font-semibold uppercase tracking-wider">
+            {tocLabel}
+        </p>
+        <ol class="space-y-1 text-sm">
+            {headings.map((h) => (
+                <li class={h.level === 3 ? 'ml-4' : ''}>
+                    <a
+                        href={`#${h.slug}`}
+                        class="brand-text-primary hover:underline"
+                    >
+                        {h.text}
+                    </a>
+                </li>
+            ))}
+        </ol>
+    </nav>
+)}

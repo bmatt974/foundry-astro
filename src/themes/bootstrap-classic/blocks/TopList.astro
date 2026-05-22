@@ -1,0 +1,62 @@
+---
+/**
+ * TopList — vanilla Bootstrap responsive card grid. Uses `.row`
+ * + `.col-md-6 .col-lg-4` for the breakpoints, `.card` with
+ * `.card-img-top` / `.card-body` / `.card-title` / `.card-text`
+ * for the items — straight out of the Bootstrap docs.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { humaniseType, parseTopList } from '../../../lib/blocks/toplist';
+import { imageSrcset, imageUrl } from '../../../lib/image';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const { heading, items, anchorId } = parseTopList(block);
+---
+
+{items.length > 0 && (
+    <section class="my-4">
+        {heading && <h2 id={anchorId} class="h3 mb-4">{heading}</h2>}
+        <div class="row g-4">
+            {items.map((item) => (
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        {item.image && (
+                            <img
+                                src={imageUrl(item.image, { width: 480 })}
+                                srcset={imageSrcset(item.image, [320, 480, 800, 1200])}
+                                sizes="(min-width: 992px) 33vw, (min-width: 768px) 50vw, 100vw"
+                                alt={item.name}
+                                loading="lazy"
+                                width="480"
+                                height="360"
+                                class="card-img-top"
+                                style="aspect-ratio: 4/3; object-fit: cover;"
+                            />
+                        )}
+                        <div class="card-body">
+                            {item.type && (
+                                <p class="card-subtitle text-secondary small text-uppercase mb-1">
+                                    {humaniseType(item.type)}
+                                </p>
+                            )}
+                            <h3 class="card-title h5">
+                                {item.url ? (
+                                    <a href={item.url} class="text-decoration-none">{item.name}</a>
+                                ) : (
+                                    item.name
+                                )}
+                            </h3>
+                            {item.description && (
+                                <p class="card-text small text-secondary">{item.description}</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </section>
+)}

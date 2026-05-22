@@ -1,0 +1,78 @@
+---
+/**
+ * Renders a nested menu tree. Each item is one of:
+ *   - link (page / page_slug / external) → <a> with href
+ *   - heading → <span class="menu-heading"> (non-clickable)
+ *   - spacer → tall empty <li>
+ *   - divider → <hr>
+ *
+ * Recurses on children. Doesn't enforce a particular layout — the
+ * `class` prop is forwarded to the root <ul> so callers (SiteHeader,
+ * SiteFooter, ad-hoc pages) can style it differently.
+ *
+ * Visibility rules are not evaluated here — the API returns them
+ * unchanged; per-page visibility logic comes in a later iteration
+ * (needs current-page context).
+ */
+import type { MenuItem } from '../../../lib/foundry';
+
+interface Props {
+    items: MenuItem[];
+    class?: string;
+    /** Mark a depth=0 list specially when rendered recursively. */
+    depth?: number;
+}
+
+const { items, class: className = '', depth = 0 } = Astro.props;
+---
+
+{items.length > 0 && (
+    <ul class:list={[className, depth === 0 ? 'menu menu--root' : 'menu menu--submenu']}>
+        {items.map((item) => {
+            const itemClass = [
+                `menu-item menu-item--${item.type}`,
+                item.css_class,
+            ].filter(Boolean).join(' ');
+
+            if (item.type === 'divider') {
+                return <li class={itemClass}><hr class="menu-divider" /></li>;
+            }
+            if (item.type === 'spacer') {
+                return <li class={itemClass} aria-hidden="true">&nbsp;</li>;
+            }
+            if (item.type === 'heading') {
+                return (
+                    <li class={itemClass}>
+                        <span class="menu-heading">{item.label}</span>
+                        {item.children.length > 0 && (
+                            <Astro.self items={item.children} depth={depth + 1} />
+                        )}
+                    </li>
+                );
+            }
+
+            // link types
+            const href = item.href ?? '#';
+            const isAbsent = !item.label;
+            if (isAbsent) {
+                return null;
+            }
+            return (
+                <li class={itemClass}>
+                    <a
+                        href={href}
+                        title={item.title_attribute ?? undefined}
+                        target={item.open_in_new_tab ? '_blank' : undefined}
+                        rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                        class="menu-link brand-link"
+                    >
+                        {item.label}
+                    </a>
+                    {item.children.length > 0 && (
+                        <Astro.self items={item.children} depth={depth + 1} />
+                    )}
+                </li>
+            );
+        })}
+    </ul>
+)}

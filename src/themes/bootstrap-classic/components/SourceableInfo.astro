@@ -1,0 +1,46 @@
+---
+/**
+ * Infobox displayed below the article header on pages anchored on a
+ * geographic entity (Place / Destination / DestinationCountry).
+ * Surfaces the high-signal fields readers expect: type, country,
+ * coordinates, and a Google Maps shortcut.
+ *
+ * Renders nothing when:
+ *   - sourceable is null (utility / hub pages with no entity)
+ *   - the entity has no useful metadata (no coords, no country, …)
+ *
+ * Each row is its own optional block — empty fields just disappear,
+ * which keeps the card tight on incomplete data.
+ */
+import type { Sourceable } from '../../../lib/foundry';
+import { buildRows } from '../../../lib/themes/sourceable-rows';
+
+interface Props {
+    sourceable: Sourceable | null;
+    locale: string;
+}
+
+const { sourceable, locale } = Astro.props;
+const rows = sourceable ? buildRows(sourceable, locale) : [];
+---
+
+{rows.length > 0 && (
+    <aside class="brand-border my-8 rounded-lg border bg-gray-50 p-5">
+        <dl class="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+            {rows.map((row) => (
+                <>
+                    <dt class="brand-text-muted font-medium uppercase tracking-wide text-xs">{row.label}</dt>
+                    <dd>
+                        {row.href ? (
+                            <a href={row.href} class="brand-link" target="_blank" rel="noopener noreferrer">
+                                {row.value}
+                            </a>
+                        ) : (
+                            row.value
+                        )}
+                    </dd>
+                </>
+            ))}
+        </dl>
+    </aside>
+)}

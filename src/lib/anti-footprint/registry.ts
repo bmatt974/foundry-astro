@@ -11,6 +11,7 @@
  * site renders without exotic CMS-mimicking head tags.
  */
 import basic from '../../themes/basic/anti-footprint.ts';
+import bootstrapClassic from '../../themes/bootstrap-classic/anti-footprint.ts';
 import drupalBartik from '../../themes/drupal-bartik/anti-footprint.ts';
 import wpClassic from '../../themes/wp-classic/anti-footprint.ts';
 import type { ThemeAntiFootprint } from './types.ts';
@@ -19,6 +20,7 @@ const THEMES: Record<string, ThemeAntiFootprint> = {
     basic,
     'wp-classic': wpClassic,
     'drupal-bartik': drupalBartik,
+    'bootstrap-classic': bootstrapClassic,
 };
 
 const DEFAULT_TEMPLATE = 'basic';

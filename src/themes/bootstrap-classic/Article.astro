@@ -1,0 +1,91 @@
+---
+/**
+ * Article dispatcher. The page-template hands over a Page; this
+ * component decides which chrome sections to render and in what
+ * order, based on `page.page_type`. Each section maps to one of the
+ * theme-owned components.
+ *
+ * Pages stay one-liners: `<Article page={page} locale={locale} />`.
+ * The per-type layout lives in `layouts.ts` and can diverge across
+ * themes (a wp-classic could put PageHeader above Hero, etc.).
+ */
+import type { Page } from '../../lib/foundry';
+import { resolveAuthors } from '../../lib/author';
+import AuthorBio from './components/AuthorBio.astro';
+import AuthorByline from './components/AuthorByline.astro';
+import Breadcrumb from './components/Breadcrumb.astro';
+import Hero from './components/Hero.astro';
+import PageBlocks from './components/PageBlocks.astro';
+import PageFooter from './components/PageFooter.astro';
+import PageHeader from './components/PageHeader.astro';
+import PageNav from './components/PageNav.astro';
+import SourceableInfo from './components/SourceableInfo.astro';
+import Toc from './components/Toc.astro';
+import { pickLayout } from '../../lib/themes/page-sections';
+
+interface Props {
+    page: Page;
+    locale: string;
+    /** Used by the preview route when the page-level translation has
+     *  no title yet — propagates to PageHeader and Breadcrumb. */
+    fallbackTitle?: string;
+}
+
+const { page, locale, fallbackTitle } = Astro.props;
+const tenant = Astro.locals.tenant;
+
+const t = page.translation;
+const sourceName = page.sourceable && 'name' in page.sourceable
+    ? page.sourceable.name
+    : null;
+
+const heroImage = page.cover_image
+    ?? (page.sourceable && 'cover_image' in page.sourceable
+        ? page.sourceable.cover_image
+        : null);
+const heroAlt = t?.title ?? sourceName ?? '';
+const breadcrumbCurrentTitle = t?.title ?? fallbackTitle;
+
+const sections = pickLayout(page.page_type);
+const authors = resolveAuthors(page.authors, locale);
+---
+
+{sections.map((section) => {
+    switch (section) {
+        case 'hero':
+            return <Hero image={heroImage} alt={heroAlt} />;
+        case 'breadcrumb':
+            return (
+                <Breadcrumb
+                    locale={locale}
+                    breadcrumb={page.nav.breadcrumb}
+                    currentTitle={breadcrumbCurrentTitle}
+                    websiteName={tenant.website.name}
+                />
+            );
+        case 'page_header':
+            return (
+                <PageHeader
+                    translation={t}
+                    publishedAt={page.published_at ?? t?.published_at ?? null}
+                    fallbackTitle={fallbackTitle}
+                />
+            );
+        case 'author_byline':
+            return <AuthorByline authors={authors} locale={locale} />;
+        case 'toc':
+            return <Toc blocks={page.blocks} />;
+        case 'sourceable_info':
+            return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
+        case 'page_blocks':
+            return <PageBlocks blocks={page.blocks} />;
+        case 'author_bio':
+            return <AuthorBio authors={authors} locale={locale} />;
+        case 'page_footer':
+            return t ? <PageFooter translation={t} /> : null;
+        case 'page_nav':
+            return <PageNav locale={locale} nav={page.nav} />;
+        default:
+            return null;
+    }
+})}

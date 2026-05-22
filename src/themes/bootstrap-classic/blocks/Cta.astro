@@ -1,0 +1,32 @@
+---
+/**
+ * CTA — vanilla Bootstrap markup. `.card` with `.card-body`
+ * and a `.btn btn-primary`. Zero custom class names.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { isExternalUrl, parseCta } from '../../../lib/blocks/cta';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const cta = parseCta(block);
+---
+
+{cta && (
+    <div class="card text-center my-4">
+        <div class="card-body">
+            {cta.description && (
+                <p class="card-text mb-3">{cta.description}</p>
+            )}
+            <a
+                href={cta.url}
+                class="btn btn-primary"
+                {...(isExternalUrl(cta.url) && { rel: 'noopener', target: '_blank' })}
+            >
+                {cta.label}
+            </a>
+        </div>
+    </div>
+)}

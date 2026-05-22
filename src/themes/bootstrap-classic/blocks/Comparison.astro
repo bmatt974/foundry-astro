@@ -1,0 +1,139 @@
+---
+/**
+ * Compares ticket archetypes for a POI (Coupe-file / Audio guide /
+ * Guide live / …). Source: ComparisonBlockDrafter on the Laravel side
+ * which aggregates Viator + GetYourGuide listings into a handful of
+ * groups per page.
+ *
+ * Parsing + label translation + formatting live in
+ * `src/lib/blocks/comparison.ts` — shared with wp-classic so a bug
+ * fix or a new field flows to both themes at once. This file owns
+ * only the Tailwind markup (responsive card-stack on mobile, table
+ * on `sm:` upward).
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import { parseComparison } from '../../../lib/blocks/comparison';
+import { formatDate, formatRelativeDate } from '../../../lib/format';
+import { imageSrcset, imageUrl } from '../../../lib/image';
+import { slugify } from '../../../lib/toc';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath);
+const publishedAt = Astro.locals.pagePublishedAt ?? null;
+const relativeUpdated = formatRelativeDate(publishedAt, locale);
+const absoluteUpdated = formatDate(publishedAt, locale);
+---
+
+{rows.length > 0 && (
+    <section class="my-10">
+        {heading && (
+            <h2 id={slugify(heading)} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
+                {heading}
+            </h2>
+        )}
+
+        {/* Mobile / narrow: card stack */}
+        <ul class="space-y-4 sm:hidden">
+            {rows.map((row) => (
+                <li class="brand-border overflow-hidden rounded-lg border bg-white">
+                    {row.imageUrl && (
+                        <img
+                            src={imageUrl(row.imageUrl, { width: 480 })}
+                            srcset={imageSrcset(row.imageUrl, [320, 480, 800])}
+                            sizes="100vw"
+                            alt={row.title || row.label}
+                            loading="lazy"
+                            class="aspect-[16/9] w-full object-cover"
+                        />
+                    )}
+                    <div class="p-4">
+                        <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{row.label}</p>
+                        <h3 class="mt-1 text-sm font-semibold leading-snug">{row.title}</h3>
+                        {row.extras > 0 && (
+                            <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
+                        )}
+                        <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
+                            <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
+                            <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
+                            <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
+                            <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
+                        </ul>
+                        <div class="mt-4 flex items-center justify-between gap-3">
+                            <div>
+                                {row.priceText && <p class="text-base font-semibold">{row.priceText}</p>}
+                                {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
+                                {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
+                            </div>
+                            {row.ctaHref && (
+                                <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                    {labels.cta}
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+
+        {/* Desktop: table */}
+        <div class="hidden overflow-x-auto sm:block">
+            <table class="brand-border w-full border-collapse border text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{labels.headers.type}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.coupeFile}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.audioGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.liveGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.freeCancellation}</th>
+                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{labels.headers.price}</th>
+                        <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{labels.headers.cta}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr class="brand-border border-t align-top">
+                            <td class="p-3">
+                                <p class="font-semibold">{row.label}</p>
+                                <p class="brand-text-muted mt-1 text-xs leading-snug">{row.title}</p>
+                                {row.extras > 0 && (
+                                    <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
+                                )}
+                            </td>
+                            <td class="p-3 text-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                            <td class="p-3 text-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            <td class="p-3 text-right">
+                                {row.priceText && <p class="font-semibold">{row.priceText}</p>}
+                                {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
+                                {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
+                            </td>
+                            <td class="p-3">
+                                {row.ctaHref && (
+                                    <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="brand-bg-primary inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                        {labels.cta}
+                                    </a>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+
+        {relativeUpdated && publishedAt && (
+            <p class="brand-text-muted mt-4 text-xs italic">
+                {labels.pricesUpdatedPrefix}{' '}
+                <time datetime={publishedAt} title={absoluteUpdated ?? undefined}>
+                    {relativeUpdated}
+                </time>
+            </p>
+        )}
+    </section>
+)}

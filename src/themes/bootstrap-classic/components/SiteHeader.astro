@@ -1,0 +1,28 @@
+---
+/**
+ * Top navbar for bootstrap-classic. Vanilla Bootstrap 5 navbar
+ * markup (`.navbar`, `.navbar-brand`, `.navbar-collapse`,
+ * `.nav-link`). No JS — the mobile toggler ships its data-bs-*
+ * attribute and works once Bootstrap's bundle.js is loaded (it
+ * isn't here yet — adding it would be a follow-up if hamburger
+ * menus on phone become a need).
+ */
+interface Props {
+    websiteName: string;
+    currentLocale: string;
+}
+
+const { websiteName } = Astro.props;
+const route = Astro.locals.route;
+---
+
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href={route('home', {})}>
+            {websiteName}
+        </a>
+        <div class="ms-auto">
+            <slot />
+        </div>
+    </div>
+</nav>

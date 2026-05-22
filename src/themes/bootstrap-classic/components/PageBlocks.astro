@@ -1,0 +1,18 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import Block from './Block.astro';
+
+interface Props {
+    blocks: PageBlock[];
+}
+
+const { blocks } = Astro.props;
+---
+
+{blocks.length > 0 ? (
+    <div class="space-y-2">
+        {blocks.map((block) => <Block block={block} />)}
+    </div>
+) : (
+    <p class="brand-text-muted text-sm italic">No blocks on this page.</p>
+)}

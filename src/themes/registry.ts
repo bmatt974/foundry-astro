@@ -39,6 +39,8 @@ if (__ACTIVE_TEMPLATE__ === 'basic') {
     themes['wp-classic'] = (await import('./wp-classic/index.ts')).default;
 } else if (__ACTIVE_TEMPLATE__ === 'drupal-bartik') {
     themes['drupal-bartik'] = (await import('./drupal-bartik/index.ts')).default;
+} else if (__ACTIVE_TEMPLATE__ === 'bootstrap-classic') {
+    themes['bootstrap-classic'] = (await import('./bootstrap-classic/index.ts')).default;
 } else {
     // No pinned template (dev mode or `astro build` invoked without
     // `build-site.mjs`). Load every theme so the multi-tenant
@@ -46,6 +48,7 @@ if (__ACTIVE_TEMPLATE__ === 'basic') {
     themes.basic = (await import('./basic/index.ts')).default;
     themes['wp-classic'] = (await import('./wp-classic/index.ts')).default;
     themes['drupal-bartik'] = (await import('./drupal-bartik/index.ts')).default;
+    themes['bootstrap-classic'] = (await import('./bootstrap-classic/index.ts')).default;
 }
 
 const FALLBACK_THEME = 'basic';

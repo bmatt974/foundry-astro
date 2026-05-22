@@ -1,0 +1,19 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import { parseText } from '../../../lib/blocks/text';
+import Markdown from '../components/Markdown.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const { title, body, anchorId } = parseText(block);
+---
+
+<section class="my-4">
+    {title && (
+        <h2 id={anchorId} class="h3 mb-3">{title}</h2>
+    )}
+    <Markdown text={body} />
+</section>
