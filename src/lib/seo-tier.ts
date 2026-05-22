@@ -35,6 +35,24 @@ export function computePageTier(page: Page | null, tenant: TenantContext): SeoTi
         return 'standard';
     }
 
+    // 1. Admin override wins — `page.seo_tier` set in Filament.
+    if (page.seo_tier === 'featured' || page.seo_tier === 'standard' || page.seo_tier === 'light') {
+        return page.seo_tier;
+    }
+
+    // 2. Page-type defaults — Hub / Landing are top-funnel,
+    //    always featured for max discoverability.
+    if (page.page_type === 'hub' || page.page_type === 'landing') {
+        return 'featured';
+    }
+
+    // 3. Money pages — anything carrying an affiliate Comparison
+    //    block is a conversion-critical page; never degrade.
+    if (page.blocks.some((b) => b.block_type === 'comparison')) {
+        return 'featured';
+    }
+
+    // 4. Everything else: seeded 30/50/20 distribution.
     const slug = page.translation?.slug ?? `page-${page.id}`;
     const seed = `${tenant.website.hostname}:${slug}`;
     const hash = favHash(seed) % 100;
