@@ -22,6 +22,7 @@ import {
     type SeoExtras,
     type TenantContext,
 } from '../lib/seo';
+import { computePageTier, tierConfig } from '../lib/seo-tier';
 
 interface Props {
     page: Page | null;
@@ -82,15 +83,24 @@ const robotsContent = (noindex || (page && page.is_indexable === false))
 const ogLocale = locale.replace('-', '_');
 const websiteLocale = tenant.locales.find((l) => l.locale === locale);
 
-const jsonLd = serializeJsonLd(
-    buildJsonLd({
-        tenant,
-        locale,
-        page,
-        canonicalUrl,
-        imageUrl: socialImage,
-    }),
-);
+// Per-page SEO tier (anti-footprint): not every page ships the
+// full schema + og:image + twitter suite. Seeded from hostname +
+// slug so it's stable across rebuilds and varies across pages /
+// sites. See `lib/seo-tier.ts`.
+const tier = computePageTier(page, tenant);
+const cfg = tierConfig(tier);
+
+const jsonLd = cfg.emitSchema
+    ? serializeJsonLd(
+        buildJsonLd({
+            tenant,
+            locale,
+            page,
+            canonicalUrl,
+            imageUrl: socialImage,
+        }),
+    )
+    : null;
 ---
 
 {resolvedDescription && <meta name="description" content={resolvedDescription} />}
@@ -108,14 +118,14 @@ const jsonLd = serializeJsonLd(
 {tenant.locales
     .filter((l) => l.enabled && l.locale !== locale)
     .map((l) => <meta property="og:locale:alternate" content={l.locale.replace('-', '_')} />)}
-{socialImage && <meta property="og:image" content={socialImage} />}
-{socialImage && <meta property="og:image:width" content="1200" />}
-{socialImage && <meta property="og:image:height" content="675" />}
+{cfg.emitOgImage && socialImage && <meta property="og:image" content={socialImage} />}
+{cfg.emitOgImage && socialImage && <meta property="og:image:width" content="1200" />}
+{cfg.emitOgImage && socialImage && <meta property="og:image:height" content="675" />}
 
-<meta name="twitter:card" content={socialImage ? 'summary_large_image' : 'summary'} />
-<meta name="twitter:title" content={resolvedTitle} />
-{resolvedDescription && <meta name="twitter:description" content={resolvedDescription} />}
-{socialImage && <meta name="twitter:image" content={socialImage} />}
+{cfg.emitTwitter && <meta name="twitter:card" content={cfg.emitTwitterImage && socialImage ? 'summary_large_image' : 'summary'} />}
+{cfg.emitTwitter && <meta name="twitter:title" content={resolvedTitle} />}
+{cfg.emitTwitter && resolvedDescription && <meta name="twitter:description" content={resolvedDescription} />}
+{cfg.emitTwitter && cfg.emitTwitterImage && socialImage && <meta name="twitter:image" content={socialImage} />}
 
 {extras?.extraMeta?.map((m) => (
     <meta name={m.name} property={m.property} content={m.content} />
@@ -124,4 +134,4 @@ const jsonLd = serializeJsonLd(
     <link rel={l.rel} href={l.href} type={l.type} title={l.title} />
 ))}
 
-<script type="application/ld+json" is:inline set:html={jsonLd} />
+{cfg.emitSchema && jsonLd && <script type="application/ld+json" is:inline set:html={jsonLd} />}
