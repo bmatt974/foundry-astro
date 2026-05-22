@@ -1,0 +1,134 @@
+---
+/**
+ * Dev-only theme preview / Storybook for blocks. Renders each
+ * registered block_type with fake lorem-ipsum data so a theme
+ * author can see the rendered markup for every block type without
+ * having to navigate the live CMS pages.
+ *
+ * URL: `/dev/preview?theme=<name>`
+ *   - Default = the tenant's active theme (from middleware), or
+ *     `basic` when no tenant is resolved.
+ *   - Switch via the links in the header.
+ *
+ * Only available in dev mode (`npm run dev`). In production builds
+ * the registry only contains ONE theme via DCE so the switch is
+ * meaningless — the route 404s.
+ */
+export const prerender = false;
+
+import type { BlockType, PageBlock } from '../../lib/foundry';
+import { getTheme, listThemes } from '../../themes/registry';
+
+if (import.meta.env.PROD) {
+    return new Response('Not found', { status: 404 });
+}
+
+const requestedTheme = Astro.url.searchParams.get('theme');
+const themes = listThemes();
+const themeName = requestedTheme && themes.includes(requestedTheme)
+    ? requestedTheme
+    : (Astro.locals.tenant?.website.template ?? 'basic');
+const theme = getTheme(themeName);
+
+const blockType = (value: string) => value as BlockType;
+
+function fakeBlock(
+    id: number,
+    type: BlockType,
+    content: Record<string, unknown>,
+    overrides: Partial<PageBlock> = {},
+): PageBlock {
+    return {
+        id,
+        block_type: type,
+        variant: null,
+        cluster_block_key: null,
+        related_page_id: null,
+        position: id,
+        settings: null,
+        media: null,
+        content,
+        children: [],
+        ...overrides,
+    };
+}
+
+const samples: { label: string; block: PageBlock }[] = [
+    {
+        label: 'CTA',
+        block: fakeBlock(1, blockType('cta'), {
+            label: 'Book your visit',
+            url: 'https://example.com/book',
+            description: 'Skip the lines and reserve your timed-entry ticket online — limited slots each hour.',
+        }),
+    },
+    {
+        label: 'Text',
+        block: fakeBlock(2, blockType('text'), {
+            body: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.`,
+        }),
+    },
+    {
+        label: 'Key Facts',
+        block: fakeBlock(3, blockType('key_facts'), {
+            items: [
+                { label: 'Built', value: '72 CE' },
+                { label: 'Capacity', value: '50,000 spectators' },
+                { label: 'UNESCO listing', value: '1980' },
+                { label: 'Annual visitors', value: '7.6 million' },
+            ],
+        }),
+    },
+    {
+        label: 'FAQ',
+        block: fakeBlock(4, blockType('faq'), {
+            items: [
+                { question: 'When was the Colosseum built?', answer: 'Construction began under Emperor Vespasian in 72 CE and finished under Titus in 80 CE.' },
+                { question: 'How long does a visit take?', answer: 'Most visitors spend 1.5 to 2 hours. With the arena floor and underground, count on 3+ hours.' },
+                { question: 'Are tickets refundable?', answer: 'Standard tickets are non-refundable; some operators offer flexible cancellation for an extra fee.' },
+            ],
+        }),
+    },
+];
+---
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Block preview — {themeName}</title>
+        <style>
+            body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 1rem; color: #1f2937; }
+            .controls { background: #f3f4f6; padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; }
+            .controls strong { font-size: 0.875rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+            .controls a { color: #4f46e5; text-decoration: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
+            .controls a.active { background: #4f46e5; color: white; }
+            .preview { border: 1px solid #e5e7eb; padding: 1.5rem; margin: 1.5rem 0; border-radius: 8px; }
+            .preview-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 1rem; font-weight: 600; }
+            .preview-body { background: white; padding: 1rem; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <h1>Block preview — {themeName}</h1>
+        <p>Dev-only — every block_type rendered with synthetic content.</p>
+
+        <div class="controls">
+            <strong>Theme:</strong>
+            {themes.map((name) => (
+                <a href={`/dev/preview?theme=${name}`} class={name === themeName ? 'active' : ''}>{name}</a>
+            ))}
+        </div>
+
+        {samples.map(({ label, block }) => (
+            <div class="preview">
+                <div class="preview-label">{label} — block_type={block.block_type}</div>
+                <div class="preview-body">
+                    <theme.Block block={block} />
+                </div>
+            </div>
+        ))}
+    </body>
+</html>
