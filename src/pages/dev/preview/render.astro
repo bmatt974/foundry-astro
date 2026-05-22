@@ -1,22 +1,23 @@
 ---
 /**
- * Inner frame of the dev theme preview. Renders the block samples
- * with the theme's CSS loaded — meant to be embedded in an `<iframe>`
- * by `/dev/preview` (the outer shell that owns the theme + viewport
- * toggles). Direct visits also work for sharable URLs.
+ * Inner frame of the dev theme preview. Renders a SYNTHETIC FULL
+ * PAGE through the active theme's `Layout` + `Article` chrome —
+ * site header, breadcrumb, hero image, page header, byline, the
+ * five block samples, page footer, site footer.
+ *
+ * Meant to be embedded in the `/dev/preview` outer shell's iframe.
+ * Direct visits also work for sharable URLs.
  *
  * Only available in dev mode.
  */
 export const prerender = false;
 
-import type { BlockType, PageBlock } from '../../../lib/foundry';
+import type { Author, AvailableLocale, BlockType, Page, PageBlock, Sourceable } from '../../../lib/foundry';
 import { getTheme, listThemes } from '../../../themes/registry';
-// Pull every theme's stylesheet into the bundle so the dispatched
-// blocks render with their full styling. Without this, `theme.Block`
-// ships its markup but Tailwind / hand-written CSS for each theme
-// stays unloaded. Theme stylesheets use disjoint class namespaces
-// (wp-block-*, block--*, Bootstrap, basic .brand-*) so they coexist
-// without collisions.
+// Pull every theme's stylesheet so any active theme renders fully.
+// Theme stylesheets use disjoint class namespaces (wp-block-*,
+// block--*, Bootstrap, basic .brand-*) so they coexist without
+// collisions.
 import '../../../themes/basic/styles.css';
 import '../../../themes/bootstrap-classic/styles.css';
 import '../../../themes/drupal-bartik/styles.css';
@@ -33,13 +34,14 @@ const themeName = requestedTheme && themes.includes(requestedTheme)
     : (Astro.locals.tenant?.website.template ?? 'basic');
 const theme = getTheme(themeName);
 
+const locale = Astro.locals.locale ?? 'en';
+
 const blockType = (value: string) => value as BlockType;
 
 function fakeBlock(
     id: number,
     type: BlockType,
     content: Record<string, unknown>,
-    overrides: Partial<PageBlock> = {},
 ): PageBlock {
     return {
         id,
@@ -52,7 +54,6 @@ function fakeBlock(
         media: null,
         content,
         children: [],
-        ...overrides,
     };
 }
 
@@ -78,92 +79,148 @@ The structure that survives is the result of two millennia of earthquakes, looti
 3. Arrive 15 minutes before your slot — the security check takes time
 `;
 
-const samples: { label: string; block: PageBlock }[] = [
-    {
-        label: 'Text',
-        block: fakeBlock(1, blockType('text'), {
-            title: 'About the Colosseum',
-            body: RICH_MARKDOWN_BODY,
-        }),
-    },
-    {
-        label: 'CTA',
-        block: fakeBlock(2, blockType('cta'), {
-            label: 'Book your visit',
-            url: 'https://example.com/book',
-            description: 'Skip the lines and reserve your timed-entry ticket online — limited slots each hour.',
-        }),
-    },
-    {
-        label: 'Key Facts',
-        block: fakeBlock(3, blockType('key_facts'), {
-            title: 'At a glance',
-            facts: [
-                { label: 'Built', value: '72 CE' },
-                { label: 'Capacity', value: '50,000 spectators' },
-                { label: 'UNESCO listing', value: '1980' },
-                { label: 'Annual visitors', value: '7.6 million' },
-            ],
-        }),
-    },
-    {
-        label: 'FAQ',
-        block: fakeBlock(4, blockType('faq'), {
-            items: [
-                { question: 'When was the Colosseum built?', answer: 'Construction began under Emperor Vespasian in 72 CE and finished under Titus in 80 CE.' },
-                { question: 'How long does a visit take?', answer: 'Most visitors spend 1.5 to 2 hours. With the arena floor and underground, count on 3+ hours.' },
-                { question: 'Are tickets refundable?', answer: 'Standard tickets are non-refundable; some operators offer flexible cancellation for an extra fee.' },
-            ],
-        }),
-    },
-    {
-        label: 'TopList',
-        block: fakeBlock(5, blockType('top_list'), {
-            heading: 'Top 4 attractions in Rome',
-            items: [
-                { place_id: 1, name: 'Colosseum', type: 'amphitheatre', image: 'https://picsum.photos/seed/colosseum-rome/640/480', description: 'Iconic Flavian amphitheatre, the largest of its kind in the Roman Empire.' },
-                { place_id: 2, name: 'Pantheon', type: 'temple', image: 'https://picsum.photos/seed/pantheon-rome/640/480', description: 'Best-preserved Roman building, completed under Hadrian around 125 CE.' },
-                { place_id: 3, name: 'Roman Forum', type: 'archaeological_site', image: 'https://picsum.photos/seed/forum-rome/640/480', description: 'The political and religious heart of ancient Rome.' },
-                { place_id: 4, name: 'Vatican Museums', type: 'museum_gallery', image: 'https://picsum.photos/seed/vatican-museums/640/480', description: 'Seven kilometres of corridors of art, ending in the Sistine Chapel.' },
-            ],
-        }),
-    },
+const blocks: PageBlock[] = [
+    fakeBlock(1, blockType('text'), {
+        title: 'About the Colosseum',
+        body: RICH_MARKDOWN_BODY,
+    }),
+    fakeBlock(2, blockType('cta'), {
+        label: 'Book your visit',
+        url: 'https://example.com/book',
+        description: 'Skip the lines and reserve your timed-entry ticket online — limited slots each hour.',
+    }),
+    fakeBlock(3, blockType('key_facts'), {
+        title: 'At a glance',
+        facts: [
+            { label: 'Built', value: '72 CE' },
+            { label: 'Capacity', value: '50,000 spectators' },
+            { label: 'UNESCO listing', value: '1980' },
+            { label: 'Annual visitors', value: '7.6 million' },
+        ],
+    }),
+    fakeBlock(4, blockType('faq'), {
+        items: [
+            { question: 'When was the Colosseum built?', answer: 'Construction began under Emperor Vespasian in 72 CE and finished under Titus in 80 CE.' },
+            { question: 'How long does a visit take?', answer: 'Most visitors spend 1.5 to 2 hours. With the arena floor and underground, count on 3+ hours.' },
+            { question: 'Are tickets refundable?', answer: 'Standard tickets are non-refundable; some operators offer flexible cancellation for an extra fee.' },
+        ],
+    }),
+    fakeBlock(5, blockType('top_list'), {
+        heading: 'Nearby attractions',
+        items: [
+            { place_id: 1, name: 'Roman Forum', type: 'archaeological_site', image: 'https://picsum.photos/seed/forum-rome/640/480', description: 'The political and religious heart of ancient Rome.' },
+            { place_id: 2, name: 'Palatine Hill', type: 'archaeological_site', image: 'https://picsum.photos/seed/palatine-rome/640/480', description: 'Where imperial palaces rose above the Forum.' },
+            { place_id: 3, name: 'Arch of Constantine', type: 'monument', image: 'https://picsum.photos/seed/arch-constantine/640/480', description: 'Triumphal arch dedicated in 315 CE.' },
+        ],
+    }),
 ];
+
+const fakeAuthor: Author = {
+    slug: 'sophie-berthier',
+    photo_url: 'https://picsum.photos/seed/sophie-berthier/240/240',
+    external_url: null,
+    twitter_handle: null,
+    position: 0,
+    translations: {
+        [locale]: {
+            name: 'Sophie Berthier',
+            title: 'Travel writer based in Rome',
+            bio_short: 'Five years in Rome, writing about food and working-class neighborhoods.',
+            bio: null,
+        },
+    },
+};
+
+const fakeSourceable: Sourceable = {
+    type: 'place',
+    id: 100,
+    name: 'Colosseum',
+    canonical_name: 'Colosseum, Rome',
+    place_type: 'amphitheatre',
+    coordinates: { lat: 41.8902, lon: 12.4922 },
+    country_code: 'IT',
+    website: 'https://colosseo.it',
+    cover_image: 'https://picsum.photos/seed/colosseum-hero/1600/900',
+};
+
+const availableLocales: AvailableLocale[] = [
+    { locale: 'en', slug: 'colosseum' },
+    { locale: 'fr', slug: 'colisee' },
+];
+
+const fakePage: Page = {
+    id: 999,
+    website_id: Astro.locals.tenant?.website.id ?? 0,
+    page_type: 'guide',
+    template: themeName,
+    is_indexable: true,
+    seo_tier: 'featured',
+    cover_image: 'https://picsum.photos/seed/colosseum-hero/1600/900',
+    position: 0,
+    published_at: '2026-05-12T10:00:00+00:00',
+    seo: null,
+    settings: null,
+    translation: {
+        locale,
+        slug: 'colosseum',
+        eyebrow: 'GUIDE 2026',
+        title: 'Visiting the Colosseum: tickets, history, and what to skip',
+        subtitle: 'A practical guide to Rome\'s most iconic monument — what to book, when to go, and how long it takes.',
+        intro: 'The Colosseum is the most-visited single monument in Italy. With 7.6 million arrivals a year, the line for tickets is the visit. Book ahead, and you save two hours.',
+        body: null,
+        conclusion: null,
+        highlights: null,
+        snippet: null,
+        meta_title: null,
+        meta_description: null,
+        published_at: '2026-05-12T10:00:00+00:00',
+    },
+    blocks,
+    sourceable: fakeSourceable,
+    nav: {
+        parent: { id: 1, slug: 'rome', title: 'Rome', page_type: 'hub', position: 0 },
+        breadcrumb: [
+            { id: 0, slug: null, title: 'Italy', page_type: null, position: 0 },
+            { id: 1, slug: 'rome', title: 'Rome', page_type: 'hub', position: 0 },
+        ],
+        children: [],
+        siblings: [
+            { id: 2, slug: 'pantheon', title: 'Pantheon', page_type: 'guide', position: 1 },
+            { id: 3, slug: 'roman-forum', title: 'Roman Forum', page_type: 'guide', position: 2 },
+        ],
+    },
+    authors: [fakeAuthor],
+    available_locales: availableLocales,
+    injections: [],
+};
+
+// Wire locale into Astro.locals so any deep component that reads it
+// (Markdown links, formatters, etc.) sees the same value Article does.
+Astro.locals.locale = locale;
 
 // bootstrap-classic emits Bootstrap class names; without the CDN
 // sheet `.row` / `.col-md-*` / `.btn` stay unstyled.
 const externalStylesheets = themeName === 'bootstrap-classic'
     ? ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css']
     : [];
+
+const { Layout, Article, LocaleSwitcher } = theme;
+const pageTitle = fakePage.translation?.title ?? 'Preview';
+const pageDescription = fakePage.translation?.intro ?? null;
 ---
 
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Render — {themeName}</title>
+<Layout title={pageTitle} description={pageDescription} locale={locale}>
+    <Fragment slot="head">
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234f46e5'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='system-ui,sans-serif' font-size='20' font-weight='700' fill='white'%3EP%3C/text%3E%3C/svg%3E" />
         {externalStylesheets.map((href) => <link rel="stylesheet" href={href} />)}
-        <style is:inline>
-            /* The render frame is sized by the outer <iframe>; let
-               content reflow naturally inside whatever width the
-               viewport toggle picks. */
-            body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; padding: 1.5rem; color: #1f2937; }
-            .preview { border: 1px solid #e5e7eb; padding: 1.25rem; margin: 1rem 0; border-radius: 8px; background: #fafafa; }
-            .preview:first-child { margin-top: 0; }
-            .preview-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 0.75rem; font-weight: 600; }
-            .preview-body { background: white; padding: 1.25rem; border-radius: 6px; }
-        </style>
-    </head>
-    <body>
-        {samples.map(({ label, block }) => (
-            <div class="preview">
-                <div class="preview-label">{label} — block_type={block.block_type}</div>
-                <div class="preview-body">
-                    <theme.Block block={block} />
-                </div>
-            </div>
-        ))}
-    </body>
-</html>
+    </Fragment>
+    {Astro.locals.tenant && (
+        <LocaleSwitcher
+            slot="locale-switcher"
+            currentLocale={locale}
+            websiteLocales={Astro.locals.tenant.locales}
+            pageLocales={availableLocales}
+        />
+    )}
+    <Article page={fakePage} locale={locale} />
+</Layout>
