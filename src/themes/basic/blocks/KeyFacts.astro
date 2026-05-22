@@ -1,37 +1,31 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
-import { slugify } from '../../../lib/toc';
+import { parseKeyFacts } from '../../../lib/blocks/key-facts';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as {
-    title?: string;
-    facts?: Array<{ label: string; value: string } | string>;
-};
-const facts = content.facts ?? [];
+const { title, facts, freeForm, anchorId } = parseKeyFacts(block);
+const hasContent = facts.length > 0 || freeForm.length > 0;
 ---
 
-<section class="my-8 rounded-lg border border-gray-200 bg-gray-50 p-6">
-    {content.title && (
-        <h2 id={slugify(content.title)} class="text-xl font-semibold mb-4">
-            {content.title}
-        </h2>
-    )}
-    {facts.length > 0 && (
+{hasContent && (
+    <section class="my-8 rounded-lg border border-gray-200 bg-gray-50 p-6">
+        {title && (
+            <h2 id={anchorId} class="text-xl font-semibold mb-4">{title}</h2>
+        )}
         <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {facts.map((f) =>
-                typeof f === 'string' ? (
-                    <div class="text-gray-700">{f}</div>
-                ) : (
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">{f.label}</dt>
-                        <dd class="text-gray-900">{f.value}</dd>
-                    </div>
-                ),
-            )}
+            {facts.map((f) => (
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">{f.label}</dt>
+                    <dd class="text-gray-900">{f.value}</dd>
+                </div>
+            ))}
+            {freeForm.map((line) => (
+                <div class="text-gray-700">{line}</div>
+            ))}
         </dl>
-    )}
-</section>
+    </section>
+)}
