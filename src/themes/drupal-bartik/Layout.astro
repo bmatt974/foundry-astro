@@ -1,5 +1,5 @@
 ---
-import { fetchMenu } from '../../lib/foundry';
+import { fetchMenu, type MenuItem } from '../../lib/foundry';
 import './styles.css';
 import SiteFooter from './components/SiteFooter.astro';
 import SiteHeader from './components/SiteHeader.astro';
@@ -8,20 +8,24 @@ interface Props {
     title: string;
     description?: string | null;
     locale?: string;
+    headerItems?: MenuItem[];
+    footerItems?: MenuItem[];
 }
 
-const { title, description, locale = 'en' } = Astro.props;
+const { title, description, locale = 'en', headerItems: overrideHeader, footerItems: overrideFooter } = Astro.props;
 const tenant = Astro.locals.tenant;
 // Per-site tokens flow into the served CSS bundle via the
 // `mimic-cms-assets` post-build pass — see basic/Layout.astro for
 // the rationale.
 
-const [headerItems, footerItems] = tenant
-    ? await Promise.all([
-        fetchMenu('header', locale, tenant.website.hostname),
-        fetchMenu('footer', locale, tenant.website.hostname),
-    ])
-    : [[], []];
+const [headerItems, footerItems] = (overrideHeader && overrideFooter)
+    ? [overrideHeader, overrideFooter]
+    : tenant
+        ? await Promise.all([
+            fetchMenu('header', locale, tenant.website.hostname),
+            fetchMenu('footer', locale, tenant.website.hostname),
+        ])
+        : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 // Admin-supplied raw HTML injections — see basic/Layout.astro for
