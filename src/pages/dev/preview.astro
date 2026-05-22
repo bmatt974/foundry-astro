@@ -53,21 +53,42 @@ function fakeBlock(
     };
 }
 
+const RICH_MARKDOWN_BODY = `## A short history
+
+Construction began under emperor **Vespasian** in 72 CE and finished under his son *Titus* around 80 CE. Inaugurated with 100 days of games. At peak capacity, the arena seated about \`50,000\` spectators.
+
+### What you'll see today
+
+The structure that survives is the result of two millennia of earthquakes, looting and partial restoration. Highlights of a typical visit:
+
+- **The Hypogeum** — the underground tunnel network where gladiators and animals waited before entering the arena
+- **The upper tiers** — accessible via timed-entry tickets, offering panoramic views over the Forum
+- **The Arena Floor** — a partial reconstruction lets you stand where the combatants fought
+
+> "If the Colosseum stands, Rome stands; when the Colosseum falls, Rome will fall; when Rome falls, the world will fall."
+> — *the Venerable Bede, 8th century*
+
+#### Visiting tips
+
+1. Book a [timed-entry ticket](https://example.com/book) at least 48 hours ahead — slots fill fast in peak season
+2. Combine your visit with the **Roman Forum** + **Palatine Hill** (same ticket)
+3. Arrive 15 minutes before your slot — the security check takes time
+`;
+
 const samples: { label: string; block: PageBlock }[] = [
     {
-        label: 'CTA',
-        block: fakeBlock(1, blockType('cta'), {
-            label: 'Book your visit',
-            url: 'https://example.com/book',
-            description: 'Skip the lines and reserve your timed-entry ticket online — limited slots each hour.',
+        label: 'Text',
+        block: fakeBlock(1, blockType('text'), {
+            title: 'About the Colosseum',
+            body: RICH_MARKDOWN_BODY,
         }),
     },
     {
-        label: 'Text',
-        block: fakeBlock(2, blockType('text'), {
-            body: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-
-Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.`,
+        label: 'CTA',
+        block: fakeBlock(2, blockType('cta'), {
+            label: 'Book your visit',
+            url: 'https://example.com/book',
+            description: 'Skip the lines and reserve your timed-entry ticket online — limited slots each hour.',
         }),
     },
     {
@@ -105,6 +126,20 @@ Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliqu
         }),
     },
 ];
+
+// Each theme may need framework-specific CSS loaded for the preview
+// to render faithfully. bootstrap-classic's components emit Bootstrap
+// class names; without the CDN sheet `.row` / `.col-md-*` / `.btn`
+// stay unstyled. Other themes ship their own self-contained CSS via
+// Layout's `<style>` chain, so this is the only special case.
+const externalStylesheets = themeName === 'bootstrap-classic'
+    ? ['https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css']
+    : [];
+
+// Preview body width: bootstrap-classic needs a wide canvas to hit
+// the `lg` breakpoint (≥ 992px) so TopList shows its 3-column grid.
+// Other themes look fine at 960px.
+const bodyMaxWidth = themeName === 'bootstrap-classic' ? '1240px' : '960px';
 ---
 
 <!doctype html>
@@ -113,16 +148,17 @@ Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliqu
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Block preview — {themeName}</title>
-        <style>
-            body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 1rem; color: #1f2937; }
+        {externalStylesheets.map((href) => <link rel="stylesheet" href={href} />)}
+        <style is:inline set:html={`
+            body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: ${bodyMaxWidth}; margin: 2rem auto; padding: 1rem; color: #1f2937; }
             .controls { background: #f3f4f6; padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: center; }
             .controls strong { font-size: 0.875rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
             .controls a { color: #4f46e5; text-decoration: none; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.875rem; }
             .controls a.active { background: #4f46e5; color: white; }
             .preview { border: 1px solid #e5e7eb; padding: 1.5rem; margin: 1.5rem 0; border-radius: 8px; }
             .preview-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin-bottom: 1rem; font-weight: 600; }
-            .preview-body { background: white; padding: 1rem; border-radius: 4px; }
-        </style>
+            .preview-body { background: white; padding: 1.5rem; border-radius: 4px; }
+        `} />
     </head>
     <body>
         <h1>Block preview — {themeName}</h1>
