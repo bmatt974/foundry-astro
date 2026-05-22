@@ -1,25 +1,37 @@
 ---
+/**
+ * CTA — Drupal Olivero / Bartik-style markup. Wraps in
+ * `.block.block--type-cta` (Drupal's block-type convention), with
+ * the inner content in `.block__content`. The button uses Drupal
+ * core's `.button.button--primary` classes — matches what
+ * `<a class="button">` emits from a contributed action block.
+ */
 import type { PageBlock } from '../../../lib/foundry';
+import { isExternalUrl, parseCta } from '../../../lib/blocks/cta';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as {
-    label?: string;
-    url?: string;
-    description?: string;
-};
+const cta = parseCta(block);
 ---
 
-<div class="block block--type-cta">
-    {content.description && (
-        <p class="block__description">{content.description}</p>
-    )}
-    {content.url && content.label && (
-        <div class="form-actions">
-            <a href={content.url} class="button button--primary">{content.label}</a>
+{cta && (
+    <div class="block block--type-cta">
+        <div class="block__content">
+            {cta.description && (
+                <p class="block__description">{cta.description}</p>
+            )}
+            <div class="form-actions">
+                <a
+                    class="button button--primary"
+                    href={cta.url}
+                    {...(isExternalUrl(cta.url) && { rel: 'noopener', target: '_blank' })}
+                >
+                    {cta.label}
+                </a>
+            </div>
         </div>
-    )}
-</div>
+    </div>
+)}
