@@ -1,5 +1,5 @@
 ---
-import { fetchMenu, type MenuItem } from '../../lib/foundry';
+import { fetchMenu } from '../../lib/foundry';
 import './styles.css';
 import SiteFooter from './components/SiteFooter.astro';
 import SiteHeader from './components/SiteHeader.astro';
@@ -8,14 +8,9 @@ interface Props {
     title: string;
     description?: string | null;
     locale?: string;
-    /** Override the fetched menus — used by `/dev/preview` to ship
-     *  fully synthetic chrome that doesn't depend on what the
-     *  current tenant happens to have seeded in its CMS. */
-    headerItems?: MenuItem[];
-    footerItems?: MenuItem[];
 }
 
-const { title, description, locale = 'en', headerItems: overrideHeader, footerItems: overrideFooter } = Astro.props;
+const { title, description, locale = 'en' } = Astro.props;
 
 // Per-site theme tokens are baked into the served CSS bundle by the
 // `scripts/mimic-cms-assets` post-build pass (it calls `tokens.css()`
@@ -26,16 +21,13 @@ const tenant = Astro.locals.tenant;
 
 // Pre-fetch header + footer menus in parallel — memoised 60s per
 // (host, locale, location) so every page render isn't a fresh
-// round-trip. The two overrides let callers (e.g. /dev/preview)
-// short-circuit the CMS fetch and ship synthetic menus instead.
-const [headerItems, footerItems] = (overrideHeader && overrideFooter)
-    ? [overrideHeader, overrideFooter]
-    : tenant
-        ? await Promise.all([
-            fetchMenu('header', locale, tenant.website.hostname),
-            fetchMenu('footer', locale, tenant.website.hostname),
-        ])
-        : [[], []];
+// round-trip.
+const [headerItems, footerItems] = tenant
+    ? await Promise.all([
+        fetchMenu('header', locale, tenant.website.hostname),
+        fetchMenu('footer', locale, tenant.website.hostname),
+    ])
+    : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 // Admin-supplied raw HTML injections — website-scope come from

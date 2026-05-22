@@ -1,19 +1,33 @@
 ---
 /**
- * Dev-only theme preview outer shell. Top toolbar carries the theme
- * selector + viewport (mobile / tablet / desktop) toggles; the actual
- * block samples render inside an iframe pointed at
- * `/dev/preview/render?theme=<name>`.
+ * Dev-only theme preview outer shell. Sticky toolbar carries the
+ * theme + viewport toggles; the actual page renders inside an iframe
+ * pointed at any path on the current tenant.
  *
  * The iframe approach lets the viewport toggle simulate breakpoints
  * accurately — the theme's responsive CSS kicks in based on the
  * iframe's INNER width, not the parent window.
  *
- * URL: `/dev/preview?theme=<name>&vw=<mobile|tablet|desktop>`
- * Defaults: theme = tenant's template (or `basic`); vw = desktop.
+ * State syncing (vanilla JS, no framework):
+ *   - The iframe's path is tracked on the outer URL as `?path=…`.
+ *     When the user navigates inside the iframe (clicking a menu
+ *     link, etc.), an `onload` listener reads the new location and
+ *     `history.replaceState`s the outer URL. The browser address
+ *     bar reflects what's in the iframe.
+ *   - Toolbar links carry the CURRENT iframe path so switching theme
+ *     reloads the same page (not the preview start). The link hrefs
+ *     are server-rendered with the initial path; a small script
+ *     rewrites them on every iframe navigation so they stay in sync.
+ *   - Theme cookie (`foundry_dev_theme`) persists across iframe
+ *     navigation. The `astro:route:setup` hook in `astro.config.mjs`
+ *     forces every route to SSR in `astro dev` so the middleware can
+ *     react to `?theme=` and set/read the cookie on any URL.
  *
- * Only available in dev mode (the inner render route 404s in prod
- * via DCE; this outer page does the same explicitly).
+ * URL: `/dev/preview?theme=<name>&vw=<mobile|tablet|desktop>&path=<inner-path>`
+ * Defaults: theme = tenant template or `basic`; vw = desktop;
+ * path = `/` (the current tenant's landing).
+ *
+ * Dev only — the route 404s in production builds.
  */
 export const prerender = false;
 
@@ -37,7 +51,35 @@ const VIEWPORTS = [
 const requestedVw = Astro.url.searchParams.get('vw');
 const viewport = VIEWPORTS.find((v) => v.id === requestedVw) ?? VIEWPORTS[2];
 
-const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
+const DEFAULT_PATH = '/';
+
+// `?path=…` lets the toolbar restore the iframe at a specific URL
+// after a theme switch. Falls back to the current tenant's landing.
+const requestedPath = Astro.url.searchParams.get('path');
+const innerPath = requestedPath && requestedPath.startsWith('/')
+    ? requestedPath
+    : DEFAULT_PATH;
+
+// Build the iframe URL with `?theme=` so middleware applies the
+// chosen theme on the very first iframe request (subsequent in-iframe
+// navigation falls back to the cookie set by middleware).
+function withTheme(path: string, theme: string): string {
+    const [base, query] = path.split('?');
+    const params = new URLSearchParams(query ?? '');
+    params.set('theme', theme);
+    return `${base}?${params.toString()}`;
+}
+const iframeSrc = withTheme(innerPath, themeName);
+
+function outerLink(theme: string, vw: string, path: string): string {
+    const params = new URLSearchParams();
+    params.set('theme', theme);
+    params.set('vw', vw);
+    if (path !== DEFAULT_PATH) {
+        params.set('path', path);
+    }
+    return `/dev/preview?${params.toString()}`;
+}
 ---
 
 <!doctype html>
@@ -55,6 +97,7 @@ const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
             .toolbar-group { display: flex; gap: 0.5rem; align-items: center; }
             .toolbar-group--right { margin-left: auto; }
             .toolbar-group .label { font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+            .toolbar code { font-size: 0.75rem; color: #6b7280; padding: 0.25rem 0.5rem; background: #f3f4f6; border-radius: 4px; max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .toolbar a {
                 color: #4f46e5;
                 text-decoration: none;
@@ -85,32 +128,114 @@ const iframeSrc = `/dev/preview/render?theme=${encodeURIComponent(themeName)}`;
             }
         </style>
     </head>
-    <body>
+    <body data-current-theme={themeName} data-current-vw={viewport.id} data-current-path={innerPath}>
         <div class="toolbar">
             <h1>Block preview</h1>
 
             <div class="toolbar-group">
                 <span class="label">Theme</span>
                 {themes.map((name) => (
-                    <a href={`/dev/preview?theme=${name}&vw=${viewport.id}`} class={name === themeName ? 'active' : ''}>{name}</a>
+                    <a
+                        href={outerLink(name, viewport.id, innerPath)}
+                        class={name === themeName ? 'active' : ''}
+                        data-theme={name}
+                    >{name}</a>
                 ))}
+            </div>
+
+            <div class="toolbar-group">
+                <span class="label">Path</span>
+                <code id="inner-path-display">{innerPath}</code>
             </div>
 
             <div class="toolbar-group toolbar-group--right">
                 <span class="label">Viewport</span>
                 {VIEWPORTS.map((v) => (
-                    <a href={`/dev/preview?theme=${themeName}&vw=${v.id}`} class={v.id === viewport.id ? 'active' : ''}>{v.label}</a>
+                    <a
+                        href={outerLink(themeName, v.id, innerPath)}
+                        class={v.id === viewport.id ? 'active' : ''}
+                        data-vw={v.id}
+                    >{v.label}</a>
                 ))}
             </div>
         </div>
 
         <div class="stage">
             <iframe
+                id="preview-frame"
                 class="frame"
                 src={iframeSrc}
                 title={`Block preview — ${themeName}`}
                 style={`max-width: ${viewport.width}px`}
             ></iframe>
         </div>
+
+        <script is:inline>
+            // Track the iframe's current path on the outer URL so that
+            // theme + viewport switches preserve where the user was,
+            // and the back/forward buttons stay in sync.
+            (function () {
+                const frame = document.getElementById('preview-frame');
+                const body = document.body;
+                const pathDisplay = document.getElementById('inner-path-display');
+
+                function currentInnerPath() {
+                    try {
+                        const url = new URL(frame.contentWindow.location.href);
+                        const params = url.searchParams;
+                        params.delete('theme');
+                        const search = params.toString();
+                        return url.pathname + (search ? '?' + search : '');
+                    } catch (e) {
+                        // Cross-origin (shouldn't happen — same host) — bail.
+                        return body.dataset.currentPath;
+                    }
+                }
+
+                function rebuildToolbarLinks(innerPath) {
+                    const theme = body.dataset.currentTheme;
+                    const vw = body.dataset.currentVw;
+
+                    function outerHref(t, v, p) {
+                        const params = new URLSearchParams();
+                        params.set('theme', t);
+                        params.set('vw', v);
+                        if (p !== '/') {
+                            params.set('path', p);
+                        }
+                        return '/dev/preview?' + params.toString();
+                    }
+
+                    document.querySelectorAll('a[data-theme]').forEach((el) => {
+                        el.href = outerHref(el.dataset.theme, vw, innerPath);
+                    });
+                    document.querySelectorAll('a[data-vw]').forEach((el) => {
+                        el.href = outerHref(theme, el.dataset.vw, innerPath);
+                    });
+
+                    body.dataset.currentPath = innerPath;
+                    if (pathDisplay) {
+                        pathDisplay.textContent = innerPath;
+                    }
+                }
+
+                frame.addEventListener('load', () => {
+                    const innerPath = currentInnerPath();
+                    if (!innerPath) {
+                        return;
+                    }
+
+                    const outerUrl = new URL(window.location.href);
+                    if (innerPath === '/') {
+                        outerUrl.searchParams.delete('path');
+                    } else {
+                        outerUrl.searchParams.set('path', innerPath);
+                    }
+                    window.history.replaceState(null, '', outerUrl.toString());
+
+                    rebuildToolbarLinks(innerPath);
+                });
+            })();
+        </script>
     </body>
 </html>

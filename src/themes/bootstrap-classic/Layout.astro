@@ -10,7 +10,7 @@
  * `<main class="container py-5">`, `<footer>` — straight out of
  * the Bootstrap docs. Zero custom class names.
  */
-import { fetchMenu, type MenuItem } from '../../lib/foundry';
+import { fetchMenu } from '../../lib/foundry';
 import './styles.css';
 import SiteFooter from './components/SiteFooter.astro';
 import SiteHeader from './components/SiteHeader.astro';
@@ -19,21 +19,17 @@ interface Props {
     title: string;
     description?: string | null;
     locale?: string;
-    headerItems?: MenuItem[];
-    footerItems?: MenuItem[];
 }
 
-const { title, description, locale = 'en', headerItems: overrideHeader, footerItems: overrideFooter } = Astro.props;
+const { title, description, locale = 'en' } = Astro.props;
 const tenant = Astro.locals.tenant;
 
-const [headerItems, footerItems] = (overrideHeader && overrideFooter)
-    ? [overrideHeader, overrideFooter]
-    : tenant
-        ? await Promise.all([
-            fetchMenu('header', locale, tenant.website.hostname),
-            fetchMenu('footer', locale, tenant.website.hostname),
-        ])
-        : [[], []];
+const [headerItems, footerItems] = tenant
+    ? await Promise.all([
+        fetchMenu('header', locale, tenant.website.hostname),
+        fetchMenu('footer', locale, tenant.website.hostname),
+    ])
+    : [[], []];
 const websiteName = tenant?.website.name ?? '';
 
 const websiteInjections = tenant?.injections ?? [];

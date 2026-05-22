@@ -172,6 +172,48 @@ if (buildHostname && Object.keys(staticRedirects).length > 0) {
     console.log(`[astro.config] Loaded ${Object.keys(staticRedirects).length} static redirect(s) for ${buildHostname}.`);
 }
 
+// ──────────────────────────────────────────────
+// Dev SSR override for prerendered routes
+// ──────────────────────────────────────────────
+//
+// `[...path].astro` and `404.astro` ship with `prerender = true` so
+// production builds emit one static HTML file per URL — zero compute
+// at the edge, fast TTFB, SEO-friendly. The downside in `astro dev`:
+// Astro applies the prerender semantics even on demand renders, so
+// query strings are stripped from `Astro.url`, cookies set by
+// middleware are no-ops, and the theme override (`?theme=` /
+// foundry_dev_theme cookie) silently fails on those routes.
+//
+// This integration flips `prerender` to false ONLY in `astro dev`,
+// so the middleware can react to ?theme= and cookies per request
+// like any other SSR page. `astro build` (and `astro preview` after
+// it) keep the prerender path untouched — the prod artefact is
+// identical to before.
+/** @returns {import('astro').AstroIntegration} */
+function devSsrForPrerenderedRoutes() {
+    let isDev = false;
+    return {
+        name: 'dev-ssr-for-prerendered-routes',
+        hooks: {
+            'astro:config:setup': ({ command }) => {
+                isDev = command === 'dev';
+            },
+            'astro:route:setup': ({ route }) => {
+                if (!isDev) {
+                    return;
+                }
+                const path = route.component.replace(/\\/g, '/');
+                if (
+                    path.endsWith('/pages/[...path].astro')
+                    || path.endsWith('/pages/404.astro')
+                ) {
+                    route.prerender = false;
+                }
+            },
+        },
+    };
+}
+
 // https://astro.build/config
 export default defineConfig({
     // SSR everywhere — every page hits the headless API per request,
@@ -183,6 +225,7 @@ export default defineConfig({
     adapter: await resolveAdapter(),
     outDir,
     redirects: staticRedirects,
+    integrations: [devSsrForPrerenderedRoutes()],
 
     // We don't use Astro's <Image> component — remote images go
     // through `lib/image.ts` which rewrites CDN URLs at template
