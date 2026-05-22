@@ -1,31 +1,37 @@
 ---
 /**
- * CTA block dispatcher — picks the variant component to render based
- * on `block.variant`. One variant = one file under `./cta/`. Adding
- * a new variant = drop a file, register it in the map below.
- *
- * Unknown / null variants fall back to `Default` — backwards-
- * compatible with every existing block in the DB.
+ * CTA — basic theme markup. Generic html5up-ish "card with button"
+ * pattern, no CMS-specific class names. Anchored to the seeded
+ * design tokens (`--radius-card`, `--radius-button`, `--shadow-card`)
+ * so two sister sites on the same theme still ship visibly distinct
+ * cards.
  */
 import type { PageBlock } from '../../../lib/foundry';
-import Bordered from './cta/Bordered.astro';
-import Default from './cta/Default.astro';
+import { isExternalUrl, parseCta } from '../../../lib/blocks/cta';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-
-const variants = {
-    default: Default,
-    bordered: Bordered,
-} as const;
-
-const variant = block.variant && block.variant in variants
-    ? block.variant as keyof typeof variants
-    : 'default';
-const Variant = variants[variant];
+const cta = parseCta(block);
 ---
 
-<Variant block={block} />
+{cta && (
+    <section
+        class="cta my-8 p-6 text-center"
+        style="background: color-mix(in srgb, var(--brand-primary) 8%, transparent); border-radius: var(--radius-card, 0.5rem);"
+    >
+        {cta.description && (
+            <p class="brand-text-muted mb-4">{cta.description}</p>
+        )}
+        <a
+            href={cta.url}
+            class="brand-bg-primary inline-block px-6 py-3 font-medium text-white hover:opacity-90"
+            style="border-radius: var(--radius-button, 0.375rem);"
+            {...(isExternalUrl(cta.url) && { rel: 'noopener', target: '_blank' })}
+        >
+            {cta.label}
+        </a>
+    </section>
+)}

@@ -1,25 +1,44 @@
 ---
+/**
+ * CTA — WordPress block-theme markup. Matches the exact structure
+ * the WordPress core button block emits since WP 5.8:
+ *
+ *   <div class="wp-block-buttons is-content-justification-center">
+ *     <div class="wp-block-button">
+ *       <a class="wp-block-button__link wp-element-button" …>…</a>
+ *     </div>
+ *   </div>
+ *
+ * If a description is provided we ship it as a regular paragraph
+ * block above the button — that's how the Gutenberg editor authors
+ * "intro text + button" sequences in practice.
+ */
 import type { PageBlock } from '../../../lib/foundry';
+import { isExternalUrl, parseCta } from '../../../lib/blocks/cta';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const content = (block.content ?? {}) as {
-    label?: string;
-    url?: string;
-    description?: string;
-};
+const cta = parseCta(block);
 ---
 
-<section class="wp-block-cover">
-    {content.description && (
-        <p class="wp-block-cover__description">{content.description}</p>
-    )}
-    {content.url && content.label && (
-        <div class="wp-block-button">
-            <a href={content.url} class="wp-block-button__link">{content.label}</a>
+{cta && (
+    <>
+        {cta.description && (
+            <p class="wp-block-paragraph has-text-align-center">{cta.description}</p>
+        )}
+        <div class="wp-block-buttons is-layout-flex wp-block-buttons-is-layout-flex is-content-justification-center">
+            <div class="wp-block-button">
+                <a
+                    class="wp-block-button__link wp-element-button"
+                    href={cta.url}
+                    {...(isExternalUrl(cta.url) && { rel: 'noopener', target: '_blank' })}
+                >
+                    {cta.label}
+                </a>
+            </div>
         </div>
-    )}
-</section>
+    </>
+)}
