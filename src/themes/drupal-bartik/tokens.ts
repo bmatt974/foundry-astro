@@ -1,10 +1,18 @@
 /**
- * Per-site theme tokens for drupal-bartik. Same shape as the other
- * themes' tokens.ts so a website's `theme_config` is portable across
- * themes — only the rendered CSS class names differ.
+ * Per-site theme tokens for drupal-bartik. Emits the custom-property
+ * names a Drupal Olivero / Bartik theme commonly exposes:
  *
- * Emitted as a CSS declaration list (no `:root {}` wrapper) for an
- * inline `style=` on `<html>`.
+ *   --color-primary / text / bg / muted / border
+ *   --font-family-body / headings
+ *   --layout-content-width
+ *
+ * Reading the rendered CSS, a crawler sees Drupal-conventional var
+ * names — no portable `--brand-*` intermediate that would link our
+ * sites together as a network.
+ *
+ * The Filament `theme_config` JSON still uses semantic keys
+ * (`colors.primary`, `fonts.body`, `density`) — this file is the
+ * theme-specific *mapping* from those keys to the var names served.
  */
 
 interface ThemeConfig {
@@ -35,14 +43,14 @@ export function css(themeConfig: Record<string, unknown>, _websiteSlug = ''): st
     const density = cfg.density;
 
     const declarations: Record<string, string | undefined> = {
-        '--brand-primary': colors.primary,
-        '--brand-text': colors.text,
-        '--brand-background': colors.background,
-        '--brand-muted': colors.muted,
-        '--brand-border': colors.border,
-        '--font-body': fonts.body,
-        '--font-headings': fonts.headings,
-        '--layout-max-width': density ? DENSITY_CONTENT_WIDTH[density] : undefined,
+        '--color-primary': colors.primary,
+        '--color-text': colors.text,
+        '--color-bg': colors.background,
+        '--color-muted': colors.muted,
+        '--color-border': colors.border,
+        '--font-family-body': fonts.body,
+        '--font-family-headings': fonts.headings,
+        '--layout-content-width': density ? DENSITY_CONTENT_WIDTH[density] : undefined,
     };
 
     return Object.entries(declarations)
