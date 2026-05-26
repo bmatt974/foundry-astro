@@ -78,6 +78,14 @@ const HMR_HOST = process.env.HMR_HOST;
 const HMR_CLIENT_PORT = process.env.HMR_CLIENT_PORT
     ? Number.parseInt(process.env.HMR_CLIENT_PORT, 10)
     : undefined;
+// `HMR_VIA_HTTPS_PROXY=1` switches HMR to `wss://<page-host>:443` and
+// lets Vite read the page's hostname at runtime — so every Valet
+// subdomain (`demo.`, `site-a.`, `site-b.…`) keeps live-reload without
+// per-subdomain env vars.
+const HMR_VIA_HTTPS_PROXY = process.env.HMR_VIA_HTTPS_PROXY === '1';
+// `HMR_DISABLE=1` turns HMR off entirely — useful for isolating bugs
+// suspected to come from Vite's hot-update channel.
+const HMR_DISABLE = process.env.HMR_DISABLE === '1';
 
 // Multi-tenant builds drop each website's artefacts under
 // `dist/<hostname>/` so successive `build:site` runs don't overwrite
@@ -227,6 +235,13 @@ export default defineConfig({
     redirects: staticRedirects,
     integrations: [devSsrForPrerenderedRoutes()],
 
+    // The dev toolbar injects a custom element + shadow DOM into
+    // every page. Its global event listeners can interfere with
+    // theme-specific JS (Bootstrap collapse, etc.) when the toolbar
+    // is hosted inside an iframe (e.g. `/dev/preview`). Off by
+    // default — flip on via `astro dev --devtoolbar` if needed.
+    devToolbar: { enabled: false },
+
     // We don't use Astro's <Image> component — remote images go
     // through `lib/image.ts` which rewrites CDN URLs at template
     // time. The passthrough service spares us the sharp dependency
@@ -260,8 +275,12 @@ export default defineConfig({
             // here is safe for local dev — production runs without
             // `astro dev`.
             allowedHosts: true,
-            hmr: HMR_HOST
+            hmr: HMR_DISABLE
+                ? false
+                : HMR_HOST
                 ? { host: HMR_HOST, clientPort: HMR_CLIENT_PORT, protocol: 'ws' }
+                : HMR_VIA_HTTPS_PROXY
+                ? { clientPort: 443, protocol: 'wss' }
                 : undefined,
         },
     },
