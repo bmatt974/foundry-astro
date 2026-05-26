@@ -48,14 +48,16 @@ const { items, class: className = '', depth = 0 } = Astro.props;
             // dropdown itself is the destination.
             if (isSubmenuRoot) {
                 return (
-                    <li class={itemClass}>
+                    <li class={itemClass} data-wp-context={`{"submenuType":"toggle"}`}>
                         <button
                             type="button"
                             class="wp-block-navigation-item__content wp-block-navigation__submenu-icon"
                             aria-expanded="false"
                             aria-haspopup="menu"
+                            data-wp-on--click="actions.toggleMenuOnClick"
+                            data-wp-bind--aria-expanded="state.isMenuOpen"
                         >
-                            {item.label}
+                            <span class="wp-block-navigation-item__label">{item.label}</span>
                             <svg class="wp-block-navigation__submenu-chevron" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
                                 <path d="M1.5 4.5l4.5 4.5 4.5-4.5z"/>
                             </svg>

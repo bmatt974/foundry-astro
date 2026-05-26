@@ -43,19 +43,33 @@ const { items, class: className = '', depth = 0 } = Astro.props;
             if (!item.label) {
                 return null;
             }
-            // Expandable items render the whole label as a button so
-            // clicking anywhere on the label opens the submenu.
+            // Olivero-style: <a> holds the label (real click target after
+            // JS hydration hijacks it), with a sibling <button> for the
+            // visual chevron. The button ships aria-hidden + tabindex=-1
+            // so it's inert without JS — the script removes both on attach.
             if (isExpandable) {
+                const submenuId = `menu-${item.id}`;
                 return (
                     <li class={itemClass}>
-                        <button
-                            type="button"
-                            class="menu-item__link menu-item__toggle"
-                            aria-controls={`menu-${item.id}`}
+                        <a
+                            href={item.href ?? '#'}
+                            class="menu-item__link menu-item__link--has-children"
+                            data-drupal-selector="menu-link-has-children"
+                            aria-controls={submenuId}
                             aria-expanded="false"
                             aria-haspopup="menu"
                         >
-                            {item.label}
+                            <span class="menu-item__link-inner">{item.label}</span>
+                        </a>
+                        <button
+                            type="button"
+                            class="menu-item__toggle"
+                            aria-controls={submenuId}
+                            aria-expanded="false"
+                            aria-hidden="true"
+                            tabindex="-1"
+                        >
+                            <span class="visually-hidden">{item.label} sub-navigation</span>
                             <svg class="menu-item__chevron" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
                                 <path d="M0 0l5 6 5-6z" fill="currentColor"/>
                             </svg>

@@ -820,12 +820,17 @@ body.layout-container {
 }
 
 /* ─── Block system menu — expandable items ─────────────────────── */
-/* Drupal's hierarchical menu pattern: `.menu-item--expanded` toggles
-   open via the inline `.menu-item__toggle` button. The submenu UL
-   sits absolutely positioned beneath the parent. */
+/* Olivero-style markup: `.menu-item--expanded` contains an <a> for the
+   label and a sibling <button> for the chevron. JS keeps aria-expanded
+   in sync on both, then `:has()` reveals the submenu UL. */
 
 .block--system-menu-block-main .menu-item--expanded {
     position: relative;
+}
+.block--system-menu-block-main .menu-item__link--has-children {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
 }
 .block--system-menu-block-main .menu-item__toggle {
     display: inline-flex;
@@ -842,7 +847,10 @@ body.layout-container {
 .block--system-menu-block-main .menu-item__toggle:hover {
     background: rgba(0, 0, 0, 0.05);
 }
-.block--system-menu-block-main .menu-item__toggle[aria-expanded="true"] svg {
+.menu-item__chevron {
+    transition: transform 0.15s ease;
+}
+.block--system-menu-block-main .menu-item__toggle[aria-expanded="true"] .menu-item__chevron {
     transform: rotate(180deg);
 }
 .block--system-menu-block-main .menu-item--expanded > .menu {
@@ -859,7 +867,7 @@ body.layout-container {
     display: none;
     z-index: 30;
 }
-.block--system-menu-block-main .menu-item--expanded:has(> .menu-item__toggle[aria-expanded="true"]) > .menu {
+.block--system-menu-block-main .menu-item--expanded:has(> [aria-expanded="true"]) > .menu {
     display: block;
 }
 .block--system-menu-block-main .menu-item--expanded > .menu .menu-item__link {
@@ -880,32 +888,4 @@ body.layout-container {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
-}
-
-/* `menu-item__toggle` rendered as a button styled like the regular
-   `menu-item__link` — clicking anywhere on the label opens the
-   submenu, no chevron-only hit area. */
-button.menu-item__link {
-    background: transparent;
-    border: 0;
-    padding: 0;
-    margin: 0;
-    font: inherit;
-    color: inherit;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    line-height: inherit;
-}
-button.menu-item__link:hover,
-button.menu-item__link:focus-visible {
-    text-decoration: underline;
-    background: transparent;
-}
-.menu-item__chevron {
-    transition: transform 0.15s ease;
-}
-button.menu-item__link[aria-expanded="true"] .menu-item__chevron {
-    transform: rotate(180deg);
 }

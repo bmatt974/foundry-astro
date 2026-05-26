@@ -228,25 +228,18 @@ section.my-8, section.my-10, section.my-12 { margin-block: var(--section-spacing
     gap: 0.25rem;
 }
 
-/* Button-as-link styling for dropdown triggers — visually identical
-   to a `<a class="menu-link brand-link">` so the parent looks like
-   the rest of the menu. */
+/* Button-as-link styling for dropdown triggers — inherits color +
+   underline from the `.brand-link` class also applied on the trigger.
+   We only reset the UA button-specific bits (background, border,
+   cursor) so the visual matches the surrounding `<a class="menu-link
+   brand-link">` items exactly. */
 .menu-link--trigger {
     background: transparent;
     border: 0;
-    padding: 0;
-    margin: 0;
-    font: inherit;
-    color: inherit;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    line-height: inherit;
-}
-.menu-link--trigger:hover,
-.menu-link--trigger:focus-visible {
-    text-decoration: underline;
 }
 .menu-link__chevron {
     transition: transform 0.15s ease;

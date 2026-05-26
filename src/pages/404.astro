@@ -27,7 +27,7 @@ const locale = Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
 
 Astro.response.status = 404;
 
-const theme = getTheme(tenant.template);
+const theme = await getTheme(tenant.template);
 const { Layout, NotFound, LocaleSwitcher, Seo } = theme;
 ---
 

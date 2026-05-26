@@ -106,7 +106,7 @@ const { kind, locale, ref } = resolved;
 // from the same handle they already use.
 Astro.locals.locale = locale;
 
-const theme = getTheme(tenant.template);
+const theme = await getTheme(tenant.template);
 const { Layout, LocaleSwitcher, LocaleLanding, Seo, Article, AuthorPage } = theme;
 
 let pageData: Awaited<ReturnType<typeof fetchPage>> = null;

@@ -1,6 +1,12 @@
 ---
 import { fetchMenu } from '../../lib/foundry';
-import './styles.css';
+// `?inline` returns the CSS as a string with no auto-injection by
+// Vite's CSS plugin. This keeps sibling themes' CSS out of every
+// dev page (the registry loads all 4 themes in dev mode). In prod,
+// each tenant build is pinned via `__ACTIVE_TEMPLATE__` so only one
+// theme survives DCE — single inline `<style>` per page is fine.
+import stylesContent from './styles.css?inline';
+import appScript from './scripts/app.js?url';
 import SiteFooter from './components/SiteFooter.astro';
 import SiteHeader from './components/SiteHeader.astro';
 
@@ -54,6 +60,7 @@ const bodyEndInjections = injectionsAt('body_end');
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title}</title>
+        <style is:inline set:html={stylesContent}></style>
         <slot name="head" />
         {!Astro.slots.has('head') && description && (
             <meta name="description" content={description} />
@@ -73,45 +80,6 @@ const bodyEndInjections = injectionsAt('body_end');
         <SiteFooter websiteName={websiteName} currentLocale={locale} items={footerItems} />
         {bodyEndInjections.map((i) => <Fragment set:html={i.body} />)}
 
-        <script is:inline>
-            // Menu submenu toggle — items with children render the
-            // whole label as a `<button class="menu-link--trigger">`,
-            // so clicking the label opens the dropdown. Outside click
-            // closes; Esc closes.
-            (function () {
-                const containers = document.querySelectorAll('[data-submenu-open]');
-                const triggers = document.querySelectorAll('.menu-link--trigger');
-
-                function setOpen(li, open) {
-                    li.setAttribute('data-submenu-open', open ? 'true' : 'false');
-                    const btn = li.querySelector(':scope > .menu-link--trigger');
-                    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-                }
-
-                triggers.forEach(function (btn) {
-                    btn.addEventListener('click', function (e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const li = btn.closest('[data-submenu-open]');
-                        if (!li) return;
-                        const open = li.getAttribute('data-submenu-open') === 'true';
-                        containers.forEach(function (other) {
-                            if (other !== li) setOpen(other, false);
-                        });
-                        setOpen(li, !open);
-                    });
-                });
-
-                document.addEventListener('click', function (e) {
-                    if (e.target && e.target.closest && e.target.closest('[data-submenu-open]')) return;
-                    containers.forEach(function (li) { setOpen(li, false); });
-                });
-                document.addEventListener('keydown', function (e) {
-                    if (e.key === 'Escape') {
-                        containers.forEach(function (li) { setOpen(li, false); });
-                    }
-                });
-            })();
-        </script>
+        <script type="module" src={appScript} is:inline></script>
     </body>
 </html>

@@ -134,6 +134,18 @@ body.wp-site {
     margin: 0;
     padding: 0;
 }
+/* Primary navigation container — horizontal flex row at the top.
+   Submenus (depth > 0) carry `.wp-block-navigation-submenu` and stay
+   vertical via the dedicated rule further below. */
+.wp-block-navigation__container {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
 .wp-block-navigation-item__content {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -713,15 +725,18 @@ body.wp-site {
 .wp-block-navigation .wp-block-navigation-item.has-child {
     position: relative;
 }
+/* Whole-label-as-button styling. We previously copied a chevron-only
+   button rule here (padding/margin/color: inherit) that fights the
+   base `.wp-block-navigation-item__content` styling and turns the
+   trigger's text black instead of `--neutral`. The button keeps its
+   font/color/padding from the base rule; here we only carry the
+   inline-flex shape needed to sit the chevron next to the label. */
 .wp-block-navigation .wp-block-navigation__submenu-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     border: 0;
-    padding: 0.25rem;
-    margin-left: 0.15rem;
-    color: inherit;
     cursor: pointer;
     border-radius: 2px;
     line-height: 1;
@@ -761,25 +776,19 @@ body.wp-site {
     background: var(--wp--preset--color--neutral-100, #f3f4f6);
 }
 
-/* Parent label as button — matches `wp-block-navigation-item__content`
-   visually, but it's a `<button>` so the whole label opens the submenu
-   on click instead of forcing the user to hit the small chevron. */
+/* Parent label as button — must look identical to the sibling <a>
+   items. We reset UA button defaults (background, border, cursor)
+   and explicitly re-assert the color since some browsers paint
+   <button> text with their own ButtonText style even when the
+   author CSS sets `color` via a less-specific selector. */
 button.wp-block-navigation-item__content {
     background: transparent;
     border: 0;
-    padding: 0;
-    margin: 0;
-    font: inherit;
-    color: inherit;
     cursor: pointer;
+    color: var(--wp--preset--color--neutral);
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    line-height: inherit;
-}
-button.wp-block-navigation-item__content:hover {
-    background: transparent;
-    text-decoration: underline;
 }
 .wp-block-navigation__submenu-chevron {
     transition: transform 0.12s ease;
