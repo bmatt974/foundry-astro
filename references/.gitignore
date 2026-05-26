@@ -1,0 +1,32 @@
+# Strip heavy/derived artefacts before commit.
+# Source files (templates, JS, CSS, PHP, Twig) are kept.
+
+**/node_modules/
+**/vendor/**/test/
+**/vendor/**/tests/
+**/.git/
+
+# Binary assets we don't need for reference
+**/screenshot.png
+**/logo.svg
+**/favicon.*
+**/assets/images/
+**/assets/fonts/
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.eot
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.webp
+**/*.mp4
+
+# Lockfiles bloat without value for reference
+**/package-lock.json
+**/yarn.lock
+**/composer.lock
+
+# Build artefacts
+**/build/
+**/dist/
