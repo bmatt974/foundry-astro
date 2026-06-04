@@ -55,7 +55,11 @@ export function parseTopList(block: PageBlock): TopListContent {
         });
     }
 
-    const heading = typeof content.heading === 'string' && content.heading !== '' ? content.heading : undefined;
+    const heading = typeof content.title === 'string' && content.title !== ''
+        ? content.title
+        : typeof content.heading === 'string' && content.heading !== ''
+            ? content.heading
+            : undefined;
 
     return {
         heading,

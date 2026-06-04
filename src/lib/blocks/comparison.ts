@@ -196,7 +196,7 @@ export function parseComparison(
     const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title));
 
     return {
-        heading: raw.heading?.trim() || null,
+        heading: raw.title?.trim() || raw.heading?.trim() || null,
         rows: groups.map((g) => buildRow(g, locale, linkProxyPath)),
         labels: pickLabels(locale),
     };

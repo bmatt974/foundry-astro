@@ -135,11 +135,13 @@ export function extractHeadingsFromBlocks(
                 out.push({ level: 2, text: title.trim(), slug: slugify(title) });
             }
         }
-        // The comparison block uses `heading` instead of `title` — mirror
-        // here so the Comparison.astro h2 (also keyed on `heading`)
-        // matches the TOC anchor target.
-        if (block.block_type === 'comparison') {
-            const heading = block.content?.heading;
+        // Comparison + toplist blocks read their H2 from `content.title`
+        // (Comparison.astro / TopList.astro both anchor on it). Read it
+        // here so the TOC entry matches the rendered heading. Legacy
+        // payloads with `content.heading` are honoured as a fallback so
+        // older builds keep linking correctly.
+        if (block.block_type === 'comparison' || block.block_type === 'top_list') {
+            const heading = block.content?.title ?? block.content?.heading;
             if (typeof heading === 'string' && heading.trim() !== '') {
                 out.push({ level: 2, text: heading.trim(), slug: slugify(heading) });
             }
