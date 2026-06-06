@@ -144,11 +144,35 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
             .toolbar a.vw-icon svg { display: block; }
             .toolbar a.vw-icon.active { color: white; }
+            .path-stack {
+                display: flex;
+                flex-direction: column;
+                gap: 0.2rem;
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            .path-stack-row {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                min-width: 0;
+            }
+            /* Hide the page row when no badge is currently visible so
+               the "Page" label doesn't sit alone. */
+            .path-stack-row--page { display: none; }
+            .path-stack-row--page:has(.meta-badge:not([hidden])) {
+                display: flex;
+            }
+            .meta-badges {
+                display: flex;
+                gap: 0.3rem;
+                flex-wrap: wrap;
+            }
             .meta-badge {
-                font-size: 0.7rem;
+                font-size: 0.6rem;
                 font-weight: 600;
-                padding: 0.15rem 0.4rem;
-                border-radius: 4px;
+                padding: 0.1rem 0.35rem;
+                border-radius: 3px;
                 white-space: nowrap;
                 flex-shrink: 0;
                 max-width: 14rem;
@@ -196,7 +220,7 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
         </style>
     </head>
-    <body data-current-theme={themeName} data-current-vw={viewport.id} data-current-path={innerPath} data-api-base={foundryApiBase}>
+    <body data-current-theme={themeName} data-current-vw={viewport.id} data-current-path={innerPath} data-api-base={foundryApiBase} data-current-locale={Astro.locals.locale ?? 'en'}>
         <div class="toolbar">
             <h1>Preview</h1>
 
@@ -212,11 +236,20 @@ function outerLink(theme: string, vw: string, path: string): string {
             </div>
 
             <div class="toolbar-group toolbar-group--path">
-                <span class="label">Path</span>
-                <code id="inner-path-display" title={innerPath}>{innerPath}</code>
-                <span id="page-id-badge" class="meta-badge meta-badge--page" hidden></span>
-                <span id="sourceable-badge" class="meta-badge meta-badge--sourceable" hidden></span>
-                <span id="cluster-badge" class="meta-badge meta-badge--cluster" hidden></span>
+                <div class="path-stack">
+                    <div class="path-stack-row">
+                        <span class="label">Path</span>
+                        <code id="inner-path-display" title={innerPath}>{innerPath}</code>
+                    </div>
+                    <div class="path-stack-row path-stack-row--page">
+                        <span class="label">Page</span>
+                        <div class="meta-badges">
+                            <span id="page-id-badge" class="meta-badge meta-badge--page" hidden></span>
+                            <span id="sourceable-badge" class="meta-badge meta-badge--sourceable" hidden></span>
+                            <span id="cluster-badge" class="meta-badge meta-badge--cluster" hidden></span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="toolbar-group">
@@ -378,25 +411,33 @@ function outerLink(theme: string, vw: string, path: string): string {
                         setMetaBadge(clusterBadge, null);
                         return;
                     }
-                    // Show the page_key (more salient — identifies the
-                    // hub's role) and the blueprint_slug in the tooltip
-                    // for the full hub identity.
-                    const compact = cluster.page_key || cluster.blueprint_slug;
-                    const tooltip = [cluster.blueprint_slug, cluster.page_key]
+                    const compact = [cluster.blueprint_slug, cluster.page_key]
                         .filter(Boolean)
                         .join(' / ');
-                    setMetaBadge(clusterBadge, compact, `Cluster — ${tooltip}`);
+                    setMetaBadge(clusterBadge, compact, `Cluster — ${compact}`);
                 }
 
                 async function refreshVariantSelector(innerPath) {
                     if (!variantSelect) return;
                     const { pathOnly, currentVariant } = splitInnerPath(innerPath);
 
-                    // Path on the API is `<locale>/<slug-or-rest>`. The
-                    // first segment is the locale, the rest is the slug.
-                    const parts = pathOnly.replace(/^\/+/, '').split('/');
-                    const locale = parts.shift();
-                    const slug = parts.join('/');
+                    // The API expects `<locale>/<slug>`. On multi-locale
+                    // sites the inner path carries the locale prefix
+                    // (`/fr/<slug>`); on single-locale sites it's just
+                    // `/<slug>`. Detect the prefix by matching a locale
+                    // shape (2-3 letters, optional region) on the first
+                    // segment; fall back to the body's default locale
+                    // (server-rendered from `Astro.locals.locale`).
+                    const pathStripped = pathOnly.replace(/^\/+/, '');
+                    const slashIdx = pathStripped.indexOf('/');
+                    const firstSegment = slashIdx === -1 ? pathStripped : pathStripped.slice(0, slashIdx);
+                    const localeFromPath = /^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(firstSegment)
+                        ? firstSegment
+                        : null;
+                    const locale = localeFromPath ?? body.dataset.currentLocale;
+                    const slug = localeFromPath
+                        ? pathStripped.slice(localeFromPath.length + 1)
+                        : pathStripped;
                     if (!locale || !slug) {
                         variantSelect.disabled = true;
                         setPageIdBadge(null);
@@ -406,7 +447,17 @@ function outerLink(theme: string, vw: string, path: string): string {
                     }
 
                     const hostname = window.location.hostname;
-                    const apiBase = body.dataset.apiBase || 'http://foundry.test/api/v1';
+                    // Browser-side only : upgrade an http:// apiBase to
+                    // https:// when this preview page is itself served
+                    // over HTTPS, so the fetch isn't blocked as mixed
+                    // content. The SSR fetch in middleware.ts keeps the
+                    // raw HTTP env var (Vite HMR + Node fetch don't play
+                    // well with Valet's self-signed cert from the
+                    // server side).
+                    const rawApiBase = body.dataset.apiBase || 'http://foundry.test/api/v1';
+                    const apiBase = window.location.protocol === 'https:' && rawApiBase.startsWith('http://')
+                        ? 'https://' + rawApiBase.slice('http://'.length)
+                        : rawApiBase;
                     try {
                         const res = await fetch(
                             `${apiBase}/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages/${slug.split('/').map(encodeURIComponent).join('/')}/variants`,
