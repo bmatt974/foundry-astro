@@ -40,6 +40,13 @@ export interface Dictionary {
          *  "By Jane, John and Marie" (EN) / "Par Jane, John et Marie" (FR). */
         conjunction: string;
     };
+    pageMeta: {
+        /** "Published on " — precedes the absolute date in the page header. */
+        publishedOn: string;
+        /** "Updated on " — precedes the absolute date when the page
+         *  has been re-touched after publish. */
+        updatedOn: string;
+    };
     author: {
         /** Heading for the in-article AuthorBio card. */
         aboutLabel: string;

@@ -125,6 +125,9 @@ export interface Page {
     cover_image: string | null;
     position: number;
     published_at: string | null;
+    /** Last edit time — drives the "Mis à jour le …" / "Updated on …"
+     *  line in the page header when distinct from `published_at`. */
+    updated_at: string | null;
     seo: Record<string, unknown> | null;
     settings: Record<string, unknown> | null;
     translation: PageTranslation | null;

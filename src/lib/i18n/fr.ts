@@ -15,6 +15,10 @@ const fr: Dictionary = {
         separator: ', ',
         conjunction: 'et',
     },
+    pageMeta: {
+        publishedOn: 'Publié le',
+        updatedOn: 'Mis à jour le',
+    },
     author: {
         aboutLabel: 'À propos de l\'auteur',
         profileLabel: 'À propos',

@@ -1,23 +1,29 @@
 ---
 import { type ResolvedAuthor } from '../../../lib/author';
 import type { PageTranslation } from '../../../lib/foundry';
-import { formatDate, formatRelativeDate } from '../../../lib/format';
+import { formatDate } from '../../../lib/format';
+import { useTranslations } from '../../../lib/i18n';
 import AuthorByline from './AuthorByline.astro';
 import Markdown from './Markdown.astro';
 
 interface Props {
     translation: PageTranslation | null;
     publishedAt?: string | null;
+    updatedAt?: string | null;
     fallbackTitle?: string;
     authors?: ResolvedAuthor[];
 }
 
-const { translation: t, publishedAt = null, fallbackTitle, authors = [] } = Astro.props;
+const { translation: t, publishedAt = null, updatedAt = null, fallbackTitle, authors = [] } = Astro.props;
 const title = t?.title ?? fallbackTitle ?? 'Untitled';
 const locale = Astro.locals.locale ?? 'en';
-const relative = formatRelativeDate(publishedAt, locale);
-const absolute = formatDate(publishedAt, locale);
-const showMeta = (relative && publishedAt) || authors.length > 0;
+const tr = useTranslations(locale, Astro.locals.wording);
+const publishedAbs = formatDate(publishedAt, locale);
+const updatedAbs = formatDate(updatedAt, locale);
+// "Updated" only surfaces when it's distinct from "Published" — re-saving
+// a page right after publish shouldn't double-stamp the meta line.
+const showUpdated = !!updatedAbs && updatedAbs !== publishedAbs;
+const showMeta = !!publishedAbs || showUpdated || authors.length > 0;
 ---
 
 <header class="entry-header">
@@ -26,12 +32,20 @@ const showMeta = (relative && publishedAt) || authors.length > 0;
     {t?.subtitle && <p class="entry-subtitle">{t.subtitle}</p>}
     {showMeta && (
         <p class="entry-meta">
-            {relative && publishedAt && (
-                <time class="entry-date entry-date--updated" datetime={publishedAt} title={absolute ?? undefined}>
-                    {relative}
+            {publishedAbs && publishedAt && (
+                <time class="entry-date entry-date--published" datetime={publishedAt}>
+                    {tr('pageMeta.publishedOn')} {publishedAbs}
                 </time>
             )}
-            {relative && publishedAt && authors.length > 0 && (
+            {showUpdated && publishedAbs && (
+                <span class="entry-meta__separator">{' • '}</span>
+            )}
+            {showUpdated && (
+                <time class="entry-date entry-date--updated" datetime={updatedAt ?? undefined}>
+                    {tr('pageMeta.updatedOn')} {updatedAbs}
+                </time>
+            )}
+            {authors.length > 0 && (publishedAbs || showUpdated) && (
                 <span class="entry-meta__separator">{' • '}</span>
             )}
             {authors.length > 0 && (

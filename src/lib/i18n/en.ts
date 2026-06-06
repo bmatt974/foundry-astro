@@ -15,6 +15,10 @@ const en: Dictionary = {
         separator: ', ',
         conjunction: 'and',
     },
+    pageMeta: {
+        publishedOn: 'Published on',
+        updatedOn: 'Updated on',
+    },
     author: {
         aboutLabel: 'About the author',
         profileLabel: 'About',

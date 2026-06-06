@@ -76,6 +76,7 @@ const showBio = bioSettings.show && (
                 <PageHeader
                     translation={t}
                     publishedAt={page.published_at ?? t?.published_at ?? null}
+                    updatedAt={page.updated_at ?? null}
                     fallbackTitle={fallbackTitle}
                     authors={authors}
                 />
