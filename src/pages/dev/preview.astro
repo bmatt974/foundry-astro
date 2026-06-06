@@ -144,6 +144,16 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
             .toolbar a.vw-icon svg { display: block; }
             .toolbar a.vw-icon.active { color: white; }
+            .page-id-badge {
+                font-size: 0.7rem;
+                font-weight: 600;
+                color: #4f46e5;
+                background: #eef2ff;
+                padding: 0.15rem 0.4rem;
+                border-radius: 4px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
             .variant-select {
                 font-size: 0.85rem;
                 padding: 0.3rem 0.55rem;
@@ -200,6 +210,7 @@ function outerLink(theme: string, vw: string, path: string): string {
             <div class="toolbar-group toolbar-group--path">
                 <span class="label">Path</span>
                 <code id="inner-path-display" title={innerPath}>{innerPath}</code>
+                <span id="page-id-badge" class="page-id-badge" hidden></span>
             </div>
 
             <div class="toolbar-group">
@@ -308,6 +319,7 @@ function outerLink(theme: string, vw: string, path: string): string {
                 // dispatches by appending `?variant=<label>` to the inner
                 // path (kept alongside any existing `?theme=` query).
                 const variantSelect = document.getElementById('variant-select');
+                const pageIdBadge = document.getElementById('page-id-badge');
 
                 function splitInnerPath(innerPath) {
                     // innerPath might already carry `?variant=X&theme=Y`.
@@ -318,6 +330,18 @@ function outerLink(theme: string, vw: string, path: string): string {
                         pathOnly: pathOnly || '/',
                         currentVariant: params.get('variant') || 'live',
                     };
+                }
+
+                function setPageIdBadge(pageId) {
+                    if (!pageIdBadge) return;
+                    if (pageId === null || pageId === undefined) {
+                        pageIdBadge.hidden = true;
+                        pageIdBadge.textContent = '';
+                        return;
+                    }
+                    pageIdBadge.hidden = false;
+                    pageIdBadge.textContent = `#${pageId}`;
+                    pageIdBadge.title = `Page #${pageId}`;
                 }
 
                 async function refreshVariantSelector(innerPath) {
@@ -331,6 +355,7 @@ function outerLink(theme: string, vw: string, path: string): string {
                     const slug = parts.join('/');
                     if (!locale || !slug) {
                         variantSelect.disabled = true;
+                        setPageIdBadge(null);
                         return;
                     }
 
@@ -343,6 +368,7 @@ function outerLink(theme: string, vw: string, path: string): string {
                         );
                         if (!res.ok) {
                             variantSelect.disabled = true;
+                            setPageIdBadge(null);
                             return;
                         }
                         const payload = await res.json();
@@ -357,8 +383,10 @@ function outerLink(theme: string, vw: string, path: string): string {
                             variantSelect.appendChild(opt);
                         }
                         variantSelect.disabled = variants.length <= 1;
+                        setPageIdBadge(payload.page_id ?? null);
                     } catch (e) {
                         variantSelect.disabled = true;
+                        setPageIdBadge(null);
                     }
                 }
 
