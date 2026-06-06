@@ -21,9 +21,7 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
-const route = Astro.locals.route;
 const aboutLabel = t('author.aboutLabel');
-const seeProfile = t('author.seeProfile');
 ---
 
 {authors.length > 0 && (
@@ -43,21 +41,15 @@ const seeProfile = t('author.seeProfile');
                         />
                     )}
                     <div class="min-w-0 flex-1">
-                        <p class="font-semibold">
-                            <a href={route('author', { slug: author.slug })} class="brand-link">{author.name}</a>
-                        </p>
+                        {/* Decorative — the page's only author-profile
+                            link lives in the byline at the top. */}
+                        <p class="font-semibold">{author.name}</p>
                         {author.title && (
                             <p class="brand-text-muted text-sm">{author.title}</p>
                         )}
                         {(author.bioShort ?? author.title) && (
                             <p class="mt-2 text-sm">{author.bioShort ?? author.title}</p>
                         )}
-                        <a
-                            href={route('author', { slug: author.slug })}
-                            class="brand-link mt-2 inline-block text-sm"
-                        >
-                            {seeProfile} →
-                        </a>
                     </div>
                 </div>
             ))}

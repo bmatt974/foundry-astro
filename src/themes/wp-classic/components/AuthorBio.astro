@@ -13,9 +13,7 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
-const route = Astro.locals.route;
 const aboutLabel = t('author.aboutLabel');
-const seeProfile = t('author.seeProfile');
 ---
 
 {authors.length > 0 && (
@@ -35,21 +33,17 @@ const seeProfile = t('author.seeProfile');
                     </figure>
                 )}
                 <div class="wp-block-post-author__content">
-                    <p class="wp-block-post-author__name">
-                        <a href={route('author', { slug: author.slug })} class="wp-block-link">{author.name}</a>
-                    </p>
+                    {/* Decorative bio card — no link to the profile here.
+                        The byline at the top of the page is the single
+                        author-page entry point ; doubling it here would
+                        triple the link count and dilute its weight. */}
+                    <p class="wp-block-post-author__name">{author.name}</p>
                     {author.title && (
                         <p class="wp-block-post-author__title">{author.title}</p>
                     )}
                     {(author.bioShort ?? author.title) && (
                         <p class="wp-block-post-author__bio">{author.bioShort ?? author.title}</p>
                     )}
-                    <a
-                        href={route('author', { slug: author.slug })}
-                        class="wp-block-link wp-block-post-author__more"
-                    >
-                        {seeProfile} →
-                    </a>
                 </div>
             </div>
         ))}
