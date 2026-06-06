@@ -44,9 +44,27 @@ const themeName = requestedTheme && themes.includes(requestedTheme)
     : (Astro.locals.tenant?.website.template ?? 'basic');
 
 const VIEWPORTS = [
-    { id: 'mobile', label: 'Mobile (375px)', width: 375 },
-    { id: 'tablet', label: 'Tablet (768px)', width: 768 },
-    { id: 'desktop', label: 'Desktop (1200px)', width: 1200 },
+    {
+        id: 'mobile',
+        label: 'Mobile (375px)',
+        width: 375,
+        // 18×18 inline SVG ; phone outline.
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>',
+    },
+    {
+        id: 'tablet',
+        label: 'Tablet (768px)',
+        width: 768,
+        // tablet outline.
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M10 19h4"/></svg>',
+    },
+    {
+        id: 'desktop',
+        label: 'Desktop (1200px)',
+        width: 1200,
+        // monitor + stand outline.
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 20h8"/><path d="M12 17v3"/></svg>',
+    },
 ] as const;
 const requestedVw = Astro.url.searchParams.get('vw');
 const viewport = VIEWPORTS.find((v) => v.id === requestedVw) ?? VIEWPORTS[2];
@@ -59,6 +77,11 @@ const requestedPath = Astro.url.searchParams.get('path');
 const innerPath = requestedPath && requestedPath.startsWith('/')
     ? requestedPath
     : DEFAULT_PATH;
+
+// API base for the variant-selector fetch (the iframe loads pages
+// from the Astro server itself, but the variant list comes from the
+// Foundry CMS). Mirror `fetchJson` defaults from lib/foundry.ts.
+const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
 
 // Build the iframe URL with `?theme=` so middleware applies the
 // chosen theme on the very first iframe request (subsequent in-iframe
@@ -109,6 +132,36 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
             .toolbar a:hover { background: #f3f4f6; }
             .toolbar a.active { background: #4f46e5; color: white; border-color: #4f46e5; }
+            .toolbar a.vw-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0.35rem;
+                width: 2rem;
+                height: 2rem;
+                box-sizing: border-box;
+            }
+            .toolbar a.vw-icon svg { display: block; }
+            .toolbar a.vw-icon.active { color: white; }
+            .variant-select {
+                font-size: 0.85rem;
+                padding: 0.3rem 0.55rem;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: white;
+                color: #1f2937;
+                cursor: pointer;
+                min-width: 8rem;
+                max-width: 16rem;
+            }
+            .variant-select:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .variant-select:focus {
+                outline: 2px solid #4f46e5;
+                outline-offset: 1px;
+            }
             .stage {
                 display: flex;
                 justify-content: center;
@@ -128,7 +181,7 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
         </style>
     </head>
-    <body data-current-theme={themeName} data-current-vw={viewport.id} data-current-path={innerPath}>
+    <body data-current-theme={themeName} data-current-vw={viewport.id} data-current-path={innerPath} data-api-base={foundryApiBase}>
         <div class="toolbar">
             <h1>Foundry preview</h1>
 
@@ -148,14 +201,24 @@ function outerLink(theme: string, vw: string, path: string): string {
                 <code id="inner-path-display">{innerPath}</code>
             </div>
 
+            <div class="toolbar-group">
+                <span class="label">Variant</span>
+                <select id="variant-select" class="variant-select" disabled>
+                    <option value="live">live</option>
+                </select>
+            </div>
+
             <div class="toolbar-group toolbar-group--right">
                 <span class="label">Viewport</span>
                 {VIEWPORTS.map((v) => (
                     <a
                         href={outerLink(themeName, v.id, innerPath)}
-                        class={v.id === viewport.id ? 'active' : ''}
+                        class={`vw-icon ${v.id === viewport.id ? 'active' : ''}`}
                         data-vw={v.id}
-                    >{v.label}</a>
+                        title={v.label}
+                        aria-label={v.label}
+                        set:html={v.icon}
+                    />
                 ))}
             </div>
         </div>
@@ -234,7 +297,89 @@ function outerLink(theme: string, vw: string, path: string): string {
                     window.history.replaceState(null, '', outerUrl.toString());
 
                     rebuildToolbarLinks(innerPath);
+                    refreshVariantSelector(innerPath);
                 });
+
+                // ─── Variant selector ────────────────────────────────────
+                // Fetches the list of named experiments available for the
+                // current iframe path and populates a dropdown. Switching
+                // dispatches by appending `?variant=<label>` to the inner
+                // path (kept alongside any existing `?theme=` query).
+                const variantSelect = document.getElementById('variant-select');
+
+                function splitInnerPath(innerPath) {
+                    // innerPath might already carry `?variant=X&theme=Y`.
+                    // Strip the query off so we can reassemble cleanly.
+                    const [pathOnly, queryStr] = innerPath.split('?');
+                    const params = new URLSearchParams(queryStr ?? '');
+                    return {
+                        pathOnly: pathOnly || '/',
+                        currentVariant: params.get('variant') || 'live',
+                    };
+                }
+
+                async function refreshVariantSelector(innerPath) {
+                    if (!variantSelect) return;
+                    const { pathOnly, currentVariant } = splitInnerPath(innerPath);
+
+                    // Path on the API is `<locale>/<slug-or-rest>`. The
+                    // first segment is the locale, the rest is the slug.
+                    const parts = pathOnly.replace(/^\/+/, '').split('/');
+                    const locale = parts.shift();
+                    const slug = parts.join('/');
+                    if (!locale || !slug) {
+                        variantSelect.disabled = true;
+                        return;
+                    }
+
+                    const hostname = window.location.hostname;
+                    const apiBase = body.dataset.apiBase || 'http://foundry.test/api/v1';
+                    try {
+                        const res = await fetch(
+                            `${apiBase}/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages/${slug.split('/').map(encodeURIComponent).join('/')}/variants`,
+                            { headers: { Accept: 'application/json' } },
+                        );
+                        if (!res.ok) {
+                            variantSelect.disabled = true;
+                            return;
+                        }
+                        const payload = await res.json();
+                        const variants = Array.isArray(payload.variants) ? payload.variants : ['live'];
+
+                        variantSelect.innerHTML = '';
+                        for (const label of variants) {
+                            const opt = document.createElement('option');
+                            opt.value = label;
+                            opt.textContent = label;
+                            if (label === currentVariant) opt.selected = true;
+                            variantSelect.appendChild(opt);
+                        }
+                        variantSelect.disabled = variants.length <= 1;
+                    } catch (e) {
+                        variantSelect.disabled = true;
+                    }
+                }
+
+                if (variantSelect) {
+                    variantSelect.addEventListener('change', () => {
+                        const innerPath = body.dataset.currentPath ?? '/';
+                        const { pathOnly } = splitInnerPath(innerPath);
+                        const newVariant = variantSelect.value;
+                        const newInnerPath = newVariant === 'live'
+                            ? pathOnly
+                            : `${pathOnly}?variant=${encodeURIComponent(newVariant)}`;
+                        // Hand the new path to the iframe via its src attribute ;
+                        // the `load` listener picks up after the navigation
+                        // and updates the rest of the toolbar.
+                        const newSrc = newInnerPath + (newInnerPath.includes('?') ? '&' : '?')
+                            + 'theme=' + encodeURIComponent(body.dataset.currentTheme);
+                        frame.src = newSrc;
+                    });
+
+                    // First-load population — the iframe `load` listener
+                    // covers subsequent navigations.
+                    refreshVariantSelector(body.dataset.currentPath ?? '/');
+                }
             })();
         </script>
     </body>
