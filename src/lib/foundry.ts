@@ -281,12 +281,17 @@ export interface TenantResolution {
             link_author: boolean;
             nofollow: boolean;
         };
-        /** Author bio block visibility — `page_types` is a whitelist
-         *  of `page_type` values where the card ships ; null means
-         *  "every page" (the personal-blog stance). */
+        /** Author bio block visibility + behaviour. `page_types` is
+         *  a whitelist of `page_type` values where the card ships ;
+         *  null means "every page" (the personal-blog stance).
+         *  `link_to_profile` controls the "See profile →" CTA at
+         *  the bottom of the card ; `nofollow` is its resolved
+         *  rel value (same heuristic as the byline). */
         author_bio: {
             show: boolean;
             page_types: string[] | null;
+            link_to_profile: boolean;
+            nofollow: boolean;
         };
     };
     locales: WebsiteLocale[];

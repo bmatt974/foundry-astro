@@ -13,7 +13,17 @@ interface Props {
 
 const { authors, locale } = Astro.props;
 const t = useTranslations(locale, Astro.locals.wording);
+const route = Astro.locals.route;
 const aboutLabel = t('author.aboutLabel');
+const seeProfile = t('author.seeProfile');
+
+const bioSettings = Astro.locals.tenant?.website?.author_bio ?? {
+    show: true,
+    page_types: null,
+    link_to_profile: true,
+    nofollow: true,
+};
+const ctaRel = bioSettings.nofollow ? 'nofollow' : undefined;
 ---
 
 {authors.length > 0 && (
@@ -33,16 +43,23 @@ const aboutLabel = t('author.aboutLabel');
                     </figure>
                 )}
                 <div class="wp-block-post-author__content">
-                    {/* Decorative bio card — no link to the profile here.
-                        The byline at the top of the page is the single
-                        author-page entry point ; doubling it here would
-                        triple the link count and dilute its weight. */}
+                    {/* Name stays plain text — the single profile
+                        link lives in the CTA below (when enabled). */}
                     <p class="wp-block-post-author__name">{author.name}</p>
                     {author.title && (
                         <p class="wp-block-post-author__title">{author.title}</p>
                     )}
                     {(author.bioShort ?? author.title) && (
                         <p class="wp-block-post-author__bio">{author.bioShort ?? author.title}</p>
+                    )}
+                    {bioSettings.link_to_profile && (
+                        <a
+                            href={route('author', { slug: author.slug })}
+                            class="wp-block-link wp-block-post-author__more"
+                            rel={ctaRel}
+                        >
+                            {seeProfile} →
+                        </a>
                     )}
                 </div>
             </div>
