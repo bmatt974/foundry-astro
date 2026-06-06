@@ -69,10 +69,12 @@ const authors = resolveAuthors(page.authors, locale);
                     translation={t}
                     publishedAt={page.published_at ?? t?.published_at ?? null}
                     fallbackTitle={fallbackTitle}
+                    authors={authors}
                 />
             );
         case 'author_byline':
-            return <AuthorByline authors={authors} locale={locale} />;
+            // Byline now ships inline inside the page header.
+            return null;
         case 'toc':
             return <Toc blocks={page.blocks} />;
         case 'sourceable_info':
