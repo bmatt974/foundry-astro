@@ -115,12 +115,13 @@ function outerLink(theme: string, vw: string, path: string): string {
         <style>
             * { box-sizing: border-box; }
             body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; color: #1f2937; background: #f9fafb; min-height: 100vh; }
-            .toolbar { position: sticky; top: 0; z-index: 10; background: white; border-bottom: 1px solid #e5e7eb; padding: 0.75rem 1.25rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+            .toolbar { position: sticky; top: 0; z-index: 10; background: white; border-bottom: 1px solid #e5e7eb; padding: 0.75rem 1.25rem; display: flex; gap: 1.25rem; align-items: center; flex-wrap: nowrap; }
             .toolbar h1 { margin: 0; font-size: 1rem; font-weight: 600; color: #111827; }
-            .toolbar-group { display: flex; gap: 0.5rem; align-items: center; }
+            .toolbar-group { display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
             .toolbar-group--right { margin-left: auto; }
+            .toolbar-group--path { flex: 1 1 0; min-width: 0; }
             .toolbar-group .label { font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-            .toolbar code { font-size: 0.75rem; color: #6b7280; padding: 0.25rem 0.5rem; background: #f3f4f6; border-radius: 4px; max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .toolbar code { font-size: 0.75rem; color: #6b7280; padding: 0.25rem 0.5rem; background: #f3f4f6; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
             .toolbar a {
                 color: #4f46e5;
                 text-decoration: none;
@@ -196,9 +197,9 @@ function outerLink(theme: string, vw: string, path: string): string {
                 ))}
             </div>
 
-            <div class="toolbar-group">
+            <div class="toolbar-group toolbar-group--path">
                 <span class="label">Path</span>
-                <code id="inner-path-display">{innerPath}</code>
+                <code id="inner-path-display" title={innerPath}>{innerPath}</code>
             </div>
 
             <div class="toolbar-group">
@@ -279,6 +280,7 @@ function outerLink(theme: string, vw: string, path: string): string {
                     body.dataset.currentPath = innerPath;
                     if (pathDisplay) {
                         pathDisplay.textContent = innerPath;
+                        pathDisplay.title = innerPath;
                     }
                 }
 
