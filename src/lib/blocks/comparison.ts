@@ -45,6 +45,7 @@ interface RawGroup {
 }
 
 interface RawContent {
+    title?: string;
     heading?: string;
     groups?: RawGroup[];
 }

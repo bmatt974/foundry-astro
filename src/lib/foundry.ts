@@ -700,6 +700,7 @@ export async function fetchPage(
     locale: string,
     path: string,
     hostname: string,
+    variant?: string | null,
 ): Promise<Page | null> {
     // Path may contain slashes ("destinations/italie/rome"); each segment is
     // URL-encoded independently so accented characters survive.
@@ -709,7 +710,13 @@ export async function fetchPage(
         .map((s) => encodeURIComponent(s))
         .join('/');
 
+    // The optional `variant` param lets the editor preview a named
+    // experiment (e.g. `exp-20260606-warmth`). The backend resolves
+    // per block : variant row wins where it exists, the selected one
+    // fills in the rest so the page never half-renders.
+    const query = variant ? `?variant=${encodeURIComponent(variant)}` : '';
+
     return fetchJson<Page>(
-        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages/${encodedPath}`,
+        `/websites/${encodeURIComponent(hostname)}/${encodeURIComponent(locale)}/pages/${encodedPath}${query}`,
     );
 }

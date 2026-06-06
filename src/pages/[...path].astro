@@ -124,7 +124,12 @@ if (kind === 'page') {
     const slug = prefix !== '' && fullPath.startsWith(`${prefix}/`)
         ? fullPath.slice(prefix.length + 1)
         : fullPath;
-    pageData = await fetchPage(locale, slug, tenant.website.hostname);
+    // `?variant=` query lets the editor preview a named experiment
+    // from /dev/preview without rebuilding the site. Only honoured in
+    // dev SSR — prerendered prod builds ignore query strings by
+    // design (the rendered page is whatever `is_selected` says).
+    const variant = Astro.url.searchParams.get('variant');
+    pageData = await fetchPage(locale, slug, tenant.website.hostname, variant);
     if (!pageData) {
         return Astro.rewrite('/404');
     }
