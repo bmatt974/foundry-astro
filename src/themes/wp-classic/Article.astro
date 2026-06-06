@@ -36,6 +36,17 @@ const breadcrumbCurrentTitle = t?.title ?? fallbackTitle;
 
 const sections = pickLayout(page.page_type);
 const authors = resolveAuthors(page.authors, locale);
+
+// Resolve the per-website author-bio visibility — the editor flips
+// it in the Filament Author display section. `show=false` kills the
+// card entirely ; a populated `page_types` whitelist narrows it to
+// longform page-types (the default network stance) ; `null` means
+// "every page" (the personal-blog stance).
+const bioSettings = tenant.website.author_bio ?? { show: true, page_types: null };
+const showBio = bioSettings.show && (
+    bioSettings.page_types === null
+    || bioSettings.page_types.includes(page.page_type ?? '')
+);
 ---
 
 <article class="wp-block-post">
@@ -71,7 +82,7 @@ const authors = resolveAuthors(page.authors, locale);
             case 'page_blocks':
                 return <PageBlocks blocks={page.blocks} />;
             case 'author_bio':
-                return <AuthorBio authors={authors} locale={locale} />;
+                return showBio ? <AuthorBio authors={authors} locale={locale} /> : null;
             case 'page_footer':
                 return t ? <PageFooter translation={t} /> : null;
             case 'page_nav':

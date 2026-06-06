@@ -272,6 +272,22 @@ export interface TenantResolution {
          *  tags + favicon mode). Null = let the theme auto-pick. */
         fingerprint_preset: string | null;
         theme_config: Record<string, unknown>;
+        /** Resolved author-display knobs from the website's
+         *  `settings.byline` JSON. `nofollow` is the EFFECTIVE
+         *  boolean — the Auto/Always/Never heuristic is already
+         *  collapsed server-side. */
+        byline: {
+            show: boolean;
+            link_author: boolean;
+            nofollow: boolean;
+        };
+        /** Author bio block visibility — `page_types` is a whitelist
+         *  of `page_type` values where the card ships ; null means
+         *  "every page" (the personal-blog stance). */
+        author_bio: {
+            show: boolean;
+            page_types: string[] | null;
+        };
     };
     locales: WebsiteLocale[];
     default_locale: string | null;
