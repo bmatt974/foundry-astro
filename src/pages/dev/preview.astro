@@ -144,16 +144,20 @@ function outerLink(theme: string, vw: string, path: string): string {
             }
             .toolbar a.vw-icon svg { display: block; }
             .toolbar a.vw-icon.active { color: white; }
-            .page-id-badge {
+            .meta-badge {
                 font-size: 0.7rem;
                 font-weight: 600;
-                color: #4f46e5;
-                background: #eef2ff;
                 padding: 0.15rem 0.4rem;
                 border-radius: 4px;
                 white-space: nowrap;
                 flex-shrink: 0;
+                max-width: 14rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
+            .meta-badge--page { color: #4f46e5; background: #eef2ff; }
+            .meta-badge--sourceable { color: #047857; background: #d1fae5; }
+            .meta-badge--cluster { color: #b45309; background: #fef3c7; }
             .variant-select {
                 font-size: 0.85rem;
                 padding: 0.3rem 0.55rem;
@@ -210,7 +214,9 @@ function outerLink(theme: string, vw: string, path: string): string {
             <div class="toolbar-group toolbar-group--path">
                 <span class="label">Path</span>
                 <code id="inner-path-display" title={innerPath}>{innerPath}</code>
-                <span id="page-id-badge" class="page-id-badge" hidden></span>
+                <span id="page-id-badge" class="meta-badge meta-badge--page" hidden></span>
+                <span id="sourceable-badge" class="meta-badge meta-badge--sourceable" hidden></span>
+                <span id="cluster-badge" class="meta-badge meta-badge--cluster" hidden></span>
             </div>
 
             <div class="toolbar-group">
@@ -320,6 +326,8 @@ function outerLink(theme: string, vw: string, path: string): string {
                 // path (kept alongside any existing `?theme=` query).
                 const variantSelect = document.getElementById('variant-select');
                 const pageIdBadge = document.getElementById('page-id-badge');
+                const sourceableBadge = document.getElementById('sourceable-badge');
+                const clusterBadge = document.getElementById('cluster-badge');
 
                 function splitInnerPath(innerPath) {
                     // innerPath might already carry `?variant=X&theme=Y`.
@@ -332,16 +340,52 @@ function outerLink(theme: string, vw: string, path: string): string {
                     };
                 }
 
-                function setPageIdBadge(pageId) {
-                    if (!pageIdBadge) return;
-                    if (pageId === null || pageId === undefined) {
-                        pageIdBadge.hidden = true;
-                        pageIdBadge.textContent = '';
+                function setMetaBadge(node, label, tooltip) {
+                    if (!node) return;
+                    if (!label) {
+                        node.hidden = true;
+                        node.textContent = '';
+                        node.title = '';
                         return;
                     }
-                    pageIdBadge.hidden = false;
-                    pageIdBadge.textContent = `#${pageId}`;
-                    pageIdBadge.title = `Page #${pageId}`;
+                    node.hidden = false;
+                    node.textContent = label;
+                    node.title = tooltip || label;
+                }
+
+                function setPageIdBadge(pageId) {
+                    if (pageId === null || pageId === undefined) {
+                        setMetaBadge(pageIdBadge, null);
+                        return;
+                    }
+                    setMetaBadge(pageIdBadge, `#${pageId}`, `Page #${pageId}`);
+                }
+
+                function setSourceableBadge(sourceable) {
+                    if (!sourceable || !sourceable.type) {
+                        setMetaBadge(sourceableBadge, null);
+                        return;
+                    }
+                    const compact = `${sourceable.type} #${sourceable.id}`;
+                    const tooltip = sourceable.name
+                        ? `${compact} — ${sourceable.name}`
+                        : compact;
+                    setMetaBadge(sourceableBadge, compact, tooltip);
+                }
+
+                function setClusterBadge(cluster) {
+                    if (!cluster || (!cluster.blueprint_slug && !cluster.page_key)) {
+                        setMetaBadge(clusterBadge, null);
+                        return;
+                    }
+                    // Show the page_key (more salient — identifies the
+                    // hub's role) and the blueprint_slug in the tooltip
+                    // for the full hub identity.
+                    const compact = cluster.page_key || cluster.blueprint_slug;
+                    const tooltip = [cluster.blueprint_slug, cluster.page_key]
+                        .filter(Boolean)
+                        .join(' / ');
+                    setMetaBadge(clusterBadge, compact, `Cluster — ${tooltip}`);
                 }
 
                 async function refreshVariantSelector(innerPath) {
@@ -356,6 +400,8 @@ function outerLink(theme: string, vw: string, path: string): string {
                     if (!locale || !slug) {
                         variantSelect.disabled = true;
                         setPageIdBadge(null);
+                        setSourceableBadge(null);
+                        setClusterBadge(null);
                         return;
                     }
 
@@ -369,6 +415,8 @@ function outerLink(theme: string, vw: string, path: string): string {
                         if (!res.ok) {
                             variantSelect.disabled = true;
                             setPageIdBadge(null);
+                            setSourceableBadge(null);
+                            setClusterBadge(null);
                             return;
                         }
                         const payload = await res.json();
@@ -384,9 +432,13 @@ function outerLink(theme: string, vw: string, path: string): string {
                         }
                         variantSelect.disabled = variants.length <= 1;
                         setPageIdBadge(payload.page_id ?? null);
+                        setSourceableBadge(payload.sourceable ?? null);
+                        setClusterBadge(payload.cluster ?? null);
                     } catch (e) {
                         variantSelect.disabled = true;
                         setPageIdBadge(null);
+                        setSourceableBadge(null);
+                        setClusterBadge(null);
                     }
                 }
 
