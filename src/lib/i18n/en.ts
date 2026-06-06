@@ -11,7 +11,7 @@ const en: Dictionary = {
         },
     },
     byline: {
-        prefix: 'By',
+        prefix: 'by',
         separator: ', ',
         conjunction: 'and',
     },

@@ -11,7 +11,7 @@ const fr: Dictionary = {
         },
     },
     byline: {
-        prefix: 'Par',
+        prefix: 'par',
         separator: ', ',
         conjunction: 'et',
     },
