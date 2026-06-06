@@ -89,6 +89,10 @@ a.brand-bg-primary {
     padding: 0.75rem 1.5rem;
     font-weight: 500;
     letter-spacing: 0.01em;
+    /* Override the global `a { color: brand-primary }` rule which
+       beats Tailwind's `text-white` because the base layer outranks
+       `@layer utilities` in v4. */
+    color: white;
     box-shadow: 0 1px 2px rgba(28, 20, 16, 0.08), 0 0 0 1px rgba(28, 20, 16, 0.04);
     transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
