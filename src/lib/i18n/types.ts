@@ -154,6 +154,14 @@ export interface Dictionary {
             /** Badge surfaced on the highest-rated provider row when
              *  `settings.highlight_target === 'best_rated'`. */
             bestRated: string;
+            /** Badge surfaced on provider rows whose price falls
+             *  outside the ticket's reference band — bidirectional
+             *  (catches both "much more expensive" AND "suspiciously
+             *  cheap" cases). Neutral wording : we don't claim to
+             *  know which side is the standard package, only that
+             *  the price stands out and probably indicates a
+             *  different product. */
+            differentPackage: string;
         };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer

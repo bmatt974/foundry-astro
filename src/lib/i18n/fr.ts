@@ -76,6 +76,7 @@ const fr: Dictionary = {
             book: 'Réserver',
             bestPrice: 'Meilleur prix',
             bestRated: 'Meilleure note',
+            differentPackage: 'Autre formule',
         },
         feature: {
             skip_the_line: 'Coupe-file',

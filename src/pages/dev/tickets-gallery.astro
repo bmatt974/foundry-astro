@@ -74,6 +74,11 @@ const showProviderArrow = readBoolParam('show_provider_arrow', false);
 const priceAsButton = readBoolParam('price_as_button', false);
 const showReviews = readBoolParam('show_reviews', false);
 const highlightTarget = params.get('highlight_target') ?? 'cheapest';
+const hidePriceOutliers = readBoolParam('hide_price_outliers', false);
+const minReliableReviews = (() => {
+    const raw = parseInt(params.get('min_reliable_reviews') ?? '100', 10);
+    return Number.isFinite(raw) && raw >= 0 ? raw : 100;
+})();
 const ctaLabel = params.get('cta_label') ?? '';
 
 const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
@@ -92,6 +97,8 @@ if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
 if (priceAsButton) upstream.set('price_as_button', '1');
 if (showReviews) upstream.set('show_reviews', '1');
 if (highlightTarget !== 'cheapest') upstream.set('highlight_target', highlightTarget);
+if (hidePriceOutliers) upstream.set('hide_price_outliers', '1');
+if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minReliableReviews));
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
 
@@ -269,6 +276,23 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <select name="highlight_target">
                         {['cheapest', 'best_rated', 'none'].map((mode) => <option value={mode} selected={mode === highlightTarget}>{`highlight:${mode}`}</option>)}
                     </select>
+                    <input type="hidden" name="hide_price_outliers" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="hide_price_outliers" value="1" checked={hidePriceOutliers} />
+                        hide outliers
+                    </label>
+                    <label class="inline-flex items-center gap-1 text-xs">
+                        <span>min reviews</span>
+                        <input
+                            type="number"
+                            name="min_reliable_reviews"
+                            min="0"
+                            max="10000"
+                            step="50"
+                            value={minReliableReviews}
+                            style="width: 5rem"
+                        />
+                    </label>
                     <input
                         type="text"
                         name="cta_label"

@@ -23,7 +23,7 @@ interface Props {
     /** Subset of the parent block's settings that affect the row's
      *  presentation. Passed in instead of read from props.block so
      *  the row stays decoupled from the wider block shape. */
-    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget'>;
+    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget' | 'hidePriceOutliers'>;
 }
 
 const { ticket, headingLevel, settings } = Astro.props;
@@ -99,7 +99,9 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
 
     {ticket.providers.length > 0 && (
         <ul class="brand-border divide-y rounded-md border bg-gray-50">
-            {ticket.providers.map((provider) => {
+            {ticket.providers
+                .filter((provider) => !(settings.hidePriceOutliers && provider.isPriceOutlier))
+                .map((provider) => {
                 // Per-provider price stays terse — the column is
                 // already labelled by visual position ("you can see
                 // it's a price"). Dropping the "From" / "À partir
@@ -118,7 +120,13 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                    target-specific badge. Light tint is derived from
                    the theme's `--brand-accent-success` via
                    color-mix() so themes only override one base
-                   colour and the variants follow. */
+                   colour and the variants follow.
+                   The parser already returns `highlightedAs = null`
+                   when the ticket carries a single provider (no
+                   discrimination possible) ; here we just propagate
+                   that — both the badge AND the background disappear
+                   together so we don't paint a green row with no
+                   accompanying label. */
                 const highlightLabelKey = provider.highlightedAs === 'best_rated'
                     ? 'tickets.card.bestRated'
                     : provider.highlightedAs === 'cheapest'
@@ -230,6 +238,21 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                                         style="background-color: var(--brand-accent-success); color: white"
                                     >
                                         {t(highlightLabelKey)}
+                                    </span>
+                                )}
+                                {provider.isPriceOutlier && (
+                                    /* Soft warning label — bidirectional.
+                                       Catches BOTH expensive outliers
+                                       ("might be a premium upgrade")
+                                       AND cheap outliers ("might be a
+                                       stripped-down package"). Neutral
+                                       wording so we don't pretend to
+                                       know which side is the standard. */
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                        style="background-color: rgba(0,0,0,0.06); color: #6b7280"
+                                    >
+                                        {t('tickets.card.differentPackage')}
                                     </span>
                                 )}
                                 {providerStarless && (

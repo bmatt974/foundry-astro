@@ -153,6 +153,15 @@ export interface TicketsSettings {
      *   - 'best_rated' : highest aggregate rating wins.
      *   - 'none'       : no highlight, all rows visually equal. */
     highlightTarget: 'cheapest' | 'best_rated' | 'none';
+    /** Drop provider rows whose cheapest price exceeds 2× the
+     *  ticket's cheapest price. When false (default), outliers
+     *  surface with a "Premium variant" label instead — keeps the
+     *  inventory visible while signalling the divergence. */
+    hidePriceOutliers: boolean;
+    /** Minimum source review count for a rating to feed the
+     *  per-provider aggregate and qualify for the `best_rated`
+     *  highlight. 100 default ; 0 disables. */
+    minReliableReviews: number;
     /** Render the group_type + experience_type chip rows above each bucket. */
     showFilters: boolean;
     /** Surface the synthetic "audio_guide" badge on Admission cards
@@ -250,6 +259,15 @@ export interface UniqueProvider {
      *  provider can carry different labels across blocks on the
      *  same page. */
     highlightedAs: 'cheapest' | 'best_rated' | null;
+    /** True when this provider's cheapest price falls outside the
+     *  ticket's reference price band ([median / 2, median × 2] for
+     *  3+ providers, or a ratio > 2 vs the cheapest for 2 providers).
+     *  Bidirectional : flags BOTH "more expensive than usual" AND
+     *  "suspiciously cheaper than usual" — without claiming to know
+     *  which is the standard package. The renderer either hides
+     *  the row (settings.hidePriceOutliers === true) or paints it
+     *  with a "Different package" badge as a soft warning. */
+    isPriceOutlier: boolean;
 }
 
 export interface ParsedTicket {
@@ -394,6 +412,8 @@ interface RawMeta {
         cta_label?: string | null;
         show_reviews?: boolean;
         highlight_target?: 'cheapest' | 'best_rated' | 'none';
+        hide_price_outliers?: boolean;
+        min_reliable_reviews?: number;
         show_filters?: boolean;
         show_audio_badge?: boolean;
     };
@@ -428,6 +448,24 @@ const BADGE_FEATURE_ORDER: ReadonlyArray<string> = [
     'meal_included',
     'wheelchair_accessible',
 ];
+
+/**
+ * Subset of BADGE_FEATURE_ORDER that varies per source (booking
+ * experience, not product). Mirrors TicketFeature::isProductDefining()
+ * === false on the PHP side. Surfacing one of these at the ticket
+ * level is honest ONLY when EVERY surviving provider offers it ;
+ * otherwise the top-level badge over-promises (the buyer reads
+ * "Mobile ticket available" but it's actually only true at one
+ * provider). When non-universal, we keep them out of the
+ * ticket-level header and let the per-provider rows surface them
+ * as discriminators.
+ */
+const ANNOTATION_BADGE_SLUGS = new Set([
+    'free_cancellation',
+    'mobile_ticket',
+    'instant_confirmation',
+    'family_friendly',
+]);
 
 /** Synthetic badge — present when audio_device OR audio_app fires. */
 const AUDIO_GUIDE_SLUG = 'audio_guide';
@@ -466,6 +504,10 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
         highlightTarget: (s.highlight_target === 'best_rated' || s.highlight_target === 'none')
             ? s.highlight_target
             : 'cheapest',
+        hidePriceOutliers: s.hide_price_outliers === true,
+        minReliableReviews: typeof s.min_reliable_reviews === 'number' && s.min_reliable_reviews >= 0
+            ? Math.floor(s.min_reliable_reviews)
+            : 100,
         showFilters: s.show_filters !== false,
         showAudioBadge: s.show_audio_badge !== false,
     };
@@ -486,12 +528,17 @@ function narrowSlugs<Slug extends string>(
     return raw.filter((v): v is Slug => typeof v === 'string' && allowedSet.has(v));
 }
 
-function buildBadges(features: ReadonlyArray<string>, settings: TicketsSettings, t: T): TicketBadge[] {
+function buildBadges(features: ReadonlyArray<string>, settings: TicketsSettings, t: T, universalAnnotations: ReadonlySet<string>): TicketBadge[] {
     const present = new Set(features);
     const badges: TicketBadge[] = [];
 
     for (const slug of BADGE_FEATURE_ORDER) {
         if (!present.has(slug)) continue;
+        // Suppress annotation-class features unless EVERY provider on
+        // this ticket offers them. Otherwise the top-level "Mobile
+        // ticket" badge over-promises while the per-row chips reveal
+        // the real coverage — a contradiction the buyer notices.
+        if (ANNOTATION_BADGE_SLUGS.has(slug) && !universalAnnotations.has(slug)) continue;
         const key = `tickets.feature.${slug}` as TranslationKey;
         badges.push({ slug, label: t(key) });
     }
@@ -533,6 +580,40 @@ function parsePriceFloor(text: string | null): number | null {
     const cleaned = text.replace(/,/g, '.').replace(/[^0-9.\-]/g, '');
     const parsed = Number.parseFloat(cleaned);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Decide whether a provider's cheapest price falls outside the
+ * ticket's "reference price band". Bidirectional :
+ *   - 3+ providers : reference is the median price. Band is
+ *     `[median / 2, median × 2]`. Outliers can be EITHER below
+ *     (suspiciously cheap, often a stripped-down package) OR
+ *     above (a premium variant). The renderer applies the same
+ *     neutral "Different package" label either way — we don't
+ *     claim to know which side is the "real" product.
+ *   - 2 providers : no median ; fall back to the ratio rule
+ *     (`max / min > 2` flags the more expensive one). Less
+ *     reliable but avoids missing obvious mismatches.
+ *   - 1 provider : never an outlier (nothing to compare against).
+ *
+ * Providers without a parseable price are never outliers (we have
+ * nothing to evaluate them against).
+ */
+function isOutlierPrice(priceText: string | null, allPrices: ReadonlyArray<number>): boolean {
+    const own = parsePriceFloor(priceText);
+    if (own === null || allPrices.length < 2) return false;
+
+    if (allPrices.length === 2) {
+        const cheapest = Math.min(...allPrices);
+        return cheapest > 0 && own > 2 * cheapest;
+    }
+
+    const sorted = [...allPrices].sort((a, b) => a - b);
+    const median = sorted.length % 2 === 1
+        ? sorted[Math.floor(sorted.length / 2)]
+        : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+    if (median <= 0) return false;
+    return own < median / 2 || own > median * 2;
 }
 
 function buildSource(raw: RawSource, locale: string, linkProxyPath: string, reviewsSuffix: string | undefined): TicketSource {
@@ -624,8 +705,19 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
          *  row gets the badge. Set semantics keep dedup automatic. */
         annotationFeatures: Set<string>;
     }>();
+    // Predicate : does this source's rating clear the reliability
+    // threshold ? Sources below it never feed the aggregate rating
+    // nor the `best_rated` highlight ranking — a "★ 4.5 (58 avis)"
+    // listing has too thin a confidence interval to be treated as
+    // equivalent to a "★ 4.5 (12,345 avis)" one.
+    const isRatingReliable = (s: TicketSource): boolean =>
+        s.rating !== null
+        && s.reviewCount !== null
+        && s.reviewCount >= settings.minReliableReviews;
+
     for (const source of sources) {
         if (source.provider === '') continue;
+        const reliable = isRatingReliable(source);
         const entry = providerAccumulator.get(source.provider);
         if (entry === undefined) {
             providerAccumulator.set(source.provider, {
@@ -635,12 +727,10 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 faviconPath: source.providerFaviconPath,
                 count: 1,
                 cheapest: source,
-                ratingWeightedSum: source.rating !== null && source.reviewCount !== null && source.reviewCount > 0
-                    ? source.rating * source.reviewCount
+                ratingWeightedSum: reliable
+                    ? (source.rating as number) * (source.reviewCount as number)
                     : 0,
-                ratingWeightTotal: source.rating !== null && source.reviewCount !== null && source.reviewCount > 0
-                    ? source.reviewCount
-                    : 0,
+                ratingWeightTotal: reliable ? (source.reviewCount as number) : 0,
                 reviewSum: source.reviewCount ?? 0,
                 annotationFeatures: new Set(source.features),
             });
@@ -653,9 +743,9 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             if (candidatePrice !== null && (currentPrice === null || candidatePrice < currentPrice)) {
                 entry.cheapest = source;
             }
-            if (source.rating !== null && source.reviewCount !== null && source.reviewCount > 0) {
-                entry.ratingWeightedSum += source.rating * source.reviewCount;
-                entry.ratingWeightTotal += source.reviewCount;
+            if (reliable) {
+                entry.ratingWeightedSum += (source.rating as number) * (source.reviewCount as number);
+                entry.ratingWeightTotal += source.reviewCount as number;
             }
             if (source.reviewCount !== null) {
                 entry.reviewSum += source.reviewCount;
@@ -665,15 +755,30 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             }
         }
     }
-    // Per-provider annotation badges in editorial priority order :
-    // strongest trust signal (Free Cancellation) wins the leftmost
-    // slot. Features absent from the provider's union don't render.
+    // Per-provider annotation badges in editorial priority order —
+    // strongest trust signal first. Capped at 2 per row so the
+    // signal stays scannable ; piling on 3-4 chips per provider
+    // becomes visual noise that swallows the price + rating.
     const ANNOTATION_ORDER: ReadonlyArray<string> = [
         'free_cancellation',
         'mobile_ticket',
         'instant_confirmation',
         'family_friendly',
     ];
+    const MAX_BADGES_PER_PROVIDER = 2;
+
+    // Discriminating-only filter : an annotation present on EVERY
+    // provider of this ticket doesn't differentiate them, and the
+    // ticket-level badge header already surfaces it. Hide it from
+    // the per-row chips so each row only carries info that helps
+    // the buyer choose between providers. Edge case : on single-
+    // provider tickets, every annotation is "universal" → no per-
+    // row chips render, which is fine (the header has it covered).
+    const universalAnnotations = new Set<string>(
+        ANNOTATION_ORDER.filter((slug) =>
+            [...providerAccumulator.values()].every((entry) => entry.annotationFeatures.has(slug)),
+        ),
+    );
     // Pre-compute the highlight winner slug per supported target.
     // Tie-breakers fall back to the iteration order (which is the
     // affiliate-priority order the server applied), so a tie on
@@ -700,12 +805,26 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
     }
 
     // Map the editor's chosen target onto the winning slug. 'none'
-    // collapses the highlight entirely.
+    // collapses the highlight entirely. So does a single-provider
+    // ticket — when there's only one option to click, calling it
+    // "Best price" or "Best rated" is tautological noise that
+    // weakens the badge's signal where it actually discriminates.
     const highlightedSlug: string | null = (() => {
+        if (providerAccumulator.size < 2) return null;
         if (settings.highlightTarget === 'cheapest') return cheapestSlug;
         if (settings.highlightTarget === 'best_rated') return bestRatedSlug;
         return null;
     })();
+
+    // Collect every provider's cheapest-source price floor so the
+    // outlier detector can compute the median once and reuse it on
+    // each row evaluation. Providers without a parseable price drop
+    // out of the band computation but stay rendered.
+    const providerPriceFloors: number[] = [];
+    for (const entry of providerAccumulator.values()) {
+        const floor = parsePriceFloor(entry.cheapest.priceText);
+        if (floor !== null) providerPriceFloors.push(floor);
+    }
 
     const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
         ([slug, entry]) => {
@@ -714,7 +833,11 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 : null;
             const aggregateReviewCount = entry.reviewSum > 0 ? entry.reviewSum : null;
             const annotationBadges: TicketBadge[] = ANNOTATION_ORDER
-                .filter((featureSlug) => entry.annotationFeatures.has(featureSlug))
+                .filter((featureSlug) =>
+                    entry.annotationFeatures.has(featureSlug)
+                    && !universalAnnotations.has(featureSlug),
+                )
+                .slice(0, MAX_BADGES_PER_PROVIDER)
                 .map((featureSlug) => ({
                     slug: featureSlug,
                     label: t(`tickets.feature.${featureSlug}` as TranslationKey),
@@ -733,7 +856,16 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 cheapestRatingText: formatRating(aggregateRating, aggregateReviewCount, locale, reviewsSuffix),
                 cheapestHref: entry.cheapest.href,
                 annotationBadges,
-                highlightedAs: slug === highlightedSlug ? settings.highlightTarget as 'cheapest' | 'best_rated' : null,
+                // Suppress the highlight when the provider's price falls
+                // outside the reference band. Badging a row as "Best
+                // price" while ALSO labelling it "Different package"
+                // is cognitively dissonant — we either trust it
+                // enough to recommend it OR we flag it as suspect ;
+                // never both at once.
+                highlightedAs: slug === highlightedSlug && !isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)
+                    ? settings.highlightTarget as 'cheapest' | 'best_rated'
+                    : null,
+                isPriceOutlier: isOutlierPrice(entry.cheapest.priceText, providerPriceFloors),
             };
         },
     );
@@ -749,7 +881,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale, reviewsSuffix),
         isBundle: raw.multi_attraction_pass === true || format === 'bundle',
         coveredPlaces,
-        badges: buildBadges(features, settings, t),
+        badges: buildBadges(features, settings, t, universalAnnotations),
         languages: (raw.languages ?? []).filter((l): l is string => typeof l === 'string'),
         sources,
         providers,

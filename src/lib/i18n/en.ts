@@ -76,6 +76,7 @@ const en: Dictionary = {
             book: 'Book',
             bestPrice: 'Best price',
             bestRated: 'Best rated',
+            differentPackage: 'Different package',
         },
         feature: {
             skip_the_line: 'Skip-the-line',
