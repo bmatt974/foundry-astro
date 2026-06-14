@@ -1,0 +1,88 @@
+---
+/**
+ * Single ticket card — used inside Tickets.astro for flat lists,
+ * group_type sub-sections and experience_type sub-sections.
+ * Internal to the basic theme : other themes ship their own variant.
+ */
+import type { ParsedTicket } from '../../../lib/blocks/tickets';
+import { imageSrcset, imageUrl } from '../../../lib/image';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    ticket: ParsedTicket;
+}
+
+const { ticket } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+---
+
+<li class="brand-border group overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-md">
+    {ticket.coverImage ? (
+        <div class="aspect-[4/3] overflow-hidden bg-gray-100">
+            <img
+                src={imageUrl(ticket.coverImage, { width: 480 })}
+                srcset={imageSrcset(ticket.coverImage, [320, 480, 800, 1200])}
+                sizes="(min-width: 1024px) 320px, (min-width: 640px) 50vw, 100vw"
+                alt={ticket.title}
+                loading="lazy"
+                width="480"
+                height="360"
+                class="h-full w-full object-cover transition group-hover:scale-105"
+            />
+        </div>
+    ) : (
+        <div class="brand-border aspect-[4/3] border-b bg-gray-50" aria-hidden="true" />
+    )}
+    <div class="space-y-3 p-4">
+        <h4 class="text-base font-semibold leading-snug">{ticket.title}</h4>
+
+        {ticket.badges.length > 0 && (
+            <ul class="flex flex-wrap gap-1.5">
+                {ticket.badges.map((badge) => (
+                    <li class="brand-border inline-flex items-center rounded-full border bg-gray-50 px-2 py-0.5 text-xs">
+                        {badge.label}
+                    </li>
+                ))}
+            </ul>
+        )}
+
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+            {ticket.priceText && (
+                <span class="text-base font-semibold">
+                    {t('tickets.card.priceFrom', { price: ticket.priceText })}
+                </span>
+            )}
+            {ticket.durationText && (
+                <span class="brand-text-muted">· {ticket.durationText}</span>
+            )}
+            {ticket.ratingText && (
+                <span class="brand-text-muted">· {ticket.ratingText}</span>
+            )}
+        </div>
+
+        {ticket.providers.length > 0 && (
+            <p class="brand-text-muted text-xs">
+                {t('tickets.card.providers', { count: String(ticket.providers.length) })}
+                {' '}: {ticket.providers.map((p) => p.label).join(' · ')}
+            </p>
+        )}
+
+        {ticket.languages.length > 0 && (
+            <p class="brand-text-muted text-xs uppercase tracking-wider">
+                {ticket.languages.join(' / ')}
+            </p>
+        )}
+
+        {ticket.primaryCtaHref && (
+            <a
+                href={ticket.primaryCtaHref}
+                class="brand-bg-primary mt-2 inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                referrerpolicy="origin"
+            >
+                {t('tickets.card.book')}
+            </a>
+        )}
+    </div>
+</li>

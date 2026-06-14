@@ -1,0 +1,247 @@
+---
+/**
+ * One ticket row inside `TicketsSimple.astro`. Internal to the basic
+ * theme : other themes ship their own variant.
+ *
+ * Meta-search layout (the Skyscanner / Kayak pattern) : each
+ * affiliated provider gets its own clickable line under the title,
+ * carrying its brand-coloured dot, the cheapest price it offers
+ * for THIS ticket, and a click-through. Editor's ordering
+ * (`settings.affiliate_programs`) becomes visually meaningful —
+ * leftmost provider lands first on every card.
+ *
+ * `headingLevel` controls the H_n tag the title renders with — set
+ * by the parent layout's hierarchy decision so the article's heading
+ * outline stays consistent.
+ */
+import type { ParsedTicket, TicketsSettings } from '../../../lib/blocks/tickets';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    ticket: ParsedTicket;
+    headingLevel: 3 | 4 | 5 | 6;
+    /** Subset of the parent block's settings that affect the row's
+     *  presentation. Passed in instead of read from props.block so
+     *  the row stays decoupled from the wider block shape. */
+    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel'>;
+}
+
+const { ticket, headingLevel, settings } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+
+const TitleTag = `h${headingLevel}` as 'h3' | 'h4' | 'h5' | 'h6';
+
+// Rating string from the parser comes pre-formatted with the star :
+// "★ 4.6 (12 345)". We split it so the renderer paints the star in
+// its own brand-accent span ; the rest stays neutral text.
+// Inline colour (#f59e0b = amber-500) — Tailwind's JIT might purge
+// a one-off `text-amber-500` from a fresh block.
+const starlessRating = ticket.ratingText?.startsWith('★ ')
+    ? ticket.ratingText.slice(2)
+    : ticket.ratingText;
+
+// Feature badges already filtered + labelled by the parser. Capped
+// at 4 to keep the row dense ; the most product-defining flags
+// (skip-the-line, free cancellation, audio guide) come first via
+// `BADGE_FEATURE_ORDER` in the lib.
+const visibleBadges = ticket.badges.slice(0, 4);
+
+// Bundle hint — covered Places minus the hosting one. Signals
+// "this is a multi-attraction pass" without saying it explicitly.
+const secondaryPlaces = ticket.coveredPlaces.filter((p) => !p.isPrimary);
+const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
+---
+
+<li class="flex flex-col gap-3 p-4">
+    <div class="space-y-2">
+        {/* Title down-weighted on purpose — the conversion focus
+            is the per-provider price line below, not the catalog
+            title. Tailwind `!font-medium` overrides whatever
+            heading-tag styling the theme's typography layer adds
+            on top of h3 / h4 / etc. */}
+        <TitleTag class="text-sm !font-medium leading-snug" style="color: #1f2937">{ticket.title}</TitleTag>
+
+        {starlessRating && (
+            <p class="flex items-center gap-1.5 text-sm" style="color: #1f2937">
+                <span style="color: #f59e0b" aria-hidden="true">★</span>
+                <span class="font-semibold">{starlessRating}</span>
+                {ticket.durationText && (
+                    <span class="brand-text-muted text-xs">· {ticket.durationText}</span>
+                )}
+            </p>
+        )}
+
+        {!starlessRating && ticket.durationText && (
+            <p class="brand-text-muted text-xs">{ticket.durationText}</p>
+        )}
+
+        {visibleBadges.length > 0 && (
+            <ul class="flex flex-wrap gap-1.5">
+                {visibleBadges.map((badge) => (
+                    <li
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                        style="background-color: #f0fdf4; color: #166534"
+                    >
+                        {badge.label}
+                    </li>
+                ))}
+            </ul>
+        )}
+
+        {hasBundleHint && (
+            <p class="brand-text-muted text-xs italic">
+                + {secondaryPlaces.map((p) => p.name).join(', ')}
+            </p>
+        )}
+    </div>
+
+    {ticket.providers.length > 0 && (
+        <ul class="brand-border divide-y rounded-md border bg-gray-50">
+            {ticket.providers.map((provider) => {
+                // Per-provider price stays terse — the column is
+                // already labelled by visual position ("you can see
+                // it's a price"). Dropping the "From" / "À partir
+                // de" prefix saves horizontal room AND keeps the
+                // commitment language lower (no "from" = no hint of
+                // hidden upsells).
+                const priceLabel = provider.cheapestPriceText ?? null;
+                /* Inline colours fight the theme's global `<a>` rule
+                   that would otherwise paint every text node inside
+                   the row in the theme primary (salmon on basic).
+                   Hierarchy : indicator → name → price → arrow */
+                const labelColor = '#1f2937';
+                const priceColor = '#111827';
+                const arrowColor = '#6b7280';
+
+                // Build the indicator according to the editor's
+                // choice — `dot` / `favicon` / `logo` / `none`.
+                // Each option falls back gracefully when the
+                // matching asset is absent (e.g. an OTA without a
+                // shipped logo on `Supplier::brandLogoPath()`).
+                let indicator: any = null;
+                if (settings.providerIndicator === 'dot' && provider.brandColor) {
+                    indicator = (
+                        <span
+                            aria-hidden="true"
+                            class="inline-block h-2 w-2 flex-shrink-0 rounded-full"
+                            style={`background-color: ${provider.brandColor}`}
+                        />
+                    );
+                } else if (settings.providerIndicator === 'favicon' && provider.faviconPath) {
+                    // Favicon = mark only, square. Sized to ~28px to
+                    // match the Google Maps "Visites et activités"
+                    // panel — the favicon needs to read at a glance
+                    // alongside a bold provider name without
+                    // dominating the row.
+                    indicator = (
+                        <img
+                            src={provider.faviconPath}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            class="h-7 w-7 flex-shrink-0 rounded-md object-contain"
+                        />
+                    );
+                } else if (settings.providerIndicator === 'logo' && provider.logoPath) {
+                    // Logo = mark + wordmark. Needs ~2× the favicon
+                    // height for the wordmark (Tiqets, GetYourGuide,
+                    // Musement) to actually read at row size.
+                    indicator = (
+                        <img
+                            src={provider.logoPath}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            class="h-8 w-auto flex-shrink-0 object-contain"
+                        />
+                    );
+                }
+
+                // The price either renders as plain text (editorial)
+                // or as a brand-coloured button (conversion). When
+                // it's a button, the row's outer <a> wraps everything
+                // and the button styling is just visual emphasis.
+                // CTA text (when editor authored one) sits between
+                // the price and the arrow, providing an explicit
+                // action verb ("Voir l'offre") that converts higher
+                // than just price + arrow alone.
+                const priceNode = priceLabel
+                    ? (settings.priceAsButton
+                        ? (
+                            <span class="brand-bg-primary inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white">
+                                {settings.ctaLabel && <span>{settings.ctaLabel}</span>}
+                                {settings.ctaLabel && <span aria-hidden="true">·</span>}
+                                <span>{priceLabel}</span>
+                            </span>
+                        )
+                        : (
+                            <span class="inline-flex items-baseline gap-1.5">
+                                {settings.ctaLabel && (
+                                    <span class="text-xs font-medium" style={`color: ${arrowColor}`}>
+                                        {settings.ctaLabel}
+                                    </span>
+                                )}
+                                <span class="text-sm font-semibold" style={`color: ${priceColor}`}>
+                                    {priceLabel}
+                                </span>
+                            </span>
+                        ))
+                    : null;
+
+                /* Per-provider trust signal — rating + review count
+                   from that provider's own marketplace. On a single
+                   line so the row stays scannable like a comparison
+                   table (Viator · ★ 4.3 (290) · €24). The star is
+                   pre-stripped from the parser string and rendered
+                   in amber as the single chromatic accent. */
+                const providerStarless = provider.cheapestRatingText?.startsWith('★ ')
+                    ? provider.cheapestRatingText.slice(2)
+                    : provider.cheapestRatingText;
+
+                const inner = (
+                    <div class="flex items-center justify-between gap-3 p-2.5">
+                        <div class="flex min-w-0 items-center gap-2.5">
+                            {indicator}
+                            <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                                <span class="text-sm font-semibold truncate" style={`color: ${labelColor}`}>
+                                    {provider.label}
+                                </span>
+                                {providerStarless && (
+                                    <span class="inline-flex items-baseline gap-0.5 text-xs" style={`color: ${arrowColor}`}>
+                                        <span style="color: #f59e0b" aria-hidden="true">★</span>
+                                        <span>{providerStarless}</span>
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div class="flex flex-shrink-0 items-center gap-3">
+                            {priceNode}
+                            {settings.showProviderArrow && provider.cheapestHref && (
+                                <span class="text-xs" style={`color: ${arrowColor}`} aria-hidden="true">→</span>
+                            )}
+                        </div>
+                    </div>
+                );
+
+                return (
+                    <li>
+                        {provider.cheapestHref ? (
+                            <a
+                                href={provider.cheapestHref}
+                                class="block no-underline transition hover:bg-white"
+                                referrerpolicy="origin"
+                                aria-label={`${provider.label}${priceLabel ? ` · ${priceLabel}` : ''}`}
+                            >
+                                {inner}
+                            </a>
+                        ) : (
+                            inner
+                        )}
+                    </li>
+                );
+            })}
+        </ul>
+    )}
+</li>
