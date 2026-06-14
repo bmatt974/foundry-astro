@@ -164,6 +164,13 @@ export interface TicketsSettings {
     minReliableReviews: number;
     /** Render the group_type + experience_type chip rows above each bucket. */
     showFilters: boolean;
+    /** Which line carries the rating + which carries the annotation
+     *  chips inside each provider row :
+     *   - 'rating_first' (default) : Line 1 = name + rating, Line 2 =
+     *      annotation chips. Identity → trust signal → features.
+     *   - 'badges_first'           : Line 1 = name + annotation chips,
+     *      Line 2 = rating. Badges-forward A/B variant. */
+    rowLayout: 'rating_first' | 'badges_first';
     /** Surface the synthetic "audio_guide" badge on Admission cards
      *  carrying an audio_device or audio_app feature. */
     showAudioBadge: boolean;
@@ -422,6 +429,7 @@ interface RawMeta {
         hide_price_outliers?: boolean;
         min_reliable_reviews?: number;
         show_filters?: boolean;
+        row_layout?: 'rating_first' | 'badges_first';
         show_audio_badge?: boolean;
     };
 }
@@ -516,6 +524,7 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
             ? Math.floor(s.min_reliable_reviews)
             : 100,
         showFilters: s.show_filters !== false,
+        rowLayout: s.row_layout === 'badges_first' ? 'badges_first' : 'rating_first',
         showAudioBadge: s.show_audio_badge !== false,
     };
 }
@@ -535,9 +544,21 @@ function narrowSlugs<Slug extends string>(
     return raw.filter((v): v is Slug => typeof v === 'string' && allowedSet.has(v));
 }
 
-function buildBadges(features: ReadonlyArray<string>, settings: TicketsSettings, t: T, universalAnnotations: ReadonlySet<string>): TicketBadge[] {
+function buildBadges(features: ReadonlyArray<string>, settings: TicketsSettings, t: T, universalAnnotations: ReadonlySet<string>, groupType: TicketGroupTypeSlug): TicketBadge[] {
     const present = new Set(features);
     const badges: TicketBadge[] = [];
+
+    /* Group-type badge — surfaced ONLY for 'small_group' and
+       'private' since 'standard' is the implicit default (90% of
+       tickets) and a "Standard tour" badge would be visual noise.
+       The slug prefix `group_type:` lets the renderer detect it and
+       apply a distinct style (categorical type, not a feature flag). */
+    if (groupType === 'small_group' || groupType === 'private') {
+        badges.push({
+            slug: `group_type:${groupType}`,
+            label: t(`tickets.groupType.${groupType}` as TranslationKey),
+        });
+    }
 
     for (const slug of BADGE_FEATURE_ORDER) {
         if (!present.has(slug)) continue;
@@ -953,7 +974,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale, reviewsSuffix),
         isBundle: raw.multi_attraction_pass === true || format === 'bundle',
         coveredPlaces,
-        badges: buildBadges(features, settings, t, universalAnnotations),
+        badges: buildBadges(features, settings, t, universalAnnotations, groupType),
         languages: (raw.languages ?? []).filter((l): l is string => typeof l === 'string'),
         sources,
         providers,

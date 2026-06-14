@@ -80,6 +80,7 @@ const minReliableReviews = (() => {
     return Number.isFinite(raw) && raw >= 0 ? raw : 100;
 })();
 const ctaLabel = params.get('cta_label') ?? '';
+const rowLayout = params.get('row_layout') === 'badges_first' ? 'badges_first' : 'rating_first';
 
 const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
 const upstream = new URLSearchParams();
@@ -100,6 +101,7 @@ if (highlightTarget !== 'cheapest') upstream.set('highlight_target', highlightTa
 if (hidePriceOutliers) upstream.set('hide_price_outliers', '1');
 if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minReliableReviews));
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
+if (rowLayout !== 'rating_first') upstream.set('row_layout', rowLayout);
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
 
 interface Aggregations {
@@ -300,6 +302,9 @@ function isChecked(slug: string, picked: string[]): boolean {
                         placeholder="CTA (Voir l'offre)"
                         size="14"
                     />
+                    <select name="row_layout">
+                        {['rating_first', 'badges_first'].map((mode) => <option value={mode} selected={mode === rowLayout}>{`row:${mode}`}</option>)}
+                    </select>
                 </div>
                 <span class="meta">
                     {placeName ?? `Place #${placeId}`} · theme <code>{tenant.website.template ?? 'basic'}</code> · locale <code>{locale}</code>

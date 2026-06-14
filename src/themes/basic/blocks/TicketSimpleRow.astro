@@ -23,7 +23,7 @@ interface Props {
     /** Subset of the parent block's settings that affect the row's
      *  presentation. Passed in instead of read from props.block so
      *  the row stays decoupled from the wider block shape. */
-    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget' | 'hidePriceOutliers'>;
+    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget' | 'hidePriceOutliers' | 'rowLayout'>;
 }
 
 const { ticket, headingLevel, settings } = Astro.props;
@@ -91,15 +91,49 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
         )}
 
         {visibleBadges.length > 0 && (
+            /* Ticket-header badges — 3-tier visual hierarchy :
+               1. group_type (Private tour / Small group) :
+                  soft brand-primary tint, categorical "what kind of
+                  tour is this" tag. Lands FIRST in the row because
+                  it's the highest-cardinality discriminator.
+               2. official_ticket : solid brand-accent-success pill
+                  with ✓ — heavy trust signal, "operator's own
+                  inventory not a re-seller".
+               3. Everything else : soft brand-accent-success tint —
+                  features sweep (skip-the-line, free cancellation,
+                  hotel pickup, audio guide, …). */
             <ul class="flex flex-wrap gap-1.5">
-                {visibleBadges.map((badge) => (
-                    <li
-                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
-                    >
-                        {badge.label}
-                    </li>
-                ))}
+                {visibleBadges.map((badge) => {
+                    if (badge.slug.startsWith('group_type:')) {
+                        return (
+                            <li
+                                class="brand-text-primary inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                style="background-color: color-mix(in srgb, var(--brand-primary) 12%, transparent)"
+                            >
+                                {badge.label}
+                            </li>
+                        );
+                    }
+                    if (badge.slug === 'official_ticket') {
+                        return (
+                            <li
+                                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                                style="background-color: var(--brand-accent-success)"
+                            >
+                                <span aria-hidden="true">✓</span>
+                                <span>{badge.label}</span>
+                            </li>
+                        );
+                    }
+                    return (
+                        <li
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
+                        >
+                            {badge.label}
+                        </li>
+                    );
+                })}
             </ul>
         )}
 
@@ -193,36 +227,57 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                     );
                 }
 
-                // The price either renders as plain text (editorial)
-                // or as a brand-coloured button (conversion). When
-                // it's a button, the row's outer <a> wraps everything
-                // and the button styling is just visual emphasis.
-                // CTA text (when editor authored one) sits between
-                // the price and the arrow, providing an explicit
-                // action verb ("Voir l'offre") that converts higher
-                // than just price + arrow alone.
-                const priceNode = priceLabel
-                    ? (settings.priceAsButton
-                        ? (
-                            <span class="brand-bg-primary inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white">
-                                {settings.ctaLabel && <span>{settings.ctaLabel}</span>}
-                                {settings.ctaLabel && <span aria-hidden="true">·</span>}
-                                <span>{priceLabel}</span>
-                            </span>
-                        )
-                        : (
-                            <span class="inline-flex items-baseline gap-1.5">
-                                {settings.ctaLabel && (
-                                    <span class="text-xs font-medium" style={`color: ${arrowColor}`}>
-                                        {settings.ctaLabel}
-                                    </span>
-                                )}
-                                <span class="text-sm font-semibold" style={`color: ${priceColor}`}>
-                                    {priceLabel}
-                                </span>
-                            </span>
-                        ))
-                    : null;
+                /* Trivago pattern — price and CTA sit side-by-side as
+                   two distinct elements, both vertically centered
+                   against the 2-line left cluster :
+                     [info?] 323 €    [Voir l'offre →]
+                   The price is plain bold text (no button chrome),
+                   the CTA is a self-contained button. Splitting them
+                   matches the user's mental model : "what does it
+                   cost" + "go see the offer" are two questions.
+
+                   priceAsButton toggles the CTA between :
+                     - solid (brand-bg-primary, white text) for high
+                       conversion intent on all rows.
+                     - outlined (brand-border + brand-text) for an
+                       editorial-friendly default ; the highlighted
+                       row STILL gets solid even in this mode so the
+                       Best price call-to-action stays visually
+                       louder than its neighbours (Trivago : winner
+                       gets solid, others get outlined). */
+                const priceTag = priceLabel ? (
+                    <span class="text-base font-bold leading-none" style={`color: ${priceColor}`}>
+                        {priceLabel}
+                    </span>
+                ) : null;
+
+                /* The highlight stamp (Best price + Save %) doubles
+                   as a CTA emphasis signal — a row carrying the
+                   winner badge gets a SOLID button, others get the
+                   outlined version. priceAsButton globally forces
+                   solid on every row. */
+                const hasStamp = Boolean(highlightLabelKey || provider.savingsText);
+                const ctaSolid = settings.priceAsButton || hasStamp;
+                const ctaButton = settings.ctaLabel ? (
+                    ctaSolid ? (
+                        <span class="brand-bg-primary inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-semibold text-white">
+                            <span>{settings.ctaLabel}</span>
+                            {settings.showProviderArrow && <span aria-hidden="true">›</span>}
+                        </span>
+                    ) : (
+                        <span
+                            class="brand-text-primary inline-flex items-center gap-1 rounded-md border px-3 py-2 text-xs font-semibold"
+                            style="border-color: var(--brand-primary)"
+                        >
+                            <span>{settings.ctaLabel}</span>
+                            {settings.showProviderArrow && <span aria-hidden="true">›</span>}
+                        </span>
+                    )
+                ) : (
+                    settings.showProviderArrow && (
+                        <span class="brand-text-primary text-base font-semibold" aria-hidden="true">›</span>
+                    )
+                );
 
                 /* Per-provider trust signal — rating + review count
                    from that provider's own marketplace. On a single
@@ -236,81 +291,114 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
 
                 const inner = (
                     <div
-                        class="flex items-center justify-between gap-3 p-2.5"
+                        class="relative flex items-center justify-between gap-3 p-2.5"
                         style={rowBg ? `background-color: ${rowBg}` : ''}
                     >
-                        <div class="flex min-w-0 items-center gap-2.5">
-                            {indicator}
-                            <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
-                                <span class="text-sm font-semibold truncate" style={`color: ${labelColor}`}>
+                        {/* LEFT cluster on 2 lines. Order driven by
+                            settings.rowLayout :
+                            - 'rating_first' (default) : name + rating
+                              on line 1, annotation chips on line 2.
+                              Identity → trust signal → features.
+                            - 'badges_first' : name + annotation chips
+                              on line 1, rating on line 2.
+                              Badges-forward A/B variant — useful when
+                              feature differentiation matters more
+                              than rating prominence (eg. pages where
+                              "free cancellation" is the conversion
+                              hook). */}
+                        {(() => {
+                            const nameTag = (
+                                <span class="truncate text-sm font-semibold" style={`color: ${labelColor}`}>
                                     {provider.label}
                                 </span>
+                            );
+                            const outlierTag = provider.isPriceOutlier ? (
+                                <span
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                    style="background-color: rgba(0,0,0,0.06); color: #6b7280"
+                                >
+                                    {t('tickets.card.differentPackage')}
+                                </span>
+                            ) : null;
+                            const ratingTag = providerStarless ? (
+                                <span class="inline-flex items-baseline gap-0.5 text-xs" style={`color: ${arrowColor}`}>
+                                    <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
+                                    <span>{providerStarless}</span>
+                                </span>
+                            ) : null;
+                            const badgeTags = provider.annotationBadges.map((badge) => (
+                                <span
+                                    class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                    style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
+                                >
+                                    {badge.label}
+                                </span>
+                            ));
+                            const isBadgesFirst = settings.rowLayout === 'badges_first';
+                            return (
+                                <div class="flex min-w-0 items-start gap-2.5">
+                                    {indicator}
+                                    <div class="flex min-w-0 flex-col gap-1.5">
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            {nameTag}
+                                            {outlierTag}
+                                            {isBadgesFirst ? badgeTags : ratingTag}
+                                        </div>
+                                        {isBadgesFirst
+                                            ? ratingTag
+                                            : (badgeTags.length > 0 && (
+                                                <div class="flex flex-wrap gap-1">{badgeTags}</div>
+                                            ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                        {/* RIGHT cluster — Trivago horizontal split :
+                            [price] [CTA button]. The price sits left,
+                            the CTA right. Both vertically centered
+                            against the 2-line LEFT cluster. The CTA
+                            is solid for highlighted rows + when
+                            priceAsButton is on, outlined otherwise. */}
+                        <div class="flex flex-shrink-0 items-center gap-4">
+                            {priceTag}
+                            {ctaButton}
+                        </div>
+                        {/* Floating deal zone — "stamp" pattern. The
+                            badges sit absolute, partly above the row
+                            (top: -8px) and partly outside its right
+                            edge — like a postage stamp affixed at the
+                            corner of an envelope, pokes out both ways.
+                            The price stays vertically centered in the
+                            row because the badges don't participate
+                            in the layout flow. Future promo codes
+                            (active vouchers, limited-time discounts)
+                            join the same row so the visitor reads the
+                            full offer in one glance. pointer-events:
+                            none keeps the row's outer <a> click target
+                            intact under the stamp. */}
+                        {hasStamp && (
+                            <div
+                                class="pointer-events-none absolute z-10 flex items-center justify-end gap-1"
+                                style="top: -9px; right: -6px"
+                            >
                                 {highlightLabelKey && (
                                     <span
-                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm"
                                         style="background-color: var(--brand-accent-success); color: white"
                                     >
                                         {t(highlightLabelKey)}
                                     </span>
                                 )}
                                 {provider.savingsText && (
-                                    /* Companion to the Best price
-                                       chip — tangible savings vs the
-                                       second cheapest. Soft outline
-                                       so the chrome doesn't fight
-                                       the badge itself for attention. */
                                     <span
-                                        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-                                        style="border-color: var(--brand-accent-success); color: var(--brand-accent-success); background-color: transparent"
+                                        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm"
+                                        style="border-color: var(--brand-accent-success); color: var(--brand-accent-success); background-color: white"
                                     >
                                         {provider.savingsText}
                                     </span>
                                 )}
-                                {provider.isPriceOutlier && (
-                                    /* Soft warning label — bidirectional.
-                                       Catches BOTH expensive outliers
-                                       ("might be a premium upgrade")
-                                       AND cheap outliers ("might be a
-                                       stripped-down package"). Neutral
-                                       wording so we don't pretend to
-                                       know which side is the standard. */
-                                    <span
-                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
-                                        style="background-color: rgba(0,0,0,0.06); color: #6b7280"
-                                    >
-                                        {t('tickets.card.differentPackage')}
-                                    </span>
-                                )}
-                                {providerStarless && (
-                                    <span class="inline-flex items-baseline gap-0.5 text-xs" style={`color: ${arrowColor}`}>
-                                        <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
-                                        <span>{providerStarless}</span>
-                                    </span>
-                                )}
-                                {/* Per-provider annotation badges —
-                                    free_cancellation, mobile_ticket,
-                                    etc. Vary by provider even for the
-                                    same canonical ticket (Booking can
-                                    ship Free Cancellation where Klook
-                                    doesn't). Smaller / softer style
-                                    than the ticket-level badges so
-                                    the price stays the visual anchor. */}
-                                {provider.annotationBadges.map((badge) => (
-                                    <span
-                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
-                                    >
-                                        {badge.label}
-                                    </span>
-                                ))}
                             </div>
-                        </div>
-                        <div class="flex flex-shrink-0 items-center gap-3">
-                            {priceNode}
-                            {settings.showProviderArrow && provider.cheapestHref && (
-                                <span class="text-xs" style={`color: ${arrowColor}`} aria-hidden="true">→</span>
-                            )}
-                        </div>
+                        )}
                     </div>
                 );
 
