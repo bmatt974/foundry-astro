@@ -148,6 +148,12 @@ export interface Dictionary {
             durationMinutes: string;
             /** CTA on the card. */
             book: string;
+            /** Badge surfaced on the cheapest provider row when
+             *  `settings.highlight_target === 'cheapest'`. */
+            bestPrice: string;
+            /** Badge surfaced on the highest-rated provider row when
+             *  `settings.highlight_target === 'best_rated'`. */
+            bestRated: string;
         };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer

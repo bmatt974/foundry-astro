@@ -74,6 +74,8 @@ const fr: Dictionary = {
             durationHours: ':hours h',
             durationMinutes: ':minutes min',
             book: 'Réserver',
+            bestPrice: 'Meilleur prix',
+            bestRated: 'Meilleure note',
         },
         feature: {
             skip_the_line: 'Coupe-file',

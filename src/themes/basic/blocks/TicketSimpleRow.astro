@@ -23,7 +23,7 @@ interface Props {
     /** Subset of the parent block's settings that affect the row's
      *  presentation. Passed in instead of read from props.block so
      *  the row stays decoupled from the wider block shape. */
-    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel'>;
+    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget'>;
 }
 
 const { ticket, headingLevel, settings } = Astro.props;
@@ -65,7 +65,7 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
 
         {starlessRating && (
             <p class="flex items-center gap-1.5 text-sm" style="color: #1f2937">
-                <span style="color: #f59e0b" aria-hidden="true">★</span>
+                <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
                 <span class="font-semibold">{starlessRating}</span>
                 {ticket.durationText && (
                     <span class="brand-text-muted text-xs">· {ticket.durationText}</span>
@@ -82,7 +82,7 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                 {visibleBadges.map((badge) => (
                     <li
                         class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-                        style="background-color: #f0fdf4; color: #166534"
+                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
                     >
                         {badge.label}
                     </li>
@@ -114,6 +114,19 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                 const labelColor = '#1f2937';
                 const priceColor = '#111827';
                 const arrowColor = '#6b7280';
+                /* Highlight winner — subtle accent background +
+                   target-specific badge. Light tint is derived from
+                   the theme's `--brand-accent-success` via
+                   color-mix() so themes only override one base
+                   colour and the variants follow. */
+                const highlightLabelKey = provider.highlightedAs === 'best_rated'
+                    ? 'tickets.card.bestRated'
+                    : provider.highlightedAs === 'cheapest'
+                        ? 'tickets.card.bestPrice'
+                        : null;
+                const rowBg = provider.highlightedAs
+                    ? 'color-mix(in srgb, var(--brand-accent-success) 10%, transparent)'
+                    : '';
 
                 // Build the indicator according to the editor's
                 // choice — `dot` / `favicon` / `logo` / `none`.
@@ -201,16 +214,27 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                     : provider.cheapestRatingText;
 
                 const inner = (
-                    <div class="flex items-center justify-between gap-3 p-2.5">
+                    <div
+                        class="flex items-center justify-between gap-3 p-2.5"
+                        style={rowBg ? `background-color: ${rowBg}` : ''}
+                    >
                         <div class="flex min-w-0 items-center gap-2.5">
                             {indicator}
                             <div class="flex min-w-0 flex-wrap items-baseline gap-x-2">
                                 <span class="text-sm font-semibold truncate" style={`color: ${labelColor}`}>
                                     {provider.label}
                                 </span>
+                                {highlightLabelKey && (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                        style="background-color: var(--brand-accent-success); color: white"
+                                    >
+                                        {t(highlightLabelKey)}
+                                    </span>
+                                )}
                                 {providerStarless && (
                                     <span class="inline-flex items-baseline gap-0.5 text-xs" style={`color: ${arrowColor}`}>
-                                        <span style="color: #f59e0b" aria-hidden="true">★</span>
+                                        <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
                                         <span>{providerStarless}</span>
                                     </span>
                                 )}
@@ -225,7 +249,7 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                                 {provider.annotationBadges.map((badge) => (
                                     <span
                                         class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                                        style="background-color: #f0fdf4; color: #166534"
+                                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
                                     >
                                         {badge.label}
                                     </span>

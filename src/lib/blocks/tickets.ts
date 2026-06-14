@@ -148,6 +148,11 @@ export interface TicketsSettings {
      *  stay visible in both modes ; this setting controls only the
      *  trailing word. */
     showReviews: boolean;
+    /** Which provider gets the visual highlight on each ticket :
+     *   - 'cheapest'   : lowest price wins (default).
+     *   - 'best_rated' : highest aggregate rating wins.
+     *   - 'none'       : no highlight, all rows visually equal. */
+    highlightTarget: 'cheapest' | 'best_rated' | 'none';
     /** Render the group_type + experience_type chip rows above each bucket. */
     showFilters: boolean;
     /** Surface the synthetic "audio_guide" badge on Admission cards
@@ -238,6 +243,13 @@ export interface UniqueProvider {
      *  Cancellation, the Tiqets row gets the badge. Pre-resolved
      *  labels via `useTranslations()` so the renderer just maps. */
     annotationBadges: TicketBadge[];
+    /** Set when this provider matches the active highlight target
+     *  ('cheapest' or 'best_rated'). Null for the losers on each
+     *  ticket OR when `settings.highlightTarget === 'none'`. The
+     *  renderer picks the badge label from the value so the same
+     *  provider can carry different labels across blocks on the
+     *  same page. */
+    highlightedAs: 'cheapest' | 'best_rated' | null;
 }
 
 export interface ParsedTicket {
@@ -381,6 +393,7 @@ interface RawMeta {
         price_as_button?: boolean;
         cta_label?: string | null;
         show_reviews?: boolean;
+        highlight_target?: 'cheapest' | 'best_rated' | 'none';
         show_filters?: boolean;
         show_audio_badge?: boolean;
     };
@@ -450,6 +463,9 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
             ? s.cta_label.trim()
             : null,
         showReviews: s.show_reviews === true,
+        highlightTarget: (s.highlight_target === 'best_rated' || s.highlight_target === 'none')
+            ? s.highlight_target
+            : 'cheapest',
         showFilters: s.show_filters !== false,
         showAudioBadge: s.show_audio_badge !== false,
     };
@@ -658,6 +674,39 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         'instant_confirmation',
         'family_friendly',
     ];
+    // Pre-compute the highlight winner slug per supported target.
+    // Tie-breakers fall back to the iteration order (which is the
+    // affiliate-priority order the server applied), so a tie on
+    // price OR rating cedes to the leftmost slug in
+    // `settings.affiliate_programs`. Providers without parseable
+    // data never win (Infinity sentinels).
+    let cheapestSlug: string | null = null;
+    let cheapestFloor = Infinity;
+    let bestRatedSlug: string | null = null;
+    let bestRating = -Infinity;
+    for (const [slug, entry] of providerAccumulator) {
+        const floor = parsePriceFloor(entry.cheapest.priceText);
+        if (floor !== null && floor < cheapestFloor) {
+            cheapestFloor = floor;
+            cheapestSlug = slug;
+        }
+        const rating = entry.ratingWeightTotal > 0
+            ? entry.ratingWeightedSum / entry.ratingWeightTotal
+            : null;
+        if (rating !== null && rating > bestRating) {
+            bestRating = rating;
+            bestRatedSlug = slug;
+        }
+    }
+
+    // Map the editor's chosen target onto the winning slug. 'none'
+    // collapses the highlight entirely.
+    const highlightedSlug: string | null = (() => {
+        if (settings.highlightTarget === 'cheapest') return cheapestSlug;
+        if (settings.highlightTarget === 'best_rated') return bestRatedSlug;
+        return null;
+    })();
+
     const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
         ([slug, entry]) => {
             const aggregateRating = entry.ratingWeightTotal > 0
@@ -684,6 +733,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 cheapestRatingText: formatRating(aggregateRating, aggregateReviewCount, locale, reviewsSuffix),
                 cheapestHref: entry.cheapest.href,
                 annotationBadges,
+                highlightedAs: slug === highlightedSlug ? settings.highlightTarget as 'cheapest' | 'best_rated' : null,
             };
         },
     );
