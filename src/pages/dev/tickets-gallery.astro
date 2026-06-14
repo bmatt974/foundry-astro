@@ -1,0 +1,364 @@
+---
+/**
+ * Dev-only Tickets renderer gallery.
+ *
+ * Renders ONE Tickets block at a time, using REAL data fetched from
+ * the foundry `/api/v1/dev/places/{place}/tickets-block` endpoint
+ * and the SAME theme + brand tokens as the current tenant site, so
+ * the visual lands exactly as it will in production.
+ *
+ * URL params (all optional, defaults shown) :
+ *   place=138642        — Place ID to load (default = Colosseum).
+ *   variant=simple      — `block.variant` dispatch slug.
+ *   h=3                 — `settings.heading_level` (2..5).
+ *   heading=<text>      — `settings.heading_text` ; auto-derives
+ *                         from narrowed bucket when blank.
+ *   format=guided,...   — comma-separated format slugs filter.
+ *   group=private,...   — comma-separated group_type slugs filter.
+ *   experience=photo,... — comma-separated experience_type slugs filter.
+ *   bundle=inline|footer|hidden — Bundle bucket placement.
+ *
+ * 404s in production builds.
+ */
+export const prerender = false;
+
+import { getTheme } from '../../themes/registry';
+import type { PageBlock } from '../../lib/foundry';
+
+if (import.meta.env.PROD) {
+    return new Response('Not found', { status: 404 });
+}
+
+const tenant = Astro.locals.tenant;
+if (!tenant) {
+    return new Response('Tenant not resolved — dev gallery requires a host with a registered website.', { status: 500 });
+}
+
+const locale = Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
+const theme = await getTheme(tenant.website.template);
+const { Layout, Block } = theme;
+
+const params = Astro.url.searchParams;
+const placeId = params.get('place') ?? '138642';
+const variant = params.get('variant') ?? 'simple';
+const heading = params.get('heading') ?? '';
+const headingLevel = (() => {
+    const raw = parseInt(params.get('h') ?? '3', 10);
+    return [2, 3, 4, 5].includes(raw) ? raw : 3;
+})();
+// `getAll('X').flatMap(split)` covers both URL conventions :
+//   1. Multi-checkbox form submit → ?format=access&format=guided
+//   2. Hand-typed comma list → ?format=access,guided
+// Anything in between (mixed) also parses correctly.
+const collectMulti = (name: string): string[] =>
+    params.getAll(name).flatMap((v) => v.split(',')).map((s) => s.trim()).filter(Boolean);
+
+const filterFormat = collectMulti('format');
+const filterGroup = collectMulti('group');
+const filterExperience = collectMulti('experience');
+const affiliatePrograms = collectMulti('affiliate_programs');
+const sortBy = params.get('sort_by') ?? 'price';
+const providerIndicator = params.get('provider_indicator') ?? 'dot';
+
+// Checkbox absent from the URL = first load (use the default), not
+// "user unchecked it on the previous submit". A paired hidden input
+// in the form sends "0" when the checkbox is off, so `getAll` always
+// returns at least one value AFTER the first submit. "1" wins when
+// both values are present (checked state).
+const readBoolParam = (name: string, defaultValue: boolean): boolean => {
+    const values = params.getAll(name);
+    if (values.length === 0) return defaultValue;
+    return values.includes('1');
+};
+const showProviderArrow = readBoolParam('show_provider_arrow', false);
+const priceAsButton = readBoolParam('price_as_button', false);
+const ctaLabel = params.get('cta_label') ?? '';
+
+const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
+const upstream = new URLSearchParams();
+upstream.set('variant', variant);
+upstream.set('locale', locale);
+upstream.set('h', String(headingLevel));
+if (heading !== '') upstream.set('heading', heading);
+if (filterFormat.length) upstream.set('format', filterFormat.join(','));
+if (filterGroup.length) upstream.set('group', filterGroup.join(','));
+if (filterExperience.length) upstream.set('experience', filterExperience.join(','));
+if (affiliatePrograms.length) upstream.set('affiliate_programs', affiliatePrograms.join(','));
+if (sortBy !== 'price') upstream.set('sort_by', sortBy);
+if (providerIndicator !== 'dot') upstream.set('provider_indicator', providerIndicator);
+if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
+if (priceAsButton) upstream.set('price_as_button', '1');
+if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
+const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
+
+interface Aggregations {
+    format?: Record<string, number>;
+    group_type?: Record<string, number>;
+    experience_type?: Record<string, number>;
+    affiliate_programs?: Record<string, number>;
+}
+
+let block: PageBlock | null = null;
+let fetchError: string | null = null;
+let placeName: string | null = null;
+let blockSettings: Record<string, unknown> | null = null;
+let aggregations: Aggregations = {};
+try {
+    const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+    if (!response.ok) {
+        fetchError = `Foundry API ${response.status} ${response.statusText} — ${endpoint}`;
+    } else {
+        const body = await response.json();
+        block = body.data as PageBlock;
+        const meta = (block.content as {
+            meta?: {
+                place_name?: string;
+                settings?: Record<string, unknown>;
+                aggregations?: Aggregations;
+            };
+        } | null)?.meta;
+        placeName = meta?.place_name ?? null;
+        blockSettings = meta?.settings ?? null;
+        aggregations = meta?.aggregations ?? {};
+    }
+} catch (err) {
+    fetchError = err instanceof Error ? err.message : String(err);
+}
+
+function chipLabel(slug: string, axis: keyof Aggregations): string {
+    const count = aggregations[axis]?.[slug];
+    return count !== undefined ? `${slug} (${count})` : slug;
+}
+
+const VARIANTS = ['simple'] as const;
+const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
+const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
+const EXPERIENCE_SLUGS = ['classic', 'photo', 'family', 'food', 'night', 'vr', 'workshop', 'adventure', 'wellness'] as const;
+const AFFILIATE_SLUGS = ['viator', 'getyourguide', 'tiqets', 'headout', 'klook', 'musement'] as const;
+const SAMPLE_PLACES = [{ id: '138642', label: 'Colisée (138642)' }];
+
+function isChecked(slug: string, picked: string[]): boolean {
+    return picked.includes(slug);
+}
+---
+
+<Layout title={`Tickets gallery — ${placeName ?? `Place #${placeId}`}`} description="Dev-only Tickets block variant gallery" locale={locale}>
+    <style slot="head" is:inline>
+        .dev-gallery-toolbar {
+            background: rgba(255, 255, 255, 0.97);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.8rem;
+        }
+        .dev-gallery-toolbar form { display: grid; grid-template-columns: max-content 1fr max-content; gap: 0.5rem 0.75rem; align-items: center; }
+        .dev-gallery-toolbar .row { display: contents; }
+        .dev-gallery-toolbar .group-label {
+            font-size: 0.65rem; color: #6b7280; text-transform: uppercase;
+            letter-spacing: 0.08em; font-weight: 700; white-space: nowrap;
+            padding-top: 0.2rem;
+        }
+        .dev-gallery-toolbar .chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+        .dev-gallery-toolbar .chip {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            font-size: 0.7rem; padding: 0.2rem 0.5rem;
+            border: 1px solid #d1d5db; border-radius: 999px;
+            background: white; cursor: pointer; user-select: none;
+        }
+        .dev-gallery-toolbar .chip input { margin: 0; }
+        .dev-gallery-toolbar .chip:has(input:checked) {
+            background: #1f2937; color: white; border-color: #1f2937;
+        }
+        .dev-gallery-toolbar input[type=text], .dev-gallery-toolbar select {
+            font: inherit; padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db; border-radius: 6px; background: white;
+        }
+        .dev-gallery-toolbar .inline-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .dev-gallery-toolbar .actions {
+            display: flex; gap: 0.5rem; align-items: center;
+            grid-column: 1 / -1; padding-top: 0.5rem;
+            border-top: 1px dashed rgba(0,0,0,0.08); margin-top: 0.25rem;
+        }
+        .dev-gallery-toolbar button {
+            font: inherit; padding: 0.35rem 0.85rem;
+            border: 0; border-radius: 6px; cursor: pointer;
+            background: #1f2937; color: white; font-weight: 600;
+        }
+        .dev-gallery-toolbar .reset {
+            background: transparent; color: #6b7280; font-weight: 400;
+            text-decoration: underline;
+        }
+        .dev-gallery-toolbar .meta { color: #6b7280; font-size: 0.7rem; margin-left: auto; }
+        .dev-gallery-error {
+            margin: 2rem auto; max-width: 50rem; padding: 1rem 1.25rem;
+            border: 1px solid #fca5a5; background: #fef2f2; color: #991b1b;
+            border-radius: 8px; font-family: ui-monospace, monospace;
+            font-size: 0.85rem; word-break: break-all;
+        }
+        .dev-gallery-empty {
+            margin: 2rem auto; max-width: 50rem; padding: 1rem 1.25rem;
+            border: 1px dashed #d1d5db; background: #f9fafb; color: #6b7280;
+            border-radius: 8px; text-align: center;
+            font-family: ui-sans-serif, system-ui, sans-serif; font-size: 0.9rem;
+        }
+        .dev-gallery-debug {
+            max-width: 60rem; margin: 0 auto 1rem; padding: 0.5rem 1rem;
+            background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px;
+            font-family: ui-monospace, monospace; font-size: 0.7rem; color: #4b5563;
+        }
+        .dev-gallery-debug summary {
+            cursor: pointer; font-weight: 600; user-select: none;
+            color: #6b7280; padding: 0.25rem 0;
+        }
+        .dev-gallery-debug pre {
+            margin: 0.5rem 0 0; white-space: pre-wrap; word-break: break-word;
+            font-size: 0.7rem; line-height: 1.4;
+        }
+    </style>
+
+    <div class="dev-gallery-toolbar">
+        <form method="get" action="/dev/tickets-gallery">
+            <div class="row">
+                <span class="group-label">Place</span>
+                <div class="inline-controls">
+                    <input
+                        type="text"
+                        name="place"
+                        value={placeId}
+                        list="dev-gallery-place-suggestions"
+                        size="12"
+                    />
+                    <datalist id="dev-gallery-place-suggestions">
+                        {SAMPLE_PLACES.map((p) => <option value={p.id}>{p.label}</option>)}
+                    </datalist>
+                    <select name="variant">
+                        {VARIANTS.map((v) => <option value={v} selected={v === variant}>{v}</option>)}
+                    </select>
+                    <select name="h">
+                        {[2, 3, 4, 5].map((lvl) => <option value={String(lvl)} selected={lvl === headingLevel}>{`h${lvl}`}</option>)}
+                    </select>
+                    <select name="sort_by">
+                        {['price', 'rating', 'reviews'].map((mode) => <option value={mode} selected={mode === sortBy}>{`sort:${mode}`}</option>)}
+                    </select>
+                    <select name="provider_indicator">
+                        {['dot', 'favicon', 'logo', 'none'].map((mode) => <option value={mode} selected={mode === providerIndicator}>{`marker:${mode}`}</option>)}
+                    </select>
+                    {/* Paired hidden inputs send "0" when the
+                        checkboxes are unchecked — necessary because
+                        HTML omits the param entirely otherwise. */}
+                    <input type="hidden" name="show_provider_arrow" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="show_provider_arrow" value="1" checked={showProviderArrow} />
+                        arrow
+                    </label>
+                    <input type="hidden" name="price_as_button" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="price_as_button" value="1" checked={priceAsButton} />
+                        price as button
+                    </label>
+                    <input
+                        type="text"
+                        name="cta_label"
+                        value={ctaLabel}
+                        placeholder="CTA (Voir l'offre)"
+                        size="14"
+                    />
+                </div>
+                <span class="meta">
+                    {placeName ?? `Place #${placeId}`} · theme <code>{tenant.website.template ?? 'basic'}</code> · locale <code>{locale}</code>
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="group-label">Heading</span>
+                <input
+                    type="text"
+                    name="heading"
+                    value={heading}
+                    placeholder="Editorial title (e.g. Pour la tranquillité, optez pour une visite privée)"
+                    style="width:100%"
+                />
+                <span></span>
+            </div>
+
+            <div class="row">
+                <span class="group-label">Format</span>
+                <div class="chip-row">
+                    {FORMAT_SLUGS.map((slug) => (
+                        <label class="chip">
+                            <input type="checkbox" name="format" value={slug} checked={isChecked(slug, filterFormat)} />
+                            {chipLabel(slug, 'format')}
+                        </label>
+                    ))}
+                </div>
+                <span></span>
+            </div>
+
+            <div class="row">
+                <span class="group-label">Group</span>
+                <div class="chip-row">
+                    {GROUP_SLUGS.map((slug) => (
+                        <label class="chip">
+                            <input type="checkbox" name="group" value={slug} checked={isChecked(slug, filterGroup)} />
+                            {chipLabel(slug, 'group_type')}
+                        </label>
+                    ))}
+                </div>
+                <span></span>
+            </div>
+
+            <div class="row">
+                <span class="group-label">Experience</span>
+                <div class="chip-row">
+                    {EXPERIENCE_SLUGS.map((slug) => (
+                        <label class="chip">
+                            <input type="checkbox" name="experience" value={slug} checked={isChecked(slug, filterExperience)} />
+                            {chipLabel(slug, 'experience_type')}
+                        </label>
+                    ))}
+                </div>
+                <span></span>
+            </div>
+
+            <div class="row">
+                <span class="group-label" title="Order in URL = display priority on cards. Empty = all active programs.">Affiliate</span>
+                <div class="chip-row">
+                    {AFFILIATE_SLUGS.map((slug) => (
+                        <label class="chip">
+                            <input type="checkbox" name="affiliate_programs" value={slug} checked={isChecked(slug, affiliatePrograms)} />
+                            {chipLabel(slug, 'affiliate_programs')}
+                        </label>
+                    ))}
+                </div>
+                <span></span>
+            </div>
+
+            <div class="actions">
+                <button type="submit">Reload</button>
+                <a class="reset" href="/dev/tickets-gallery">reset</a>
+            </div>
+        </form>
+    </div>
+
+    {fetchError && (
+        <div class="dev-gallery-error">
+            Failed to fetch tickets block — {fetchError}
+        </div>
+    )}
+
+    {blockSettings && (
+        <details class="dev-gallery-debug">
+            <summary>Debug — block.settings ({Object.keys(blockSettings).length} keys)</summary>
+            <pre>{JSON.stringify(blockSettings, null, 2)}</pre>
+        </details>
+    )}
+
+    {!fetchError && block && <Block block={block} />}
+
+    {!fetchError && !block && (
+        <div class="dev-gallery-empty">
+            No tickets block returned for Place #{placeId} (variant <code>{variant}</code>).
+        </div>
+    )}
+</Layout>
