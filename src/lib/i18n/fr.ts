@@ -77,6 +77,8 @@ const fr: Dictionary = {
             bestPrice: 'Meilleur prix',
             bestRated: 'Meilleure note',
             differentPackage: 'Autre formule',
+            aggregatedAcross: 'Agrégé sur :count fournisseurs',
+            saveAmount: 'Économisez :pct %',
         },
         feature: {
             skip_the_line: 'Coupe-file',

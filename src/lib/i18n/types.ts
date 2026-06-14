@@ -162,6 +162,20 @@ export interface Dictionary {
              *  the price stands out and probably indicates a
              *  different product. */
             differentPackage: string;
+            /** Discreet line under the ticket-level rating making
+             *  it explicit that the (review) count is the cumulative
+             *  total across the surviving providers, not a single
+             *  marketplace's score. ":count" is the provider count.
+             *  Renders only when count >= 2. */
+            aggregatedAcross: string;
+            /** Savings chip surfaced next to the Best price badge.
+             *  ":amount" is the formatted absolute savings, ":pct" the
+             *  integer percentage off. Calculated against the MOST
+             *  EXPENSIVE non-outlier provider — outliers excluded so
+             *  the "Save €X" claim never inflates via the suspect
+             *  premium listing we've already labelled "Different
+             *  package". */
+            saveAmount: string;
         };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer

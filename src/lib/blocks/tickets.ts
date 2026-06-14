@@ -268,6 +268,13 @@ export interface UniqueProvider {
      *  the row (settings.hidePriceOutliers === true) or paints it
      *  with a "Different package" badge as a soft warning. */
     isPriceOutlier: boolean;
+    /** Pre-formatted savings line for the cheapest provider :
+     *  "Save €5" / "Économisez 5 €". Calculated against the
+     *  SECOND cheapest price on the ticket (not the max, which
+     *  would inflate via outliers). Null on every non-cheapest
+     *  provider, or when the savings delta < 10% of the second
+     *  cheapest (below that, the savings read as noise). */
+    savingsText: string | null;
 }
 
 export interface ParsedTicket {
@@ -583,6 +590,25 @@ function parsePriceFloor(text: string | null): number | null {
 }
 
 /**
+ * Locale-aware currency formatter for WHOLE amounts only — drops
+ * the trailing ",00" / ".00" so "Save €11" lands cleaner than
+ * "Save €11.00". Returns null on non-finite input so the caller
+ * can fall back gracefully.
+ */
+function formatPriceWhole(amount: number, locale: string, currency: string = 'EUR'): string | null {
+    if (!Number.isFinite(amount)) return null;
+    try {
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency,
+            maximumFractionDigits: 0,
+        }).format(amount);
+    } catch {
+        return `${amount} ${currency}`;
+    }
+}
+
+/**
  * Decide whether a provider's cheapest price falls outside the
  * ticket's "reference price band". Bidirectional :
  *   - 3+ providers : reference is the median price. Band is
@@ -826,6 +852,44 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         if (floor !== null) providerPriceFloors.push(floor);
     }
 
+    // Savings vs the MOST EXPENSIVE non-outlier provider. Outliers
+    // are already flagged by `isOutlierPrice()` (the same band that
+    // paints the "Different package" chip) and excluded here so the
+    // "Save €X" claim never inflates via the suspect listing we've
+    // labelled as suspect. Surfaces only when the delta clears 10 %
+    // of the reference price, otherwise the chip reads as noise
+    // next to the Best price badge.
+    const nonOutlierFloors: number[] = [];
+    for (const entry of providerAccumulator.values()) {
+        const floor = parsePriceFloor(entry.cheapest.priceText);
+        if (floor === null) continue;
+        if (isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)) continue;
+        nonOutlierFloors.push(floor);
+    }
+    const referenceFloor = nonOutlierFloors.length >= 2
+        ? Math.max(...nonOutlierFloors)
+        : null;
+    let cheapestSavingsText: string | null = null;
+    if (cheapestSlug !== null && referenceFloor !== null && cheapestFloor !== Infinity) {
+        const delta = referenceFloor - cheapestFloor;
+        const deltaPct = referenceFloor > 0 ? delta / referenceFloor : 0;
+        if (delta > 0 && deltaPct >= 0.10) {
+            // Smart decimal trimming : drop the ",00" / ".00" suffix
+            // when the savings is whole — "Save €11" lands harder
+            // than "Save €11.00".
+            const isWhole = Math.abs(delta - Math.round(delta)) < 0.01;
+            const amount = isWhole
+                ? formatPriceWhole(Math.round(delta), locale)
+                : formatPrice(delta, locale);
+            if (amount !== null) {
+                cheapestSavingsText = t('tickets.card.saveAmount', {
+                    amount,
+                    pct: String(Math.round(deltaPct * 100)),
+                });
+            }
+        }
+    }
+
     const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
         ([slug, entry]) => {
             const aggregateRating = entry.ratingWeightTotal > 0
@@ -866,6 +930,14 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                     ? settings.highlightTarget as 'cheapest' | 'best_rated'
                     : null,
                 isPriceOutlier: isOutlierPrice(entry.cheapest.priceText, providerPriceFloors),
+                // Attach the savings line to the cheapest provider
+                // only (and only when the highlight survived — the
+                // suppression above for outliers also suppresses
+                // savings, since "Save €5 on a Different package"
+                // would be the same cognitive dissonance).
+                savingsText: slug === cheapestSlug && slug === highlightedSlug && !isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)
+                    ? cheapestSavingsText
+                    : null,
             };
         },
     );

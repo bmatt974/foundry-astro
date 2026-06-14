@@ -52,6 +52,13 @@ const visibleBadges = ticket.badges.slice(0, 4);
 // "this is a multi-attraction pass" without saying it explicitly.
 const secondaryPlaces = ticket.coveredPlaces.filter((p) => !p.isPrimary);
 const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
+
+// Aggregation disclosure : surface that the ticket-level rating's
+// review count is the cumulative total across all surviving
+// providers, not a single marketplace's score. Renders only when
+// at least 2 providers contribute — single-provider tickets carry
+// a Tripadvisor-style score with no aggregation to disclose.
+const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRating);
 ---
 
 <li class="flex flex-col gap-3 p-4">
@@ -70,6 +77,12 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                 {ticket.durationText && (
                     <span class="brand-text-muted text-xs">· {ticket.durationText}</span>
                 )}
+            </p>
+        )}
+
+        {showAggregationHint && (
+            <p class="brand-text-muted text-[11px]">
+                {t('tickets.card.aggregatedAcross', { count: String(ticket.providers.length) })}
             </p>
         )}
 
@@ -238,6 +251,19 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                                         style="background-color: var(--brand-accent-success); color: white"
                                     >
                                         {t(highlightLabelKey)}
+                                    </span>
+                                )}
+                                {provider.savingsText && (
+                                    /* Companion to the Best price
+                                       chip — tangible savings vs the
+                                       second cheapest. Soft outline
+                                       so the chrome doesn't fight
+                                       the badge itself for attention. */
+                                    <span
+                                        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                                        style="border-color: var(--brand-accent-success); color: var(--brand-accent-success); background-color: transparent"
+                                    >
+                                        {provider.savingsText}
                                     </span>
                                 )}
                                 {provider.isPriceOutlier && (
