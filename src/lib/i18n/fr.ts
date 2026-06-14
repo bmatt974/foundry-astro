@@ -34,6 +34,59 @@ const fr: Dictionary = {
         body: "Désolé, nous n'avons pas trouvé la page que vous cherchiez. Elle a peut-être été déplacée, ou l'adresse contient peut-être une faute de frappe.",
         cta: "Retour à l'accueil",
     },
+    tickets: {
+        format: {
+            access: 'Entrée simple',
+            guided: 'Visite guidée',
+            special_access: 'Accès spécial',
+            bundle: 'Pass & Combos',
+        },
+        groupType: {
+            standard: 'Standard',
+            small_group: 'Petit groupe',
+            private: 'Privé',
+        },
+        experienceType: {
+            classic: 'Classique',
+            photo: 'Photoshoot',
+            family: 'Famille',
+            food: 'Gastronomie',
+            night: 'Nocturne',
+            vr: 'Réalité virtuelle',
+            workshop: 'Atelier',
+            adventure: 'Aventure',
+            wellness: 'Bien-être',
+        },
+        filter: {
+            groupHeader: 'Avec qui',
+            experienceHeader: 'Expérience',
+            all: 'Tous',
+        },
+        bucket: {
+            header: ':format (:count)',
+            empty: 'Aucun billet dans cette catégorie pour le moment.',
+        },
+        card: {
+            priceFrom: 'À partir de :price',
+            providers: ':count fournisseurs',
+            reviews: ':count avis',
+            durationHours: ':hours h',
+            durationMinutes: ':minutes min',
+            book: 'Réserver',
+        },
+        feature: {
+            skip_the_line: 'Coupe-file',
+            priority_entry: 'Entrée prioritaire',
+            official_ticket: 'Billet officiel',
+            free_cancellation: 'Annulation gratuite',
+            mobile_ticket: 'Billet mobile',
+            audio_guide: 'Audioguide',
+            hotel_pickup: "Prise en charge à l'hôtel",
+            transport_included: 'Transport inclus',
+            meal_included: 'Repas inclus',
+            wheelchair_accessible: 'Accessible PMR',
+        },
+    },
 };
 
 export default fr;

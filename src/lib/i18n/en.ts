@@ -34,6 +34,59 @@ const en: Dictionary = {
         body: "Sorry, we couldn't find the page you were looking for. It may have moved, or perhaps you mistyped the address.",
         cta: 'Back to home',
     },
+    tickets: {
+        format: {
+            access: 'Admission',
+            guided: 'Guided tour',
+            special_access: 'Special access',
+            bundle: 'Passes & Combos',
+        },
+        groupType: {
+            standard: 'Standard',
+            small_group: 'Small group',
+            private: 'Private',
+        },
+        experienceType: {
+            classic: 'Classic',
+            photo: 'Photo shoot',
+            family: 'Family',
+            food: 'Food & wine',
+            night: 'Night & sunset',
+            vr: 'VR & multimedia',
+            workshop: 'Workshop',
+            adventure: 'Adventure',
+            wellness: 'Wellness',
+        },
+        filter: {
+            groupHeader: 'With whom',
+            experienceHeader: 'Experience',
+            all: 'All',
+        },
+        bucket: {
+            header: ':format (:count)',
+            empty: 'No tickets in this category yet.',
+        },
+        card: {
+            priceFrom: 'From :price',
+            providers: ':count providers',
+            reviews: ':count reviews',
+            durationHours: ':hours h',
+            durationMinutes: ':minutes min',
+            book: 'Book',
+        },
+        feature: {
+            skip_the_line: 'Skip-the-line',
+            priority_entry: 'Priority entry',
+            official_ticket: 'Official ticket',
+            free_cancellation: 'Free cancellation',
+            mobile_ticket: 'Mobile ticket',
+            audio_guide: 'Audio guide',
+            hotel_pickup: 'Hotel pickup',
+            transport_included: 'Transport included',
+            meal_included: 'Meal included',
+            wheelchair_accessible: 'Wheelchair accessible',
+        },
+    },
 };
 
 export default en;

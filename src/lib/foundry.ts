@@ -29,6 +29,7 @@ export type BlockType =
     | 'comparison'
     | 'top_list'
     | 'product_card'
+    | 'tickets'
     | 'section'
     | 'divider';
 

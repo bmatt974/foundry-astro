@@ -76,4 +76,89 @@ export interface Dictionary {
         /** Label of the "back home" CTA. */
         cta: string;
     };
+    /**
+     * Tickets renderer — 4-bucket section + 3-axis taxonomy.
+     *
+     * Slugs come from the foundry payload (`TicketFormat`,
+     * `TicketGroupType`, `TicketExperienceType` backing values) — the
+     * renderer maps them through this namespace at presentation time
+     * so per-site `wording` overrides + locale fallbacks both apply
+     * without a backend round-trip.
+     *
+     * Source of truth for the slug list :
+     *   /docs/strategy/tickets/data-model.md
+     */
+    tickets: {
+        /** 4 top-level format buckets. */
+        format: {
+            access: string;
+            guided: string;
+            special_access: string;
+            bundle: string;
+        };
+        /** 3 group types — Axis 2. Card badge + filter chip + sub-section. */
+        groupType: {
+            standard: string;
+            small_group: string;
+            private: string;
+        };
+        /** 9 experience types — Axis 3. Card badge + filter chip + sub-section. */
+        experienceType: {
+            classic: string;
+            photo: string;
+            family: string;
+            food: string;
+            night: string;
+            vr: string;
+            workshop: string;
+            adventure: string;
+            wellness: string;
+        };
+        /** Filter chip rows above each bucket. */
+        filter: {
+            /** Header above the group-type chips. */
+            groupHeader: string;
+            /** Header above the experience-type chips. */
+            experienceHeader: string;
+            /** "All" chip — clears the current filter. */
+            all: string;
+        };
+        /** Bucket-level UI strings. */
+        bucket: {
+            /** ":format (:count)" — header on each bucket section. */
+            header: string;
+            /** Shown when no tickets land in a bucket. */
+            empty: string;
+        };
+        /** Per-card UI strings. */
+        card: {
+            /** "From :price" — price-from-cheapest-source prefix. */
+            priceFrom: string;
+            /** ":count providers" — link out for cross-provider compare. */
+            providers: string;
+            /** ":count reviews" — rating count on the card. */
+            reviews: string;
+            /** ":hours h" — duration formatter (rounded hours). */
+            durationHours: string;
+            /** ":minutes min" — duration formatter (under 1h). */
+            durationMinutes: string;
+            /** CTA on the card. */
+            book: string;
+        };
+        /** Per-feature badge labels (subset surfaced on cards). The full
+         *  `TicketFeature` enum has 23 cases ; only the ones the renderer
+         *  actually paints on cards live here. */
+        feature: {
+            skip_the_line: string;
+            priority_entry: string;
+            official_ticket: string;
+            free_cancellation: string;
+            mobile_ticket: string;
+            audio_guide: string;
+            hotel_pickup: string;
+            transport_included: string;
+            meal_included: string;
+            wheelchair_accessible: string;
+        };
+    };
 }
