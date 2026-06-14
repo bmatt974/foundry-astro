@@ -142,6 +142,12 @@ export interface TicketsSettings {
      *  its `<a>` wrapper. Conversion lever — softer wording
      *  ("View deal") typically beats "Book now" in tests. */
     ctaLabel: string | null;
+    /** Append the locale-aware "avis" / "reviews" word after the
+     *  count inside the rating parenthetical. ON → "★ 4.5
+     *  (12,345 avis)", OFF → "★ 4.5 (12,345)". The rating + count
+     *  stay visible in both modes ; this setting controls only the
+     *  trailing word. */
+    showReviews: boolean;
     /** Render the group_type + experience_type chip rows above each bucket. */
     showFilters: boolean;
     /** Surface the synthetic "audio_guide" badge on Admission cards
@@ -179,6 +185,13 @@ export interface TicketSource {
      *  several distinct listings of the same ticket). */
     rating: number | null;
     reviewCount: number | null;
+    /** Per-source annotation feature slugs (free_cancellation,
+     *  mobile_ticket, instant_confirmation, family_friendly). Vary
+     *  by provider for the same canonical ticket — Booking might
+     *  ship Free Cancellation where Klook doesn't. Product-defining
+     *  flags (skip_the_line, audio_guide) stay on the ticket-level
+     *  pivot and never reach here. */
+    features: string[];
 }
 
 export interface UniqueProvider {
@@ -219,6 +232,12 @@ export interface UniqueProvider {
      *  the source has neither (renderer should fall back to a non-
      *  clickable row in that case). */
     cheapestHref: string | null;
+    /** Per-provider annotation badges (free_cancellation,
+     *  mobile_ticket, instant_confirmation). UNION across every
+     *  source of this provider — if ANY Tiqets listing ships Free
+     *  Cancellation, the Tiqets row gets the badge. Pre-resolved
+     *  labels via `useTranslations()` so the renderer just maps. */
+    annotationBadges: TicketBadge[];
 }
 
 export interface ParsedTicket {
@@ -327,6 +346,7 @@ interface RawSource {
     rating?: number | null;
     review_count?: number | null;
     image_url?: string | null;
+    features?: string[];
 }
 
 interface RawTicket {
@@ -360,6 +380,7 @@ interface RawMeta {
         show_provider_arrow?: boolean;
         price_as_button?: boolean;
         cta_label?: string | null;
+        show_reviews?: boolean;
         show_filters?: boolean;
         show_audio_badge?: boolean;
     };
@@ -418,16 +439,17 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
         sortBy: (s.sort_by === 'rating' || s.sort_by === 'reviews') ? s.sort_by : 'price',
         providerIndicator: (
             s.provider_indicator === 'logo'
-            || s.provider_indicator === 'favicon'
+            || s.provider_indicator === 'dot'
             || s.provider_indicator === 'none'
         )
             ? s.provider_indicator
-            : 'dot',
+            : 'favicon',
         showProviderArrow: s.show_provider_arrow === true,
         priceAsButton: s.price_as_button === true,
         ctaLabel: typeof s.cta_label === 'string' && s.cta_label.trim() !== ''
             ? s.cta_label.trim()
             : null,
+        showReviews: s.show_reviews === true,
         showFilters: s.show_filters !== false,
         showAudioBadge: s.show_audio_badge !== false,
     };
@@ -497,7 +519,7 @@ function parsePriceFloor(text: string | null): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-function buildSource(raw: RawSource, locale: string, linkProxyPath: string): TicketSource {
+function buildSource(raw: RawSource, locale: string, linkProxyPath: string, reviewsSuffix: string | undefined): TicketSource {
     return {
         provider: raw.provider ?? '',
         providerLabel: raw.provider_label?.trim() || raw.provider || '',
@@ -506,10 +528,13 @@ function buildSource(raw: RawSource, locale: string, linkProxyPath: string): Tic
         providerBrandColor: raw.provider_brand_color ?? null,
         href: resolveSourceHref(raw, linkProxyPath),
         priceText: formatPrice(raw.price_eur ?? null, locale),
-        ratingText: formatRating(raw.rating ?? null, raw.review_count ?? null, locale),
+        ratingText: formatRating(raw.rating ?? null, raw.review_count ?? null, locale, reviewsSuffix),
         imageUrl: raw.image_url ?? null,
         rating: typeof raw.rating === 'number' ? raw.rating : null,
         reviewCount: typeof raw.review_count === 'number' ? raw.review_count : null,
+        features: Array.isArray(raw.features)
+            ? raw.features.filter((f): f is string => typeof f === 'string')
+            : [],
     };
 }
 
@@ -522,9 +547,14 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
     const groupType: TicketGroupTypeSlug = raw.group_type ?? 'standard';
     const experienceType: TicketExperienceTypeSlug = raw.experience_type ?? 'classic';
 
+    // Reviews suffix glues into formatRating output. When the
+    // editor toggles `show_reviews` off, we pass an empty string
+    // so the rating renders as "★ 4.5 (12,345)" — the count stays,
+    // only the trailing "avis"/"reviews" word drops.
+    const reviewsSuffix = settings.showReviews ? t('tickets.card.reviewsSuffix') : undefined;
     const sources = (raw.sources ?? [])
         .filter((s): s is RawSource => s !== null && typeof s === 'object')
-        .map((s) => buildSource(s, locale, linkProxyPath));
+        .map((s) => buildSource(s, locale, linkProxyPath, reviewsSuffix));
 
     const features = (raw.features ?? []).filter((f): f is string => typeof f === 'string');
 
@@ -573,6 +603,10 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         ratingWeightedSum: number;
         ratingWeightTotal: number;
         reviewSum: number;
+        /** Union of every source's annotation features — if ANY
+         *  of this provider's sources ships Free Cancellation, the
+         *  row gets the badge. Set semantics keep dedup automatic. */
+        annotationFeatures: Set<string>;
     }>();
     for (const source of sources) {
         if (source.provider === '') continue;
@@ -592,6 +626,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                     ? source.reviewCount
                     : 0,
                 reviewSum: source.reviewCount ?? 0,
+                annotationFeatures: new Set(source.features),
             });
         } else {
             entry.count += 1;
@@ -609,14 +644,32 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             if (source.reviewCount !== null) {
                 entry.reviewSum += source.reviewCount;
             }
+            for (const slug of source.features) {
+                entry.annotationFeatures.add(slug);
+            }
         }
     }
+    // Per-provider annotation badges in editorial priority order :
+    // strongest trust signal (Free Cancellation) wins the leftmost
+    // slot. Features absent from the provider's union don't render.
+    const ANNOTATION_ORDER: ReadonlyArray<string> = [
+        'free_cancellation',
+        'mobile_ticket',
+        'instant_confirmation',
+        'family_friendly',
+    ];
     const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
         ([slug, entry]) => {
             const aggregateRating = entry.ratingWeightTotal > 0
                 ? entry.ratingWeightedSum / entry.ratingWeightTotal
                 : null;
             const aggregateReviewCount = entry.reviewSum > 0 ? entry.reviewSum : null;
+            const annotationBadges: TicketBadge[] = ANNOTATION_ORDER
+                .filter((featureSlug) => entry.annotationFeatures.has(featureSlug))
+                .map((featureSlug) => ({
+                    slug: featureSlug,
+                    label: t(`tickets.feature.${featureSlug}` as TranslationKey),
+                }));
             return {
                 slug,
                 label: entry.label,
@@ -628,8 +681,9 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 // Aggregate rating + review count over ALL of this
                 // provider's sources — see comment above on why this
                 // beats `entry.cheapest.ratingText`.
-                cheapestRatingText: formatRating(aggregateRating, aggregateReviewCount, locale),
+                cheapestRatingText: formatRating(aggregateRating, aggregateReviewCount, locale, reviewsSuffix),
                 cheapestHref: entry.cheapest.href,
+                annotationBadges,
             };
         },
     );
@@ -642,7 +696,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         experienceType,
         priceText: formatPrice(raw.price_from_eur ?? null, locale),
         durationText: formatDuration(raw.duration_minutes ?? null, locale),
-        ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale),
+        ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale, reviewsSuffix),
         isBundle: raw.multi_attraction_pass === true || format === 'bundle',
         coveredPlaces,
         badges: buildBadges(features, settings, t),

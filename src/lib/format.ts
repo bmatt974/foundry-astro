@@ -77,6 +77,13 @@ export function formatRating(
     rating: number | null | undefined,
     reviewCount: number | null | undefined,
     locale: string,
+    /** Optional locale-aware word appended after the count
+     *  ("avis" / "reviews" / "Bewertungen"). When provided, the
+     *  output becomes `★ 4.5 (12,345 avis)` instead of the
+     *  ambiguous `★ 4.5 (12,345)`. The caller resolves the word
+     *  via its `useTranslations()` instance ; the formatter just
+     *  glues it in. */
+    reviewWord?: string,
 ): string | null {
     if (rating === null || rating === undefined || !Number.isFinite(rating)) {
         return null;
@@ -85,7 +92,8 @@ export function formatRating(
         .format(rating);
     if (reviewCount && reviewCount > 0) {
         const count = new Intl.NumberFormat(locale).format(reviewCount);
-        return `★ ${decimal} (${count})`;
+        const trailing = reviewWord ? `${count} ${reviewWord}` : count;
+        return `★ ${decimal} (${trailing})`;
     }
 
     return `★ ${decimal}`;

@@ -214,6 +214,22 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
                                         <span>{providerStarless}</span>
                                     </span>
                                 )}
+                                {/* Per-provider annotation badges —
+                                    free_cancellation, mobile_ticket,
+                                    etc. Vary by provider even for the
+                                    same canonical ticket (Booking can
+                                    ship Free Cancellation where Klook
+                                    doesn't). Smaller / softer style
+                                    than the ticket-level badges so
+                                    the price stays the visual anchor. */}
+                                {provider.annotationBadges.map((badge) => (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                        style="background-color: #f0fdf4; color: #166534"
+                                    >
+                                        {badge.label}
+                                    </span>
+                                ))}
                             </div>
                         </div>
                         <div class="flex flex-shrink-0 items-center gap-3">

@@ -58,7 +58,7 @@ const filterGroup = collectMulti('group');
 const filterExperience = collectMulti('experience');
 const affiliatePrograms = collectMulti('affiliate_programs');
 const sortBy = params.get('sort_by') ?? 'price';
-const providerIndicator = params.get('provider_indicator') ?? 'dot';
+const providerIndicator = params.get('provider_indicator') ?? 'favicon';
 
 // Checkbox absent from the URL = first load (use the default), not
 // "user unchecked it on the previous submit". A paired hidden input
@@ -72,6 +72,7 @@ const readBoolParam = (name: string, defaultValue: boolean): boolean => {
 };
 const showProviderArrow = readBoolParam('show_provider_arrow', false);
 const priceAsButton = readBoolParam('price_as_button', false);
+const showReviews = readBoolParam('show_reviews', false);
 const ctaLabel = params.get('cta_label') ?? '';
 
 const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
@@ -85,9 +86,10 @@ if (filterGroup.length) upstream.set('group', filterGroup.join(','));
 if (filterExperience.length) upstream.set('experience', filterExperience.join(','));
 if (affiliatePrograms.length) upstream.set('affiliate_programs', affiliatePrograms.join(','));
 if (sortBy !== 'price') upstream.set('sort_by', sortBy);
-if (providerIndicator !== 'dot') upstream.set('provider_indicator', providerIndicator);
+if (providerIndicator !== 'favicon') upstream.set('provider_indicator', providerIndicator);
 if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
 if (priceAsButton) upstream.set('price_as_button', '1');
+if (showReviews) upstream.set('show_reviews', '1');
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
 
@@ -256,6 +258,11 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <label class="chip">
                         <input type="checkbox" name="price_as_button" value="1" checked={priceAsButton} />
                         price as button
+                    </label>
+                    <input type="hidden" name="show_reviews" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="show_reviews" value="1" checked={showReviews} />
+                        reviews
                     </label>
                     <input
                         type="text"

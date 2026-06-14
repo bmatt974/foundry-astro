@@ -138,6 +138,10 @@ export interface Dictionary {
             providers: string;
             /** ":count reviews" — rating count on the card. */
             reviews: string;
+            /** Static suffix glued into `formatRating()` output —
+             *  produces "★ 4.5 (12,345 avis)" / "★ 4.5 (12,345 reviews)".
+             *  Disambiguates the bare count for the visitor. */
+            reviewsSuffix: string;
             /** ":hours h" — duration formatter (rounded hours). */
             durationHours: string;
             /** ":minutes min" — duration formatter (under 1h). */
@@ -154,6 +158,8 @@ export interface Dictionary {
             official_ticket: string;
             free_cancellation: string;
             mobile_ticket: string;
+            instant_confirmation: string;
+            family_friendly: string;
             audio_guide: string;
             hotel_pickup: string;
             transport_included: string;
