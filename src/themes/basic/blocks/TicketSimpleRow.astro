@@ -63,78 +63,76 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
 
 <li class="flex flex-col gap-3 p-4">
     <div class="space-y-2">
-        {/* Title down-weighted on purpose — the conversion focus
-            is the per-provider price line below, not the catalog
-            title. Tailwind `!font-medium` overrides whatever
-            heading-tag styling the theme's typography layer adds
-            on top of h3 / h4 / etc. */}
-        <TitleTag class="text-sm !font-medium leading-snug" style="color: #1f2937">{ticket.title}</TitleTag>
+        {/* Title weight matched to the price (text-base bold) so the
+            two visual anchors of the card carry the same hierarchy :
+            "what is this ticket" + "what does it cost" read together. */}
+        <TitleTag class="text-base !font-bold leading-snug" style="color: #1f2937">{ticket.title}</TitleTag>
 
-        {starlessRating && (
-            <p class="flex items-center gap-1.5 text-sm" style="color: #1f2937">
-                <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
-                <span class="font-semibold">{starlessRating}</span>
+        {/* Single meta line — rating, duration AND all 3-tier
+            badges share one flex-wrap row. Reads as one continuous
+            descriptor band : "what's good (rating) · how long ·
+            what kind + trust + features". The aggregation hint
+            drops to a discreet sub-line below since it's
+            methodological disclosure, not card content. */}
+        {(starlessRating || ticket.durationText || visibleBadges.length > 0) && (
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm" style="color: #1f2937">
+                {starlessRating && (
+                    <span class="inline-flex items-center gap-1">
+                        <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
+                        <span>{starlessRating}</span>
+                    </span>
+                )}
                 {ticket.durationText && (
                     <span class="brand-text-muted text-xs">· {ticket.durationText}</span>
                 )}
-            </p>
-        )}
-
-        {showAggregationHint && (
-            <p class="brand-text-muted text-[11px]">
-                {t('tickets.card.aggregatedAcross', { count: String(ticket.providers.length) })}
-            </p>
-        )}
-
-        {!starlessRating && ticket.durationText && (
-            <p class="brand-text-muted text-xs">{ticket.durationText}</p>
-        )}
-
-        {visibleBadges.length > 0 && (
-            /* Ticket-header badges — 3-tier visual hierarchy :
-               1. group_type (Private tour / Small group) :
-                  soft brand-primary tint, categorical "what kind of
-                  tour is this" tag. Lands FIRST in the row because
-                  it's the highest-cardinality discriminator.
-               2. official_ticket : solid brand-accent-success pill
-                  with ✓ — heavy trust signal, "operator's own
-                  inventory not a re-seller".
-               3. Everything else : soft brand-accent-success tint —
-                  features sweep (skip-the-line, free cancellation,
-                  hotel pickup, audio guide, …). */
-            <ul class="flex flex-wrap gap-1.5">
+                {/* 3-tier badges :
+                    1. group_type (Private / Small group) →
+                       soft brand-primary tint (categorical type)
+                    2. official_ticket → solid green ✓ pill (trust)
+                    3. features → soft green tint (sweep) */}
                 {visibleBadges.map((badge) => {
                     if (badge.slug.startsWith('group_type:')) {
                         return (
-                            <li
+                            <span
                                 class="brand-text-primary inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
                                 style="background-color: color-mix(in srgb, var(--brand-primary) 12%, transparent)"
                             >
                                 {badge.label}
-                            </li>
+                            </span>
                         );
                     }
                     if (badge.slug === 'official_ticket') {
                         return (
-                            <li
+                            <span
                                 class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
                                 style="background-color: var(--brand-accent-success)"
                             >
                                 <span aria-hidden="true">✓</span>
                                 <span>{badge.label}</span>
-                            </li>
+                            </span>
                         );
                     }
                     return (
-                        <li
+                        <span
                             class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
                             style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
                         >
                             {badge.label}
-                        </li>
+                        </span>
                     );
                 })}
-            </ul>
+            </div>
+        )}
+
+        {showAggregationHint && (
+            /* Methodological disclosure — clarifies that the (review)
+               count above is the cumulative total across surviving
+               providers, not a single marketplace's score. Sub-line
+               at 10px so it reads as fine-print without competing
+               with the rating or duration. */
+            <p class="brand-text-muted text-[10px]">
+                {t('tickets.card.aggregatedAcross', { count: String(ticket.providers.length) })}
+            </p>
         )}
 
         {hasBundleHint && (
@@ -338,7 +336,7 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                             return (
                                 <div class="flex min-w-0 items-start gap-2.5">
                                     {indicator}
-                                    <div class="flex min-w-0 flex-col gap-1.5">
+                                    <div class="flex min-w-0 flex-col gap-0.5">
                                         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                             {nameTag}
                                             {outlierTag}
@@ -403,7 +401,12 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                 );
 
                 return (
-                    <li>
+                    /* Zebra striping — even rows get white, odd rows
+                       keep the parent ul's gray-50. Highlighted row's
+                       inline rowBg overrides both via specificity, so
+                       the Best price tint always wins. Hover unifies
+                       all rows back to white for a clean focus state. */
+                    <li class="even:bg-white">
                         {provider.cheapestHref ? (
                             <a
                                 href={provider.cheapestHref}
