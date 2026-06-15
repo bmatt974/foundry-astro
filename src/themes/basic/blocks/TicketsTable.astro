@@ -1,0 +1,608 @@
+---
+/**
+ * Tickets — `variant = 'table'`.
+ *
+ * Features × Tickets comparison table : columns = tickets, rows =
+ * dimensions (price, duration, rating, group type, feature presence).
+ * Best for editorial "Top 3 tours" comparisons where the visitor
+ * needs to pick BETWEEN distinct products (not the same product at
+ * different providers — that's the simple variant's per-row
+ * provider list).
+ *
+ * One `<table>` per surviving bucket : Admission / Guided / Special
+ * access / Bundle are different product categories, mixing them in
+ * one table makes the comparison meaningless ("does a private guided
+ * tour cost more than a standard admission" isn't an actual question
+ * the visitor asks). Headers carry the bucket label so the matrix
+ * stays scoped.
+ *
+ * Feature rows are auto-filtered to the slugs that AT LEAST ONE
+ * ticket carries — pointless to render a "Hotel pickup" row of
+ * "— — —" across all columns. Same for the group_type row : only
+ * surfaces when at least one ticket has a non-default value.
+ *
+ * Source of truth for the underlying data model :
+ *   /docs/strategy/tickets/data-model.md (foundry)
+ */
+import {
+    parseTicketsBlock,
+    type ParsedBucket,
+    type ParsedTicket,
+    type TicketGroupTypeSlug,
+} from '../../../lib/blocks/tickets';
+import { useTranslations } from '../../../lib/i18n/index';
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+
+const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
+const { totalCount, heading, layout, settings } = parsed;
+const visibleBuckets = parsed.buckets.filter((b: ParsedBucket) => b.tickets.length > 0);
+
+// Same heading hierarchy logic as TicketsSimple — the block's
+// `heading_level` describes the OUTERMOST tag. Per-bucket layouts
+// drop the top heading and let SubHeading act as it instead.
+const topLevel = settings.headingLevel;
+
+const TopHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+const SubHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+
+const filtersAreActive
+    = settings.filterFormat.length > 0
+    || settings.filterGroupType.length > 0
+    || settings.filterExperienceType.length > 0;
+
+/**
+ * Feature slugs eligible for a comparison row, in render order.
+ * Same set as the simple variant's badges — keeps the visitor's
+ * mental model consistent across variants of the same data.
+ */
+const FEATURE_SLUGS_FOR_TABLE = [
+    'skip_the_line',
+    'priority_entry',
+    'official_ticket',
+    'audio_guide',
+    'free_cancellation',
+    'mobile_ticket',
+    'instant_confirmation',
+    'family_friendly',
+    'hotel_pickup',
+    'transport_included',
+    'meal_included',
+    'wheelchair_accessible',
+] as const;
+
+type FeatureSlug = typeof FEATURE_SLUGS_FOR_TABLE[number];
+
+/**
+ * A ticket "has" a feature when the parser surfaced it on the
+ * ticket-level badges array. The parser already enforces honesty
+ * (annotation-class features must be universal across providers ;
+ * product-defining features come straight off the ticket itself).
+ * Using the same source here keeps the table aligned with the
+ * simple variant's per-card badge sweep.
+ */
+function ticketHasFeature(ticket: ParsedTicket, slug: string): boolean {
+    return ticket.badges.some((b) => b.slug === slug);
+}
+
+/** Group-type label via the same dictionary as the filter chips. */
+function groupTypeLabel(slug: TicketGroupTypeSlug): string {
+    if (slug === 'small_group') return t('tickets.groupType.small_group');
+    if (slug === 'private') return t('tickets.groupType.private');
+    return t('tickets.groupType.standard');
+}
+
+/** Strip the leading "★ " from the parser's pre-formatted rating —
+ *  the table column is too narrow to repeat the star pictogram on
+ *  every cell, we render it once via the cell colour instead. */
+function ratingStarless(text: string | null): string | null {
+    if (!text) return null;
+    return text.startsWith('★ ') ? text.slice(2) : text;
+}
+
+const ctaLabel = settings.ctaLabel ?? t('tickets.card.book');
+
+/** Brand homepage fallback URLs for the "discreet" cell rendered
+ *  when a provider doesn't sell a specific ticket. Lets the visitor
+ *  still bounce to that OTA's catalogue when their preferred brand
+ *  doesn't cover this exact product. Keyed by the supplier slug —
+ *  same slug used throughout the data model. Move to the backend
+ *  (Supplier::homepageUrl()) once we have more than the OTA fleet to
+ *  cover. */
+const SUPPLIER_HOMEPAGES: Record<string, string> = {
+    viator: 'https://www.viator.com',
+    getyourguide: 'https://www.getyourguide.com',
+    tiqets: 'https://www.tiqets.com',
+    headout: 'https://www.headout.com',
+    klook: 'https://www.klook.com',
+    musement: 'https://www.musement.com',
+};
+
+function supplierHomepage(slug: string): string | null {
+    return SUPPLIER_HOMEPAGES[slug] ?? null;
+}
+
+/** Aggregated provider profile across the bucket — used to render
+ *  one row per provider with a stable identity (label + favicon). */
+interface BucketProvider {
+    slug: string;
+    label: string;
+    faviconPath: string | null;
+    /** How many tickets in the bucket this provider sells. Drives
+     *  the row order (most prevalent first) so the visitor's eyes
+     *  land on the broadest catalogue. */
+    coverage: number;
+}
+
+/** Per-bucket render context : pre-computes which feature rows are
+ *  worth painting (skip "— — —" rows entirely), whether the
+ *  group_type row should fire (suppressed when all tickets are
+ *  'standard'), and the unique provider list driving the
+ *  provider-rows section. */
+interface BucketContext {
+    bucket: ParsedBucket;
+    relevantFeatures: FeatureSlug[];
+    showGroupTypeRow: boolean;
+    showRatingRow: boolean;
+    showDurationRow: boolean;
+    providers: BucketProvider[];
+}
+
+function buildContext(bucket: ParsedBucket): BucketContext {
+    const tickets = bucket.tickets;
+
+    /* Gather every distinct provider appearing across the bucket.
+       Same provider can back several tickets (Viator often has 5+
+       listings on a single Place) ; we collapse to one entry per
+       slug and count how many tickets it covers. */
+    const providerMap = new Map<string, BucketProvider>();
+    for (const ticket of tickets) {
+        for (const provider of ticket.providers) {
+            const existing = providerMap.get(provider.slug);
+            if (existing) {
+                existing.coverage += 1;
+            } else {
+                providerMap.set(provider.slug, {
+                    slug: provider.slug,
+                    label: provider.label,
+                    faviconPath: provider.faviconPath,
+                    coverage: 1,
+                });
+            }
+        }
+    }
+    /* Sort : coverage desc (broadest first), then label asc as a
+       deterministic tie-breaker. The visitor reads the OTA with the
+       widest catalogue first. */
+    const providers = [...providerMap.values()].sort((a, b) => {
+        if (b.coverage !== a.coverage) return b.coverage - a.coverage;
+        return a.label.localeCompare(b.label);
+    });
+
+    return {
+        bucket,
+        relevantFeatures: FEATURE_SLUGS_FOR_TABLE.filter((slug) =>
+            tickets.some((t) => ticketHasFeature(t, slug)),
+        ),
+        showGroupTypeRow: tickets.some((t) => t.groupType !== 'standard'),
+        showRatingRow: tickets.some((t) => t.ratingText !== null),
+        showDurationRow: tickets.some((t) => t.durationText !== null),
+        providers,
+    };
+}
+
+const contexts = visibleBuckets.map(buildContext);
+
+const featurePresent = t('tickets.table.featurePresent');
+const featureAbsent = t('tickets.table.featureAbsent');
+---
+
+{totalCount === 0 && filtersAreActive && (
+    <section class="tickets-table my-8">
+        <div class="brand-border rounded-lg border bg-white p-6 text-center">
+            <p class="brand-text-muted text-sm">{t('tickets.bucket.empty')}</p>
+        </div>
+    </section>
+)}
+
+{visibleBuckets.length > 0 && (
+    <section class="tickets-table my-8">
+        {layout === 'single' && heading !== '' && (
+            <TopHeading class="brand-text-primary mb-4 text-xl font-semibold tracking-tight">
+                {heading}
+            </TopHeading>
+        )}
+
+        <div class="space-y-10">
+            {contexts.map(({ bucket, relevantFeatures, showGroupTypeRow, showRatingRow, showDurationRow, providers }) => (
+                <article aria-labelledby={`tickets-table-${bucket.format}`}>
+                    {layout !== 'single' && (
+                        <SubHeading
+                            id={`tickets-table-${bucket.format}`}
+                            class="brand-text-primary mb-4 text-lg font-semibold tracking-tight"
+                        >
+                            {bucket.label} <span class="brand-text-muted text-sm font-normal">({bucket.tickets.length})</span>
+                        </SubHeading>
+                    )}
+
+                    {/* Horizontal scroll on narrow viewports — the
+                        matrix is naturally wide once you have 4+
+                        columns. The wrapper creates the horizontal
+                        scroll context ; vertical sticky goes against
+                        the viewport. Cells become sticky in 2 axes :
+                        - thead row sticky at top: 0 (vertical scroll
+                          preserves the ticket identities)
+                        - first column sticky at left: 0 (horizontal
+                          scroll preserves the feature labels)
+                        - top-left corner cell sticks BOTH and carries
+                          the highest z-index so it covers the
+                          intersection cleanly. Box-shadow replaces
+                          borders because border-collapse + sticky
+                          interact badly (borders bleed through). */}
+                    <div class="brand-border tickets-table-scroll overflow-x-auto rounded-lg border bg-white">
+                        <table
+                            class="w-full text-sm"
+                            style={`border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: ${140 + bucket.tickets.length * 200}px`}
+                        >
+                            {/* Fixed column widths via <colgroup> — first
+                                column holds the row labels (140px), the
+                                rest divide the remaining width equally
+                                so every ticket reads at the same visual
+                                weight.
+                                The table's `min-width` enforces a 200px
+                                MINIMUM per ticket column : with many
+                                tickets in a bucket, the wrapper's
+                                overflow-x kicks in instead of squishing
+                                the columns into unreadable slivers
+                                (8-line titles, prices smashed together,
+                                etc.). */}
+                            <colgroup>
+                                <col style="width: 140px" />
+                                {bucket.tickets.map(() => (
+                                    <col style={`width: ${100 / bucket.tickets.length}%`} />
+                                ))}
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    {/* Top-left corner — sticks BOTH
+                                        axes. Highest z-index so it
+                                        overlays the row labels AND
+                                        the column headers when
+                                        scrolling either way. */}
+                                    <th
+                                        scope="col"
+                                        class="bg-gray-50 p-3"
+                                        style="position: sticky; top: 0; left: 0; z-index: 3; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08), inset -1px 0 0 rgba(0,0,0,0.06)"
+                                    ></th>
+                                    {bucket.tickets.map((ticket) => (
+                                        /* align-top so every cover sits
+                                           at the same y-position
+                                           regardless of how many lines
+                                           the title wraps to. The
+                                           inner content centers
+                                           horizontally so the visual
+                                           weight matches the rest of
+                                           the column (every body cell
+                                           is text-centered too). */
+                                        <th
+                                            scope="col"
+                                            class="min-w-[180px] bg-white p-3 text-center align-top"
+                                            style="color: #1f2937; position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08)"
+                                        >
+                                            {/* Locked 192×112 cover frame so every
+                                                column renders at the same
+                                                physical size regardless of the
+                                                column width OR the source
+                                                asset resolution. Viator / GYG
+                                                / Tiqets often serve thumbnails
+                                                around 480×320 ; rendering at
+                                                192×112 downscales every asset
+                                                (always crisp) instead of
+                                                upscaling smaller sources
+                                                (pixelated).
+                                                When the ticket has no cover,
+                                                a same-sized neutral
+                                                placeholder keeps the column
+                                                heights aligned across the
+                                                whole bucket. */}
+                                            {ticket.coverImage ? (
+                                                <img
+                                                    src={ticket.coverImage}
+                                                    alt={ticket.title}
+                                                    loading="lazy"
+                                                    width="192"
+                                                    height="112"
+                                                    class="mx-auto mb-2 h-[112px] w-[192px] rounded object-cover"
+                                                />
+                                            ) : (
+                                                <div
+                                                    class="mx-auto mb-2 h-[112px] w-[192px] rounded bg-gray-100"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            <div class="text-sm font-bold leading-snug">{ticket.title}</div>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {/* Price row — the visual anchor.
+                                    Cheapest from the surviving
+                                    providers, bold + text-base to
+                                    match the simple variant's price
+                                    treatment. */}
+                                <tr>
+                                    <th scope="row" class="brand-text-muted bg-gray-50 p-3 text-left text-xs font-medium uppercase tracking-wider">
+                                        {t('tickets.table.priceFrom')}
+                                    </th>
+                                    {bucket.tickets.map((ticket) => (
+                                        <td class="p-3 text-center align-middle">
+                                            <span class="text-base font-bold" style="color: #111827">
+                                                {ticket.priceText ?? '—'}
+                                            </span>
+                                        </td>
+                                    ))}
+                                </tr>
+
+                                {showDurationRow && (
+                                    <tr>
+                                        <th scope="row" class="brand-text-muted bg-gray-50 p-3 text-left text-xs font-medium uppercase tracking-wider">
+                                            {t('tickets.table.duration')}
+                                        </th>
+                                        {bucket.tickets.map((ticket) => (
+                                            <td class="brand-text-muted p-3 text-center align-middle text-sm">
+                                                {ticket.durationText ?? featureAbsent}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                )}
+
+                                {showRatingRow && (
+                                    <tr>
+                                        <th scope="row" class="brand-text-muted bg-gray-50 p-3 text-left text-xs font-medium uppercase tracking-wider">
+                                            {t('tickets.table.rating')}
+                                        </th>
+                                        {bucket.tickets.map((ticket) => {
+                                            const r = ratingStarless(ticket.ratingText);
+                                            return (
+                                                <td class="p-3 text-center align-middle text-sm" style="color: #1f2937">
+                                                    {r ? (
+                                                        <span class="inline-flex items-baseline gap-1">
+                                                            <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
+                                                            <span>{r}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span class="brand-text-muted">{featureAbsent}</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                )}
+
+                                {showGroupTypeRow && (
+                                    /* Group-type row only fires when
+                                       AT LEAST ONE ticket has a
+                                       non-standard value — otherwise
+                                       a row of "Standard / Standard /
+                                       Standard" wastes vertical space
+                                       without informing the choice. */
+                                    <tr>
+                                        <th scope="row" class="brand-text-muted bg-gray-50 p-3 text-left text-xs font-medium uppercase tracking-wider">
+                                            {t('tickets.table.groupType')}
+                                        </th>
+                                        {bucket.tickets.map((ticket) => (
+                                            <td class="p-3 text-center align-middle text-sm" style="color: #1f2937">
+                                                {groupTypeLabel(ticket.groupType)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                )}
+
+                                {/* Feature rows — auto-filtered to
+                                    slugs at least one ticket carries.
+                                    Each cell : ✓ if present, — if
+                                    absent. The label uses the same
+                                    `tickets.feature.*` dictionary as
+                                    the simple variant's chips. */}
+                                {relevantFeatures.map((slug) => (
+                                    <tr>
+                                        <th scope="row" class="brand-text-muted bg-gray-50 p-3 text-left text-xs font-medium">
+                                            {t(`tickets.feature.${slug}` as any)}
+                                        </th>
+                                        {bucket.tickets.map((ticket) => {
+                                            const has = ticketHasFeature(ticket, slug);
+                                            return (
+                                                <td class="p-3 align-middle text-center text-sm">
+                                                    {has ? (
+                                                        <span style="color: var(--brand-accent-success)" aria-label={featurePresent}>{featurePresent}</span>
+                                                    ) : (
+                                                        <span class="brand-text-muted" aria-label={featureAbsent}>{featureAbsent}</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+
+                                {/* Section header — "Voir les disponibilités"
+                                    spans the full table to mark the
+                                    transition from ticket attributes
+                                    (top) to per-provider availability
+                                    (below). The label moves OUT of the
+                                    individual price buttons so each cell
+                                    stays tight and the action verb
+                                    reads only once at the section
+                                    level, not on every CTA. */}
+                                {providers.length > 0 && (
+                                    <tr>
+                                        <td
+                                            colspan={bucket.tickets.length + 1}
+                                            class="brand-text-muted px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider"
+                                            style="background-color: rgb(243 244 246) !important; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08)"
+                                        >
+                                            {ctaLabel}
+                                        </td>
+                                    </tr>
+                                )}
+                                {/* Provider rows — one per unique OTA in
+                                    the bucket. LEFT col carries the brand
+                                    identity (favicon + name), each cell
+                                    shows that provider's price for the
+                                    corresponding ticket as a solid CTA
+                                    button. Cells where the provider
+                                    doesn't sell that ticket render a
+                                    discreet text link to the OTA's
+                                    catalogue homepage — keeps the
+                                    visitor on a path to that brand even
+                                    when this exact product is absent. */}
+                                {providers.map((provider) => (
+                                    <tr>
+                                        <th scope="row" class="bg-gray-50 p-3 text-left">
+                                            <span class="flex items-center gap-1.5">
+                                                {provider.faviconPath && (
+                                                    <img
+                                                        src={provider.faviconPath}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        width="20"
+                                                        height="20"
+                                                        class="h-5 w-5 flex-shrink-0 rounded object-contain"
+                                                    />
+                                                )}
+                                                <span class="truncate text-xs font-semibold" style="color: #1f2937">
+                                                    {provider.label}
+                                                </span>
+                                            </span>
+                                        </th>
+                                        {bucket.tickets.map((ticket) => {
+                                            const offer = ticket.providers.find((p) => p.slug === provider.slug);
+                                            if (offer && offer.cheapestHref) {
+                                                /* Per-provider rating sits
+                                                   ABOVE the price button, in
+                                                   fine print. The star is
+                                                   rendered in amber as the
+                                                   single chromatic accent ;
+                                                   stripping the parser's
+                                                   leading "★ " lets the star
+                                                   get its own coloured span.
+                                                   Rating above the CTA mirrors
+                                                   the editorial reading order
+                                                   "trust signal → action". */
+                                                const providerRating = ratingStarless(offer.cheapestRatingText);
+                                                return (
+                                                    <td class="p-2 text-center align-middle">
+                                                        <span class="inline-flex flex-col items-center gap-2">
+                                                            {providerRating && (
+                                                                <span class="inline-flex items-baseline gap-1 text-sm" style="color: #1f2937">
+                                                                    <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
+                                                                    <span>{providerRating}</span>
+                                                                </span>
+                                                            )}
+                                                            <a
+                                                                href={offer.cheapestHref}
+                                                                class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-bold text-white no-underline"
+                                                                referrerpolicy="origin"
+                                                                aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
+                                                            >
+                                                                {offer.cheapestPriceText}
+                                                            </a>
+                                                        </span>
+                                                    </td>
+                                                );
+                                            }
+                                            /* No offer for this ticket — discreet
+                                               fallback link to the provider's
+                                               catalogue, in case the visitor
+                                               wants to browse their wider
+                                               inventory. Muted styling so the
+                                               row's actual offers (other cells)
+                                               stay the visual anchor. */
+                                            const homepage = supplierHomepage(provider.slug);
+                                            return (
+                                                <td class="p-2 text-center align-middle">
+                                                    {homepage ? (
+                                                        <a
+                                                            href={homepage}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer sponsored nofollow"
+                                                            class="brand-text-muted inline-block text-[11px] underline-offset-2 hover:underline"
+                                                        >
+                                                            {provider.label} ›
+                                                        </a>
+                                                    ) : (
+                                                        <span class="brand-text-muted text-[11px]">{featureAbsent}</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            ))}
+        </div>
+    </section>
+)}
+
+<style>
+    /* Sticky-cell behaviour for the comparison matrix.
+       The wrapper `<div.tickets-table-scroll>` is the horizontal
+       scroll context (overflow-x: auto). The viewport handles the
+       vertical scroll because no parent has overflow-y set.
+
+       Each tbody first-column `<th scope="row">` sticks to the
+       wrapper's left edge during horizontal scroll. Each thead `<th>`
+       sticks to the viewport top during vertical scroll. The cell
+       sitting at the intersection (already styled inline on the
+       template) carries the highest z-index so it covers both axes.
+
+       Box-shadow stands in for borders because border-collapse:
+       separate doesn't propagate <tr> borders, and sticky cells
+       render ABOVE adjacent cells — a border on a non-sticky
+       neighbour would get hidden when the sticky cell scrolls over
+       it. Box-shadow lives on the sticky cell itself, so it stays
+       anchored on scroll. */
+    .tickets-table-scroll tbody th[scope='row'] {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        box-shadow:
+            inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+            inset -1px 0 0 rgba(0, 0, 0, 0.06);
+    }
+    .tickets-table-scroll tbody td {
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+    }
+    /* Zebra striping — odd rows get gray-50, even rows get white.
+       Applies to BOTH the sticky first-column <th> AND the body
+       <td> so the band spans the full row width without breaking
+       at the sticky boundary. */
+    .tickets-table-scroll tbody tr:nth-child(odd) th[scope='row'],
+    .tickets-table-scroll tbody tr:nth-child(odd) td {
+        background-color: rgb(249 250 251); /* gray-50 */
+    }
+    .tickets-table-scroll tbody tr:nth-child(even) th[scope='row'],
+    .tickets-table-scroll tbody tr:nth-child(even) td {
+        background-color: white;
+    }
+    /* Last row drops the bottom box-shadow — the wrapper's outer
+       border already closes the table on that edge. */
+    .tickets-table-scroll tbody tr:last-child th[scope='row'] {
+        box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.06);
+    }
+    .tickets-table-scroll tbody tr:last-child td {
+        box-shadow: none;
+    }
+</style>

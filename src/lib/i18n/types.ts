@@ -177,6 +177,26 @@ export interface Dictionary {
              *  package". */
             saveAmount: string;
         };
+        /** Comparison-table UI strings — row labels in the left
+         *  column of each bucket's `<table>` (variant = 'table'). */
+        table: {
+            /** "From" — row label for the price-from-cheapest value. */
+            priceFrom: string;
+            /** "Duration" — row label for `durationText`. */
+            duration: string;
+            /** "Rating" — row label for the aggregate rating. */
+            rating: string;
+            /** "Group type" — row label for the Private / Small group /
+             *  Standard categorical tag. Only rendered when at least one
+             *  ticket has a non-default group_type. */
+            groupType: string;
+            /** Glyph row : ticket has the feature (e.g. ✓). Used in
+             *  every cell of a feature row. Locale-aware so right-to-
+             *  left scripts can carry their own affirmative mark. */
+            featurePresent: string;
+            /** Glyph row : ticket lacks the feature (e.g. —). */
+            featureAbsent: string;
+        };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer
          *  actually paints on cards live here. */

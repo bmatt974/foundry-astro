@@ -10,6 +10,8 @@
  *
  * Variants :
  *   - `'simple'`              → TicketsSimple   (stripped-down rows)
+ *   - `'table'`               → TicketsTable    (features × tickets
+ *                                                comparison matrix)
  *   - default / null / other  → TicketsRich     (full 4-bucket card
  *                                                grid + chips +
  *                                                threshold sub-sections)
@@ -22,6 +24,7 @@ import { parseTicketsBlock, type ParsedBucket } from '../../../lib/blocks/ticket
 import { useTranslations } from '../../../lib/i18n/index';
 import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
+import TicketsTable from './TicketsTable.astro';
 
 interface Props {
     block: PageBlock;
@@ -29,6 +32,8 @@ interface Props {
 
 const { block } = Astro.props;
 const isSimple = block.variant === 'simple';
+const isTable = block.variant === 'table';
+const isCustomVariant = isSimple || isTable;
 
 const locale = Astro.locals.locale ?? 'en';
 const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
@@ -36,8 +41,8 @@ const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
 
 // `parsed` is only used by the rich layout below ; skip the work
-// when we'll delegate to TicketsSimple immediately.
-const parsed = isSimple
+// when we'll delegate to a child variant immediately.
+const parsed = isCustomVariant
     ? null
     : parseTicketsBlock(block, locale, linkProxyPath, wording);
 const buckets = parsed?.buckets ?? [];
@@ -52,8 +57,9 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 ---
 
 {isSimple && <TicketsSimple block={block} />}
+{isTable && <TicketsTable block={block} />}
 
-{!isSimple && totalCount > 0 && (
+{!isCustomVariant && totalCount > 0 && (
     <section class="my-10 space-y-12">
         {visibleBuckets.map((bucket: ParsedBucket) => (
             <article aria-labelledby={`tickets-bucket-${bucket.format}`}>

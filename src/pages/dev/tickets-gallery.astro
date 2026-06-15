@@ -143,7 +143,7 @@ function chipLabel(slug: string, axis: keyof Aggregations): string {
     return count !== undefined ? `${slug} (${count})` : slug;
 }
 
-const VARIANTS = ['simple'] as const;
+const VARIANTS = ['simple', 'table'] as const;
 const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
 const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
 const EXPERIENCE_SLUGS = ['classic', 'photo', 'family', 'food', 'night', 'vr', 'workshop', 'adventure', 'wellness'] as const;

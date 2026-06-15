@@ -80,6 +80,14 @@ const fr: Dictionary = {
             aggregatedAcross: 'Agrégé sur :count fournisseurs',
             saveAmount: 'Économisez :pct %',
         },
+        table: {
+            priceFrom: 'À partir de',
+            duration: 'Durée',
+            rating: 'Note',
+            groupType: 'Type de groupe',
+            featurePresent: '✓',
+            featureAbsent: '—',
+        },
         feature: {
             skip_the_line: 'Coupe-file',
             priority_entry: 'Entrée prioritaire',
