@@ -250,8 +250,8 @@ const featureAbsent = t('tickets.table.featureAbsent');
                           interact badly (borders bleed through). */}
                     <div class="brand-border tickets-table-scroll overflow-x-auto rounded-lg border bg-white">
                         <table
-                            class="w-full text-sm"
-                            style={`border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: ${140 + bucket.tickets.length * 200}px`}
+                            class="tt-table w-full text-sm"
+                            style={`min-width: ${180 + bucket.tickets.length * 200}px`}
                         >
                             {/* Fixed column widths via <colgroup> — first
                                 column holds the row labels (140px), the
@@ -266,7 +266,14 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                 (8-line titles, prices smashed together,
                                 etc.). */}
                             <colgroup>
-                                <col style="width: 140px" />
+                                {/* First col width is set via the
+                                    `.tickets-table-scroll col:first-
+                                    child` rule. Ticket cols share the
+                                    rest equally — the per-col width is
+                                    dynamic so it stays inline
+                                    (computed from the bucket length
+                                    at render time). */}
+                                <col />
                                 {bucket.tickets.map(() => (
                                     <col style={`width: ${100 / bucket.tickets.length}%`} />
                                 ))}
@@ -278,11 +285,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                         overlays the row labels AND
                                         the column headers when
                                         scrolling either way. */}
-                                    <th
-                                        scope="col"
-                                        class="bg-gray-50 p-3"
-                                        style="position: sticky; top: 0; left: 0; z-index: 3; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08), inset -1px 0 0 rgba(0,0,0,0.06)"
-                                    ></th>
+                                    <th scope="col" class="tt-sticky-corner bg-gray-50 p-3"></th>
                                     {bucket.tickets.map((ticket) => (
                                         /* align-top so every cover sits
                                            at the same y-position
@@ -295,8 +298,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                            is text-centered too). */
                                         <th
                                             scope="col"
-                                            class="min-w-[180px] bg-white p-3 text-center align-top"
-                                            style="color: #1f2937; position: sticky; top: 0; z-index: 2; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08)"
+                                            class="tt-sticky-col-header min-w-[180px] bg-white p-3 text-center align-top text-gray-800"
                                         >
                                             {/* Locked 192×112 cover frame so every
                                                 column renders at the same
@@ -346,7 +348,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                     </th>
                                     {bucket.tickets.map((ticket) => (
                                         <td class="p-3 text-center align-middle">
-                                            <span class="text-base font-bold" style="color: #111827">
+                                            <span class="text-base text-gray-900">
                                                 {ticket.priceText ?? '—'}
                                             </span>
                                         </td>
@@ -373,12 +375,28 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                         </th>
                                         {bucket.tickets.map((ticket) => {
                                             const r = ratingStarless(ticket.ratingText);
+                                            /* Methodological disclosure — same
+                                               rule as the simple variant : when
+                                               the rating is the cumulative
+                                               aggregate across 2+ providers we
+                                               make that explicit in a 10px
+                                               sub-line so the visitor doesn't
+                                               read the (review) count as a
+                                               single marketplace's score. */
+                                            const showAggregationHint = ticket.providers.length >= 2 && Boolean(r);
                                             return (
-                                                <td class="p-3 text-center align-middle text-sm" style="color: #1f2937">
+                                                <td class="p-3 text-center align-middle text-sm text-gray-800">
                                                     {r ? (
-                                                        <span class="inline-flex items-baseline gap-1">
-                                                            <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
-                                                            <span>{r}</span>
+                                                        <span class="inline-flex flex-col items-center gap-0.5">
+                                                            <span class="inline-flex items-baseline gap-1">
+                                                                <span class="tt-text-rating" aria-hidden="true">★</span>
+                                                                <span>{r}</span>
+                                                            </span>
+                                                            {showAggregationHint && (
+                                                                <span class="brand-text-muted text-[10px]">
+                                                                    {t('tickets.card.aggregatedAcross', { count: String(ticket.providers.length) })}
+                                                                </span>
+                                                            )}
                                                         </span>
                                                     ) : (
                                                         <span class="brand-text-muted">{featureAbsent}</span>
@@ -401,7 +419,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                             {t('tickets.table.groupType')}
                                         </th>
                                         {bucket.tickets.map((ticket) => (
-                                            <td class="p-3 text-center align-middle text-sm" style="color: #1f2937">
+                                            <td class="p-3 text-center align-middle text-sm text-gray-800">
                                                 {groupTypeLabel(ticket.groupType)}
                                             </td>
                                         ))}
@@ -424,7 +442,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                             return (
                                                 <td class="p-3 align-middle text-center text-sm">
                                                     {has ? (
-                                                        <span style="color: var(--brand-accent-success)" aria-label={featurePresent}>{featurePresent}</span>
+                                                        <span class="tt-text-success" aria-label={featurePresent}>{featurePresent}</span>
                                                     ) : (
                                                         <span class="brand-text-muted" aria-label={featureAbsent}>{featureAbsent}</span>
                                                     )}
@@ -444,13 +462,36 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                     reads only once at the section
                                     level, not on every CTA. */}
                                 {providers.length > 0 && (
+                                    /* "Voir les disponibilités" section
+                                       header — the inner div uses :
+                                         - position: sticky ; left: 0   →
+                                           pinned to the wrapper viewport
+                                           left edge.
+                                         - width: 100cqi                →
+                                           exactly the wrapper visible
+                                           inline size (container query
+                                           unit, scope set on the
+                                           wrapper).
+                                         - text-align: center            →
+                                           centers the label inside the
+                                           viewport-wide frame.
+                                       Effect : the gray bar + label
+                                       always span and centre the
+                                       VISIBLE area, no matter how far
+                                       the user has scrolled
+                                       horizontally. The outer td still
+                                       provides the table-cell anchor
+                                       so the row participates in flow
+                                       between feature rows and provider
+                                       rows. */
                                     <tr>
                                         <td
                                             colspan={bucket.tickets.length + 1}
-                                            class="brand-text-muted px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider"
-                                            style="background-color: rgb(243 244 246) !important; box-shadow: inset 0 -1px 0 rgba(0,0,0,0.08)"
+                                            class="tt-section-host"
                                         >
-                                            {ctaLabel}
+                                            <div class="tt-section-bar brand-text-muted text-center text-[11px] font-semibold uppercase tracking-wider">
+                                                {ctaLabel}
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
@@ -468,18 +509,18 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                 {providers.map((provider) => (
                                     <tr>
                                         <th scope="row" class="bg-gray-50 p-3 text-left">
-                                            <span class="flex items-center gap-1.5">
+                                            <span class="flex items-center gap-2">
                                                 {provider.faviconPath && (
                                                     <img
                                                         src={provider.faviconPath}
                                                         alt=""
                                                         loading="lazy"
-                                                        width="20"
-                                                        height="20"
-                                                        class="h-5 w-5 flex-shrink-0 rounded object-contain"
+                                                        width="28"
+                                                        height="28"
+                                                        class="h-7 w-7 flex-shrink-0 rounded-md object-contain"
                                                     />
                                                 )}
-                                                <span class="truncate text-xs font-semibold" style="color: #1f2937">
+                                                <span class="truncate text-sm font-semibold text-gray-800">
                                                     {provider.label}
                                                 </span>
                                             </span>
@@ -500,23 +541,23 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                    "trust signal → action". */
                                                 const providerRating = ratingStarless(offer.cheapestRatingText);
                                                 return (
-                                                    <td class="p-2 text-center align-middle">
-                                                        <span class="inline-flex flex-col items-center gap-2">
+                                                    <td class="px-2 pt-2 pb-4 align-middle">
+                                                        <div class="flex flex-col items-center justify-center gap-2">
                                                             {providerRating && (
-                                                                <span class="inline-flex items-baseline gap-1 text-sm" style="color: #1f2937">
-                                                                    <span style="color: var(--brand-accent-rating)" aria-hidden="true">★</span>
+                                                                <span class="inline-flex items-baseline gap-1 text-xs text-gray-800">
+                                                                    <span class="tt-text-rating" aria-hidden="true">★</span>
                                                                     <span>{providerRating}</span>
                                                                 </span>
                                                             )}
                                                             <a
                                                                 href={offer.cheapestHref}
-                                                                class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-bold text-white no-underline"
+                                                                class="brand-bg-primary tt-cta-price inline-flex items-center justify-center rounded-md text-base text-white no-underline"
                                                                 referrerpolicy="origin"
                                                                 aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
                                                             >
                                                                 {offer.cheapestPriceText}
                                                             </a>
-                                                        </span>
+                                                        </div>
                                                     </td>
                                                 );
                                             }
@@ -574,6 +615,15 @@ const featureAbsent = t('tickets.table.featureAbsent');
        neighbour would get hidden when the sticky cell scrolls over
        it. Box-shadow lives on the sticky cell itself, so it stays
        anchored on scroll. */
+    /* Container-query scope on the wrapper so the section-header
+       inner div can size to the visible viewport via 100cqi —
+       lets a single element be both sticky to the wrapper left
+       edge AND span exactly the visible width, centering its
+       label inside that frame regardless of horizontal scroll
+       position. */
+    .tickets-table-scroll {
+        container-type: inline-size;
+    }
     .tickets-table-scroll tbody th[scope='row'] {
         position: sticky;
         left: 0;
@@ -604,5 +654,75 @@ const featureAbsent = t('tickets.table.featureAbsent');
     }
     .tickets-table-scroll tbody tr:last-child td {
         box-shadow: none;
+    }
+
+    /* Reusable sticky patterns — extracted so the JSX stays free of
+       inline `style="..."` clutter. */
+    .tt-sticky-corner {
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 3;
+        box-shadow:
+            inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+            inset -1px 0 0 rgba(0, 0, 0, 0.06);
+    }
+    .tt-sticky-col-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    /* Section header "Voir les disponibilités" — the outer <td>
+       hosts an inner sticky <div> that sizes to the wrapper's
+       visible inline size (100cqi) so the bar + label stay
+       centered in the viewport during horizontal scroll. The host
+       td drops its zebra background + box-shadow so only the
+       inner bar paints. */
+    .tt-section-host {
+        padding: 0;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+    .tt-section-bar {
+        position: sticky;
+        left: 0;
+        width: 100cqi;
+        padding: 0.5rem 0.75rem;
+        background-color: rgb(243 244 246);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    /* CTA price button — beats the theme rules
+       `a.brand-bg-primary { font-weight: 500; padding: 0.75rem 1.5rem }`
+       via a more specific selector. Tighter padding fits the
+       table density ; bold price reads as the conversion anchor. */
+    .tickets-table-scroll a.brand-bg-primary.tt-cta-price {
+        font-weight: 800;
+        padding: 0.5rem 0.75rem;
+    }
+
+    /* Brand accent helpers — bridges the theme's CSS custom
+       properties into Tailwind-style class usage in the JSX. */
+    .tt-text-rating { color: var(--brand-accent-rating); }
+    .tt-text-success { color: var(--brand-accent-success); }
+
+    /* First column (row labels) fixed width — applied via CSS
+       rather than inline so the <col> stays markup-only. Sized
+       for the longest provider name shipped today
+       ("GetYourGuide" = 12 chars) + favicon (28px) + gap + cell
+       padding without truncation. */
+    .tickets-table-scroll col:first-child {
+        width: 180px;
+    }
+
+    /* Table-level static rules. The dynamic `min-width` is the only
+       value that still varies per render (bucket size) — that one
+       stays inline. */
+    .tt-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
     }
 </style>
