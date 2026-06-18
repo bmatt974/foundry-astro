@@ -196,6 +196,13 @@ export interface Dictionary {
             featurePresent: string;
             /** Glyph row : ticket lacks the feature (e.g. —). */
             featureAbsent: string;
+            /** Per-column stamps surfaced on the cover-image area of
+             *  the winning ticket. A ticket can carry several stamps
+             *  at once when it tops multiple criteria. */
+            stampBestPrice: string;
+            stampBestRated: string;
+            stampBestValue: string;
+            stampMostReviewed: string;
         };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer

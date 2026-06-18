@@ -81,6 +81,11 @@ const minReliableReviews = (() => {
 })();
 const ctaLabel = params.get('cta_label') ?? '';
 const rowLayout = params.get('row_layout') === 'badges_first' ? 'badges_first' : 'rating_first';
+/* stamp_priority is a CSV in the URL — full set or any subset of
+   'best_price', 'best_rated', 'best_value', 'most_reviewed' in
+   editor order. The backend sanitizes against the same allowlist
+   and falls back to the canonical default when empty. */
+const stampPriority = params.get('stamp_priority') ?? '';
 
 const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
 const upstream = new URLSearchParams();
@@ -102,6 +107,7 @@ if (hidePriceOutliers) upstream.set('hide_price_outliers', '1');
 if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minReliableReviews));
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
 if (rowLayout !== 'rating_first') upstream.set('row_layout', rowLayout);
+if (stampPriority.trim() !== '') upstream.set('stamp_priority', stampPriority.trim());
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
 
 interface Aggregations {
@@ -305,6 +311,14 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <select name="row_layout">
                         {['rating_first', 'badges_first'].map((mode) => <option value={mode} selected={mode === rowLayout}>{`row:${mode}`}</option>)}
                     </select>
+                    <input
+                        type="text"
+                        name="stamp_priority"
+                        value={stampPriority}
+                        placeholder="stamp_priority (CSV)"
+                        size="32"
+                        title="best_price,best_value,best_rated,most_reviewed — leave empty for default. Drop a slug to disable it."
+                    />
                 </div>
                 <span class="meta">
                     {placeName ?? `Place #${placeId}`} · theme <code>{tenant.website.template ?? 'basic'}</code> · locale <code>{locale}</code>

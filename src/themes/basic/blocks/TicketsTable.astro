@@ -27,8 +27,11 @@
 import {
     parseTicketsBlock,
     type ParsedBucket,
-    type ParsedTicket,
-    type TicketGroupTypeSlug,
+    buildBucketContext,
+    groupTypeLabel,
+    ratingStarless,
+    supplierHomepage,
+    ticketHasFeature,
 } from '../../../lib/blocks/tickets';
 import { useTranslations } from '../../../lib/i18n/index';
 import type { PageBlock } from '../../../lib/foundry';
@@ -60,147 +63,13 @@ const filtersAreActive
     || settings.filterGroupType.length > 0
     || settings.filterExperienceType.length > 0;
 
-/**
- * Feature slugs eligible for a comparison row, in render order.
- * Same set as the simple variant's badges — keeps the visitor's
- * mental model consistent across variants of the same data.
- */
-const FEATURE_SLUGS_FOR_TABLE = [
-    'skip_the_line',
-    'priority_entry',
-    'official_ticket',
-    'audio_guide',
-    'free_cancellation',
-    'mobile_ticket',
-    'instant_confirmation',
-    'family_friendly',
-    'hotel_pickup',
-    'transport_included',
-    'meal_included',
-    'wheelchair_accessible',
-] as const;
-
-type FeatureSlug = typeof FEATURE_SLUGS_FOR_TABLE[number];
-
-/**
- * A ticket "has" a feature when the parser surfaced it on the
- * ticket-level badges array. The parser already enforces honesty
- * (annotation-class features must be universal across providers ;
- * product-defining features come straight off the ticket itself).
- * Using the same source here keeps the table aligned with the
- * simple variant's per-card badge sweep.
- */
-function ticketHasFeature(ticket: ParsedTicket, slug: string): boolean {
-    return ticket.badges.some((b) => b.slug === slug);
-}
-
-/** Group-type label via the same dictionary as the filter chips. */
-function groupTypeLabel(slug: TicketGroupTypeSlug): string {
-    if (slug === 'small_group') return t('tickets.groupType.small_group');
-    if (slug === 'private') return t('tickets.groupType.private');
-    return t('tickets.groupType.standard');
-}
-
-/** Strip the leading "★ " from the parser's pre-formatted rating —
- *  the table column is too narrow to repeat the star pictogram on
- *  every cell, we render it once via the cell colour instead. */
-function ratingStarless(text: string | null): string | null {
-    if (!text) return null;
-    return text.startsWith('★ ') ? text.slice(2) : text;
-}
-
 const ctaLabel = settings.ctaLabel ?? t('tickets.card.book');
 
-/** Brand homepage fallback URLs for the "discreet" cell rendered
- *  when a provider doesn't sell a specific ticket. Lets the visitor
- *  still bounce to that OTA's catalogue when their preferred brand
- *  doesn't cover this exact product. Keyed by the supplier slug —
- *  same slug used throughout the data model. Move to the backend
- *  (Supplier::homepageUrl()) once we have more than the OTA fleet to
- *  cover. */
-const SUPPLIER_HOMEPAGES: Record<string, string> = {
-    viator: 'https://www.viator.com',
-    getyourguide: 'https://www.getyourguide.com',
-    tiqets: 'https://www.tiqets.com',
-    headout: 'https://www.headout.com',
-    klook: 'https://www.klook.com',
-    musement: 'https://www.musement.com',
-};
-
-function supplierHomepage(slug: string): string | null {
-    return SUPPLIER_HOMEPAGES[slug] ?? null;
-}
-
-/** Aggregated provider profile across the bucket — used to render
- *  one row per provider with a stable identity (label + favicon). */
-interface BucketProvider {
-    slug: string;
-    label: string;
-    faviconPath: string | null;
-    /** How many tickets in the bucket this provider sells. Drives
-     *  the row order (most prevalent first) so the visitor's eyes
-     *  land on the broadest catalogue. */
-    coverage: number;
-}
-
-/** Per-bucket render context : pre-computes which feature rows are
- *  worth painting (skip "— — —" rows entirely), whether the
- *  group_type row should fire (suppressed when all tickets are
- *  'standard'), and the unique provider list driving the
- *  provider-rows section. */
-interface BucketContext {
-    bucket: ParsedBucket;
-    relevantFeatures: FeatureSlug[];
-    showGroupTypeRow: boolean;
-    showRatingRow: boolean;
-    showDurationRow: boolean;
-    providers: BucketProvider[];
-}
-
-function buildContext(bucket: ParsedBucket): BucketContext {
-    const tickets = bucket.tickets;
-
-    /* Gather every distinct provider appearing across the bucket.
-       Same provider can back several tickets (Viator often has 5+
-       listings on a single Place) ; we collapse to one entry per
-       slug and count how many tickets it covers. */
-    const providerMap = new Map<string, BucketProvider>();
-    for (const ticket of tickets) {
-        for (const provider of ticket.providers) {
-            const existing = providerMap.get(provider.slug);
-            if (existing) {
-                existing.coverage += 1;
-            } else {
-                providerMap.set(provider.slug, {
-                    slug: provider.slug,
-                    label: provider.label,
-                    faviconPath: provider.faviconPath,
-                    coverage: 1,
-                });
-            }
-        }
-    }
-    /* Sort : coverage desc (broadest first), then label asc as a
-       deterministic tie-breaker. The visitor reads the OTA with the
-       widest catalogue first. */
-    const providers = [...providerMap.values()].sort((a, b) => {
-        if (b.coverage !== a.coverage) return b.coverage - a.coverage;
-        return a.label.localeCompare(b.label);
-    });
-
-    return {
-        bucket,
-        relevantFeatures: FEATURE_SLUGS_FOR_TABLE.filter((slug) =>
-            tickets.some((t) => ticketHasFeature(t, slug)),
-        ),
-        showGroupTypeRow: tickets.some((t) => t.groupType !== 'standard'),
-        showRatingRow: tickets.some((t) => t.ratingText !== null),
-        showDurationRow: tickets.some((t) => t.durationText !== null),
-        providers,
-    };
-}
-
-const contexts = visibleBuckets.map(buildContext);
+/* Bucket render contexts (feature rows, providers, per-cell stamps)
+   are built by `buildBucketContext` in lib/blocks/tickets — every
+   theme implementing the table variant shares the same comparison
+   semantics. */
+const contexts = visibleBuckets.map((bucket) => buildBucketContext(bucket, settings));
 
 const featurePresent = t('tickets.table.featurePresent');
 const featureAbsent = t('tickets.table.featureAbsent');
@@ -223,7 +92,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
         )}
 
         <div class="space-y-10">
-            {contexts.map(({ bucket, relevantFeatures, showGroupTypeRow, showRatingRow, showDurationRow, providers }) => (
+            {contexts.map(({ bucket, relevantFeatures, showGroupTypeRow, showRatingRow, showDurationRow, providers, stamps, primaryWinners, stampPriority }) => (
                 <article aria-labelledby={`tickets-table-${bucket.format}`}>
                     {layout !== 'single' && (
                         <SubHeading
@@ -286,54 +155,78 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                         the column headers when
                                         scrolling either way. */}
                                     <th scope="col" class="tt-sticky-corner bg-gray-50 p-3"></th>
-                                    {bucket.tickets.map((ticket) => (
-                                        /* align-top so every cover sits
-                                           at the same y-position
-                                           regardless of how many lines
-                                           the title wraps to. The
-                                           inner content centers
-                                           horizontally so the visual
-                                           weight matches the rest of
-                                           the column (every body cell
-                                           is text-centered too). */
-                                        <th
-                                            scope="col"
-                                            class="tt-sticky-col-header min-w-[180px] bg-white p-3 text-center align-top text-gray-800"
-                                        >
-                                            {/* Locked 192×112 cover frame so every
-                                                column renders at the same
-                                                physical size regardless of the
-                                                column width OR the source
-                                                asset resolution. Viator / GYG
-                                                / Tiqets often serve thumbnails
-                                                around 480×320 ; rendering at
-                                                192×112 downscales every asset
-                                                (always crisp) instead of
-                                                upscaling smaller sources
-                                                (pixelated).
-                                                When the ticket has no cover,
-                                                a same-sized neutral
-                                                placeholder keeps the column
-                                                heights aligned across the
-                                                whole bucket. */}
-                                            {ticket.coverImage ? (
-                                                <img
-                                                    src={ticket.coverImage}
-                                                    alt={ticket.title}
-                                                    loading="lazy"
-                                                    width="192"
-                                                    height="112"
-                                                    class="mx-auto mb-2 h-[112px] w-[192px] rounded object-cover"
-                                                />
-                                            ) : (
-                                                <div
-                                                    class="mx-auto mb-2 h-[112px] w-[192px] rounded bg-gray-100"
-                                                    aria-hidden="true"
-                                                />
-                                            )}
-                                            <div class="text-sm font-bold leading-snug">{ticket.title}</div>
-                                        </th>
-                                    ))}
+                                    {bucket.tickets.map((ticket) => {
+                                        /* Resolve the URL the column header
+                                           should link to — the primary winner's
+                                           listing for this ticket. Falls back
+                                           to the ticket's primary CTA when no
+                                           winner was awarded (e.g. single-
+                                           provider tickets that skip the
+                                           stamps pass). */
+                                        const winnerSlug = primaryWinners.get(ticket.id);
+                                        const winnerProvider = winnerSlug ? ticket.providers.find((p) => p.slug === winnerSlug) : null;
+                                        /* Resolve the winning criterion (the
+                                           first stamp in `stampPriority` that
+                                           this cell carries) so we can pull
+                                           the image + URL from the matching
+                                           PERSPECTIVE — the listing that
+                                           actually won the criterion. */
+                                        const winnerStamps = winnerSlug ? stamps.get(ticket.id)?.get(winnerSlug) : undefined;
+                                        const winningCriterion = winnerStamps
+                                            ? stampPriority.find((s) => winnerStamps.has(s)) ?? null
+                                            : null;
+                                        const winnerSnapshot = winningCriterion === 'best_rated'
+                                            ? winnerProvider?.perspectives.bestRated
+                                            : winningCriterion === 'most_reviewed'
+                                                ? winnerProvider?.perspectives.mostReviewed
+                                                : winnerProvider?.perspectives.cheapest;
+                                        /* Image + URL come from the same
+                                           snapshot. Falls back to the
+                                           provider's coverImage / cheapestHref
+                                           when perspectives aren't shipped
+                                           (legacy payload, no winner). */
+                                        const headerHref = winnerSnapshot?.href ?? winnerProvider?.cheapestHref ?? ticket.primaryCtaHref;
+                                        const headerCover = winnerSnapshot?.coverImage ?? winnerProvider?.coverImage ?? ticket.coverImage;
+                                        const innerHeader = (
+                                            <>
+                                                {headerCover ? (
+                                                    <img
+                                                        src={headerCover}
+                                                        alt={ticket.title}
+                                                        loading="lazy"
+                                                        width="192"
+                                                        height="112"
+                                                        class="mx-auto mb-2 h-[112px] w-[192px] rounded object-cover"
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        class="mx-auto mb-2 h-[112px] w-[192px] rounded bg-gray-100"
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                                <div class="text-sm font-bold leading-snug">{ticket.title}</div>
+                                            </>
+                                        );
+                                        return (
+                                            <th
+                                                scope="col"
+                                                class="tt-sticky-col-header min-w-[180px] bg-white p-3 text-center align-top text-gray-800"
+                                            >
+                                                {headerHref ? (
+                                                    <a
+                                                        href={headerHref}
+                                                        class="tt-header-link block no-underline"
+                                                        referrerpolicy="origin"
+                                                        aria-label={ticket.title}
+                                                    >
+                                                        {innerHeader}
+                                                    </a>
+                                                ) : (
+                                                    innerHeader
+                                                )}
+                                            </th>
+                                        );
+                                    })}
                                 </tr>
                             </thead>
                             <tbody>
@@ -420,7 +313,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                         </th>
                                         {bucket.tickets.map((ticket) => (
                                             <td class="p-3 text-center align-middle text-sm text-gray-800">
-                                                {groupTypeLabel(ticket.groupType)}
+                                                {groupTypeLabel(ticket.groupType, t)}
                                             </td>
                                         ))}
                                     </tr>
@@ -510,7 +403,24 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                     <tr>
                                         <th scope="row" class="bg-gray-50 p-3 text-left">
                                             <span class="flex items-center gap-2">
-                                                {provider.faviconPath && (
+                                                {/* providerIndicator switch — same
+                                                    semantic as the simple variant
+                                                    so the editor's choice flows
+                                                    across both variants. Each
+                                                    branch gracefully degrades :
+                                                    `dot` needs brandColor, `favicon`
+                                                    needs faviconPath, `logo` needs
+                                                    logoPath ; falls back to no
+                                                    indicator when the asset is
+                                                    missing for this supplier. */}
+                                                {settings.providerIndicator === 'dot' && provider.brandColor && (
+                                                    <span
+                                                        aria-hidden="true"
+                                                        class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                                        style={`background-color: ${provider.brandColor}`}
+                                                    />
+                                                )}
+                                                {settings.providerIndicator === 'favicon' && provider.faviconPath && (
                                                     <img
                                                         src={provider.faviconPath}
                                                         alt=""
@@ -518,6 +428,14 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                         width="28"
                                                         height="28"
                                                         class="h-7 w-7 flex-shrink-0 rounded-md object-contain"
+                                                    />
+                                                )}
+                                                {settings.providerIndicator === 'logo' && provider.logoPath && (
+                                                    <img
+                                                        src={provider.logoPath}
+                                                        alt=""
+                                                        loading="lazy"
+                                                        class="h-8 w-auto flex-shrink-0 object-contain"
                                                     />
                                                 )}
                                                 <span class="truncate text-sm font-semibold text-gray-800">
@@ -540,23 +458,82 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                    the editorial reading order
                                                    "trust signal → action". */
                                                 const providerRating = ratingStarless(offer.cheapestRatingText);
+                                                const cellStamps = stamps.get(ticket.id)?.get(provider.slug);
+                                                const isPrimaryWinner = primaryWinners.get(ticket.id) === provider.slug;
                                                 return (
                                                     <td class="px-2 pt-2 pb-4 align-middle">
                                                         <div class="flex flex-col items-center justify-center gap-2">
+                                                            {/* Stamps above the
+                                                                rating so the
+                                                                visitor scans
+                                                                "why this is the
+                                                                pick" → "what's
+                                                                its score" →
+                                                                "what's the price"
+                                                                top to bottom. */}
+                                                            {/* Stamps iterate the editor's
+                                                                `stampPriority` — the priority
+                                                                list doubles as render order so a
+                                                                custom ordering also re-orders
+                                                                the visible chips (leftmost =
+                                                                primary criterion). Stamps absent
+                                                                from `stampPriority` were already
+                                                                dropped at parse-time, so they
+                                                                never reach this loop. */}
+                                                            {cellStamps && cellStamps.size > 0 && (
+                                                                <span class="flex flex-wrap justify-center gap-1">
+                                                                    {stampPriority.map((stamp) => {
+                                                                        if (!cellStamps.has(stamp)) return null;
+                                                                        if (stamp === 'best_price') {
+                                                                            return <span class="tt-stamp tt-stamp-price">{t('tickets.table.stampBestPrice')}</span>;
+                                                                        }
+                                                                        if (stamp === 'best_rated') {
+                                                                            return <span class="tt-stamp tt-stamp-rated">{t('tickets.table.stampBestRated')}</span>;
+                                                                        }
+                                                                        if (stamp === 'best_value') {
+                                                                            return <span class="tt-stamp tt-stamp-value">{t('tickets.table.stampBestValue')}</span>;
+                                                                        }
+                                                                        if (stamp === 'most_reviewed') {
+                                                                            return <span class="tt-stamp tt-stamp-reviewed">{t('tickets.table.stampMostReviewed')}</span>;
+                                                                        }
+                                                                        return null;
+                                                                    })}
+                                                                </span>
+                                                            )}
                                                             {providerRating && (
                                                                 <span class="inline-flex items-baseline gap-1 text-xs text-gray-800">
                                                                     <span class="tt-text-rating" aria-hidden="true">★</span>
                                                                     <span>{providerRating}</span>
                                                                 </span>
                                                             )}
-                                                            <a
-                                                                href={offer.cheapestHref}
-                                                                class="brand-bg-primary tt-cta-price inline-flex items-center justify-center rounded-md text-base text-white no-underline"
-                                                                referrerpolicy="origin"
-                                                                aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
-                                                            >
-                                                                {offer.cheapestPriceText}
-                                                            </a>
+                                                            {/* ONLY the primary winner cell per
+                                                                column gets the SOLID brand CTA —
+                                                                the cell whose highest-priority
+                                                                stamp tops the editor's stamp
+                                                                priority list. Other cells (even
+                                                                those carrying secondary stamps)
+                                                                render outlined. Mirrors the
+                                                                ContentEgg pattern : one winner
+                                                                per column, no tie. */}
+                                                            {isPrimaryWinner ? (
+                                                                <a
+                                                                    href={offer.cheapestHref}
+                                                                    class="brand-bg-primary tt-cta-price inline-flex items-center justify-center rounded-md text-base text-white no-underline"
+                                                                    referrerpolicy="origin"
+                                                                    aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
+                                                                >
+                                                                    {offer.cheapestPriceText}
+                                                                </a>
+                                                            ) : (
+                                                                <a
+                                                                    href={offer.cheapestHref}
+                                                                    class="tt-cta-price-outlined text-base"
+                                                                    referrerpolicy="origin"
+                                                                    aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
+                                                                >
+                                                                    {offer.cheapestPriceText}
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 );
@@ -703,6 +680,43 @@ const featureAbsent = t('tickets.table.featureAbsent');
         padding: 0.5rem 0.75rem;
     }
 
+    /* Column header link — wraps cover + title and points at the
+       primary winner's URL. Subtle hover state signals the
+       clickability without competing with the per-cell CTAs below.
+       The image scales slightly on hover (ContentEgg-style) so the
+       affordance reads before the visitor reaches for the CTA. */
+    .tickets-table-scroll .tt-header-link {
+        color: inherit;
+        transition: opacity 0.15s ease;
+    }
+    .tickets-table-scroll .tt-header-link:hover {
+        opacity: 0.85;
+    }
+    .tickets-table-scroll .tt-header-link img {
+        transition: transform 0.2s ease;
+    }
+    .tickets-table-scroll .tt-header-link:hover img {
+        transform: scale(1.02);
+    }
+
+    /* Outlined CTA variant — used on cells without a stamp so the
+       winning provider (which carries a stamp + solid CTA) stays
+       the visual anchor of each column. Mirrors the simple variant's
+       dichotomy : highlighted row solid, others outlined. */
+    .tickets-table-scroll .tt-cta-price-outlined {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        border: 1px solid var(--brand-primary);
+        color: var(--brand-primary);
+        background-color: transparent;
+        text-decoration: none;
+        line-height: 1.25;
+    }
+
     /* Brand accent helpers — bridges the theme's CSS custom
        properties into Tailwind-style class usage in the JSX. */
     .tt-text-rating { color: var(--brand-accent-rating); }
@@ -724,5 +738,39 @@ const featureAbsent = t('tickets.table.featureAbsent');
         border-collapse: separate;
         border-spacing: 0;
         table-layout: fixed;
+    }
+
+    /* Per-column comparison stamps. Mirrors the simple variant's
+       dichotomy : "Best price" lands SOLID (deal anchor, matches
+       the simple variant's primary stamp) while the rest stay
+       OUTLINED with their accent colour as border + text. Reads
+       softer than 4 competing solid pills and keeps Best price as
+       the primary visual signal in each cell. */
+    .tt-stamp {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        background-color: transparent;
+        border: 1px solid currentColor;
+    }
+    .tt-stamp-price {
+        background-color: var(--brand-accent-success);
+        border-color: var(--brand-accent-success);
+        color: white;
+    }
+    .tt-stamp-rated {
+        color: var(--brand-accent-rating);
+    }
+    .tt-stamp-value {
+        color: var(--brand-primary);
+    }
+    .tt-stamp-reviewed {
+        color: rgb(75 85 99); /* gray-600 */
+        border-color: rgb(209 213 219); /* gray-300 */
     }
 </style>

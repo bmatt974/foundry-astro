@@ -171,6 +171,12 @@ export interface TicketsSettings {
      *   - 'badges_first'           : Line 1 = name + annotation chips,
      *      Line 2 = rating. Badges-forward A/B variant. */
     rowLayout: 'rating_first' | 'badges_first';
+    /** Priority order of the comparison stamps surfaced by the
+     *  `'table'` variant. The highest-priority stamp a cell wins
+     *  decides which intersection becomes the "primary winner" of
+     *  the column (solid CTA + clickable header). Stamps NOT in the
+     *  array are dropped entirely from the table. */
+    stampPriority: StampSlug[];
     /** Surface the synthetic "audio_guide" badge on Admission cards
      *  carrying an audio_device or audio_app feature. */
     showAudioBadge: boolean;
@@ -215,6 +221,23 @@ export interface TicketSource {
     features: string[];
 }
 
+/** One source snapshot per stamp criterion. Renderers pick the one
+ *  matching the winning stamp so image + URL + rating stay coherent
+ *  with the "why this is the pick" signal. */
+export interface ProviderSnapshot {
+    priceFloor: number | null;
+    rating: number | null;
+    reviewCount: number | null;
+    coverImage: string | null;
+    href: string | null;
+}
+
+export interface ProviderPerspectives {
+    cheapest: ProviderSnapshot | null;
+    bestRated: ProviderSnapshot | null;
+    mostReviewed: ProviderSnapshot | null;
+}
+
 export interface UniqueProvider {
     /** Canonical provider slug (Supplier enum case name, lowercased). */
     slug: string;
@@ -239,15 +262,35 @@ export interface UniqueProvider {
     /** Number of underlying `ticket_sources` rows for this provider —
      *  exposed so the renderer can show "Viator (12)" or just "Viator". */
     sourceCount: number;
+    /** Cover image URL from this provider's cheapest source for the
+     *  ticket. Used by the table variant's column header so the
+     *  picture matches the click target (when this provider is the
+     *  primary winner, the column shows ITS photo + links to ITS
+     *  listing — consistent visitor expectation). `null` when the
+     *  cheapest source carries no image. */
+    coverImage: string | null;
     /** Cheapest price across this provider's sources for the ticket,
      *  pre-formatted in the active locale. Drives the per-provider
      *  "from €X" line in meta-search style rows. Null when none of
      *  this provider's sources carry a price. */
     cheapestPriceText: string | null;
+    /** Raw cheapest price in EUR for this provider's sources of the
+     *  ticket. Exposed for renderers that need to compute per-cell
+     *  winners (e.g. the table variant's per-column "Best price"
+     *  stamp) without re-parsing the formatted string. */
+    cheapestPriceFloor: number | null;
     /** Per-provider rating string (`★ 4.5 (12,345)`) from the
      *  cheapest source. Surfaces trust signal alongside the price ;
      *  null when the source declares no rating. */
     cheapestRatingText: string | null;
+    /** Aggregate rating (0–5) across this provider's reliable
+     *  sources for the ticket. Same source as `cheapestRatingText`
+     *  but as a raw number for cross-provider comparison. */
+    aggregateRating: number | null;
+    /** Cumulative review count across this provider's reliable
+     *  sources for the ticket. Drives the table variant's per-
+     *  column "Most reviewed" stamp. */
+    aggregateReviewCount: number | null;
     /** Pre-resolved href targeting this provider's cheapest source —
      *  `/${linkProxyPath}/${clickId}` or raw partner_url. Null when
      *  the source has neither (renderer should fall back to a non-
@@ -259,6 +302,13 @@ export interface UniqueProvider {
      *  Cancellation, the Tiqets row gets the badge. Pre-resolved
      *  labels via `useTranslations()` so the renderer just maps. */
     annotationBadges: TicketBadge[];
+    /** Per-criterion source snapshots from the backend's
+     *  TicketProviderAggregator. Renderers use this to ensure the
+     *  column header image, CTA URL and rating all come from the
+     *  source that won the criterion (not the cheapest by default).
+     *  Each value is `null` when no source qualifies for that
+     *  criterion. */
+    perspectives: ProviderPerspectives;
     /** Set when this provider matches the active highlight target
      *  ('cheapest' or 'best_rated'). Null for the losers on each
      *  ticket OR when `settings.highlightTarget === 'none'`. The
@@ -291,8 +341,20 @@ export interface ParsedTicket {
     groupType: TicketGroupTypeSlug;
     experienceType: TicketExperienceTypeSlug;
     priceText: string | null;
+    /** Raw cheapest price in EUR (`null` when unknown). Exposed for
+     *  renderers that need to compute cross-ticket winners — e.g. the
+     *  table variant's "Best price" / "Best value" stamps — without
+     *  re-parsing the formatted `priceText`. */
+    priceFloor: number | null;
     durationText: string | null;
     ratingText: string | null;
+    /** Aggregate rating (0–5) across all surviving sources for this
+     *  ticket. `null` when no source carries a usable rating. */
+    ratingAvg: number | null;
+    /** Cumulative review count across all surviving sources. Used by
+     *  the "Most reviewed" stamp and the simple variant's
+     *  aggregation disclosure line. */
+    reviewCountSum: number | null;
     isBundle: boolean;
     coveredPlaces: CoveredPlace[];
     badges: TicketBadge[];
@@ -393,6 +455,36 @@ interface RawSource {
     features?: string[];
 }
 
+/** Phase 1 of the API-side aggregation chantier — per-provider
+ *  snapshot pre-shaped by the PHP `TicketProviderAggregator`. One
+ *  perspective per criterion so the renderer can pull image + URL
+ *  from the SAME listing as the winning stamp. */
+interface RawProviderPerspective {
+    price_eur: number | null;
+    rating: number | null;
+    review_count: number | null;
+    image_url: string | null;
+    partner_url: string | null;
+    click_id: string | null;
+}
+
+interface RawProvider {
+    slug?: string;
+    label?: string;
+    brand_color?: string | null;
+    favicon_path?: string | null;
+    logo_path?: string | null;
+    source_count?: number;
+    aggregate_rating?: number | null;
+    aggregate_review_count?: number | null;
+    annotation_features?: string[];
+    perspectives?: {
+        cheapest?: RawProviderPerspective | null;
+        best_rated?: RawProviderPerspective | null;
+        most_reviewed?: RawProviderPerspective | null;
+    };
+}
+
 interface RawTicket {
     id?: number;
     title?: string;
@@ -408,6 +500,12 @@ interface RawTicket {
     features?: string[];
     languages?: string[];
     sources?: RawSource[];
+    /** Phase 1 migration : pre-aggregated provider entries. When
+     *  present, the parser reads `coverImage`-per-criterion data
+     *  from these and skips part of the per-source grouping. Legacy
+     *  payloads without this field fall back to source-based
+     *  aggregation transparently. */
+    providers?: RawProvider[];
 }
 
 interface RawMeta {
@@ -430,6 +528,7 @@ interface RawMeta {
         min_reliable_reviews?: number;
         show_filters?: boolean;
         row_layout?: 'rating_first' | 'badges_first';
+        stamp_priority?: string[];
         show_audio_badge?: boolean;
     };
 }
@@ -525,6 +624,7 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
             : 100,
         showFilters: s.show_filters !== false,
         rowLayout: s.row_layout === 'badges_first' ? 'badges_first' : 'rating_first',
+        stampPriority: sanitizeStampPriority(s.stamp_priority),
         showAudioBadge: s.show_audio_badge !== false,
     };
 }
@@ -911,6 +1011,26 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         }
     }
 
+    /* Phase 1 lookup of the backend-aggregated provider entries,
+       keyed by slug. When present, the corresponding `perspectives`
+       payload feeds the per-criterion source snapshots on
+       UniqueProvider so renderers can pull image + URL + rating
+       from the listing that won the criterion. */
+    const rawProvidersBySlug = new Map<string, RawProvider>();
+    for (const p of raw.providers ?? []) {
+        if (typeof p?.slug === 'string') rawProvidersBySlug.set(p.slug, p);
+    }
+    const toSnapshot = (raw: RawProviderPerspective | null | undefined): ProviderSnapshot | null => {
+        if (!raw) return null;
+        return {
+            priceFloor: typeof raw.price_eur === 'number' ? raw.price_eur : null,
+            rating: typeof raw.rating === 'number' ? raw.rating : null,
+            reviewCount: typeof raw.review_count === 'number' ? raw.review_count : null,
+            coverImage: typeof raw.image_url === 'string' ? raw.image_url : null,
+            href: typeof raw.partner_url === 'string' ? raw.partner_url : null,
+        };
+    };
+
     const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
         ([slug, entry]) => {
             const aggregateRating = entry.ratingWeightTotal > 0
@@ -934,11 +1054,20 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 logoPath: entry.logoPath,
                 faviconPath: entry.faviconPath,
                 sourceCount: entry.count,
+                coverImage: entry.cheapest.imageUrl,
+                perspectives: {
+                    cheapest: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.cheapest),
+                    bestRated: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.best_rated),
+                    mostReviewed: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.most_reviewed),
+                },
                 cheapestPriceText: entry.cheapest.priceText,
+                cheapestPriceFloor: parsePriceFloor(entry.cheapest.priceText),
                 // Aggregate rating + review count over ALL of this
                 // provider's sources — see comment above on why this
                 // beats `entry.cheapest.ratingText`.
                 cheapestRatingText: formatRating(aggregateRating, aggregateReviewCount, locale, reviewsSuffix),
+                aggregateRating,
+                aggregateReviewCount,
                 cheapestHref: entry.cheapest.href,
                 annotationBadges,
                 // Suppress the highlight when the provider's price falls
@@ -970,8 +1099,11 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         groupType,
         experienceType,
         priceText: formatPrice(raw.price_from_eur ?? null, locale),
+        priceFloor: typeof raw.price_from_eur === 'number' ? raw.price_from_eur : null,
         durationText: formatDuration(raw.duration_minutes ?? null, locale),
         ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale, reviewsSuffix),
+        ratingAvg: typeof raw.rating_avg === 'number' ? raw.rating_avg : null,
+        reviewCountSum: typeof raw.review_count_sum === 'number' ? raw.review_count_sum : null,
         isBundle: raw.multi_attraction_pass === true || format === 'bundle',
         coveredPlaces,
         badges: buildBadges(features, settings, t, universalAnnotations, groupType),
@@ -1199,4 +1331,365 @@ function deriveHeading(
         return { heading: populatedBuckets[0].label, layout: 'single' };
     }
     return { heading: '', layout: 'per-bucket' };
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Render-side shared helpers
+// ──────────────────────────────────────────────────────────────────
+//
+// Pure utilities consumed by ANY theme implementing one of the
+// Tickets variants. Theme `.astro` files import these instead of
+// duplicating the logic — keeps the editorial rules (stamp criteria,
+// supplier fallback URLs, feature gating) in a single place so a
+// future theme swap doesn't drift the comparison semantics.
+
+/**
+ * Strip the leading "★ " from the parser's pre-formatted rating
+ * string so the renderer can paint the star in its own brand-accent
+ * span. Returns `null` unchanged so call-sites can guard on it
+ * directly.
+ *
+ *   ratingStarless("★ 4.5 (12,345 reviews)") // → "4.5 (12,345 reviews)"
+ *   ratingStarless(null)                     // → null
+ */
+export function ratingStarless(text: string | null): string | null {
+    if (!text) return null;
+    return text.startsWith('★ ') ? text.slice(2) : text;
+}
+
+/**
+ * Locale-aware label for a `TicketGroupTypeSlug`. Used by the table
+ * variant's GROUP TYPE row and (potentially) editorial blocks
+ * surfacing a Private / Small group / Standard chip.
+ *
+ * Takes the translator function as a parameter — the renderer
+ * already holds it via `useTranslations()`, so the helper stays
+ * pure (no implicit dependency on a global locale).
+ */
+export function groupTypeLabel(slug: TicketGroupTypeSlug, t: T): string {
+    if (slug === 'small_group') return t('tickets.groupType.small_group');
+    if (slug === 'private') return t('tickets.groupType.private');
+    return t('tickets.groupType.standard');
+}
+
+/**
+ * True when the ticket carries the feature slug — checked against
+ * the parser's resolved `badges` array, NOT the raw `features`
+ * input, so the renderer gets the same honesty gates as the simple
+ * variant (annotation-class features only surface when universal).
+ */
+export function ticketHasFeature(ticket: ParsedTicket, slug: string): boolean {
+    return ticket.badges.some((b) => b.slug === slug);
+}
+
+/**
+ * Feature slugs eligible for the comparison-table's per-feature row,
+ * in render order. Same set as the simple variant's badges so the
+ * visitor's mental model stays consistent across variants of the
+ * same data.
+ */
+export const FEATURE_SLUGS_FOR_TABLE = [
+    'skip_the_line',
+    'priority_entry',
+    'official_ticket',
+    'audio_guide',
+    'free_cancellation',
+    'mobile_ticket',
+    'instant_confirmation',
+    'family_friendly',
+    'hotel_pickup',
+    'transport_included',
+    'meal_included',
+    'wheelchair_accessible',
+] as const;
+
+export type TableFeatureSlug = typeof FEATURE_SLUGS_FOR_TABLE[number];
+
+// ──────────────────────────────────────────────────────────────────
+// Supplier homepages — cross-variant fallback URLs
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * Static fallback URLs to each OTA's catalogue homepage. Used as a
+ * fallback when a provider doesn't sell the exact ticket the table
+ * variant is comparing — the visitor can still bounce to that
+ * brand's wider inventory. Keyed by the canonical supplier slug
+ * (matches `Supplier::slug()` on the foundry side).
+ *
+ * Lives in `lib/` so any theme implementing the table variant (or a
+ * future "see all on X" block) reads the same mapping. Migrate to
+ * `Supplier::homepageUrl()` server-side once we add suppliers
+ * beyond the OTA fleet.
+ */
+export const SUPPLIER_HOMEPAGES: Record<string, string> = {
+    viator: 'https://www.viator.com',
+    getyourguide: 'https://www.getyourguide.com',
+    tiqets: 'https://www.tiqets.com',
+    headout: 'https://www.headout.com',
+    klook: 'https://www.klook.com',
+    musement: 'https://www.musement.com',
+};
+
+export function supplierHomepage(slug: string): string | null {
+    return SUPPLIER_HOMEPAGES[slug] ?? null;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Comparison stamps (table variant) — per-cell winners
+// ──────────────────────────────────────────────────────────────────
+
+/** Per-cell comparison stamps awarded to the winning (ticket,
+ *  provider) intersections inside each column of the table variant. */
+export type StampSlug = 'best_price' | 'best_rated' | 'best_value' | 'most_reviewed';
+
+/** Canonical stamp ordering — applied as the default and used by
+ *  `sanitizeStampPriority` to fall back when the editor's input is
+ *  empty / corrupted. */
+const STAMP_DEFAULT_PRIORITY: StampSlug[] = ['best_price', 'best_value', 'best_rated', 'most_reviewed'];
+
+/**
+ * Filter the editor's priority list against the known stamp slugs,
+ * deduplicate while preserving order, and fall back to the canonical
+ * default when nothing valid survives. Lets `RawMeta.settings`
+ * accept loose input from the CMS without crashing the renderer.
+ */
+function sanitizeStampPriority(raw: ReadonlyArray<string> | undefined): StampSlug[] {
+    if (!raw || raw.length === 0) return [...STAMP_DEFAULT_PRIORITY];
+    const allowed = new Set<string>(STAMP_DEFAULT_PRIORITY);
+    const seen = new Set<string>();
+    const kept: StampSlug[] = [];
+    for (const slug of raw) {
+        if (typeof slug !== 'string' || !allowed.has(slug) || seen.has(slug)) continue;
+        seen.add(slug);
+        kept.push(slug as StampSlug);
+    }
+    return kept.length > 0 ? kept : [...STAMP_DEFAULT_PRIORITY];
+}
+
+/**
+ * Award per-cell stamps inside each ticket column.
+ *
+ * For every ticket with 2+ providers, find the winning provider for
+ * each criterion and tag that (ticket, provider) cell :
+ *   - Best price     : provider with the lowest cheapestPriceFloor
+ *   - Most reviewed  : provider with the highest aggregateReviewCount
+ *   - Best rated     : provider with the highest aggregateRating,
+ *                       gated by `minReliableReviews` so a "★ 5
+ *                       (3 reviews)" outlier never wins.
+ *   - Best value     : cheapest provider within the TOP HALF of the
+ *                       reliable-rated providers (sorted by rating
+ *                       desc). Honest, predictable signal — "well-
+ *                       rated AND affordable, within this column".
+ *
+ * Skip rules :
+ *   - Tickets with only 1 provider get no stamps (no comparison).
+ *   - When no provider passes the reliable-rated gate for a column,
+ *     the "best value" pool falls back to the priced set so the
+ *     stamp still surfaces something actionable.
+ *   - A single (ticket, provider) cell can carry multiple stamps
+ *     when it tops several criteria for that column.
+ */
+export function computeStamps(
+    tickets: ReadonlyArray<ParsedTicket>,
+    minReliableReviews: number,
+    priorityFilter: ReadonlyArray<StampSlug> = STAMP_DEFAULT_PRIORITY,
+): Map<number, Map<string, Set<StampSlug>>> {
+    const stamps = new Map<number, Map<string, Set<StampSlug>>>();
+    const enabled = new Set<StampSlug>(priorityFilter);
+
+    for (const ticket of tickets) {
+        if (ticket.providers.length < 2) continue;
+        const perTicket = new Map<string, Set<StampSlug>>();
+
+        const award = (slug: string | null, stamp: StampSlug): void => {
+            if (slug === null || !enabled.has(stamp)) return;
+            const set = perTicket.get(slug) ?? new Set<StampSlug>();
+            set.add(stamp);
+            perTicket.set(slug, set);
+        };
+
+        const pricedProviders = ticket.providers.filter(
+            (p): p is typeof p & { cheapestPriceFloor: number } => p.cheapestPriceFloor !== null,
+        );
+        if (pricedProviders.length > 0) {
+            const cheapest = pricedProviders.reduce((a, b) => (a.cheapestPriceFloor <= b.cheapestPriceFloor ? a : b));
+            award(cheapest.slug, 'best_price');
+        }
+
+        const reviewedProviders = ticket.providers.filter(
+            (p): p is typeof p & { aggregateReviewCount: number } => p.aggregateReviewCount !== null,
+        );
+        if (reviewedProviders.length > 0) {
+            const mostReviewed = reviewedProviders.reduce(
+                (a, b) => (a.aggregateReviewCount >= b.aggregateReviewCount ? a : b),
+            );
+            award(mostReviewed.slug, 'most_reviewed');
+        }
+
+        const reliableRated = ticket.providers.filter(
+            (p): p is typeof p & { aggregateRating: number; aggregateReviewCount: number } =>
+                p.aggregateRating !== null
+                && p.aggregateReviewCount !== null
+                && p.aggregateReviewCount >= minReliableReviews,
+        );
+        if (reliableRated.length > 0) {
+            const bestRated = reliableRated.reduce((a, b) => {
+                if (b.aggregateRating !== a.aggregateRating) return b.aggregateRating > a.aggregateRating ? b : a;
+                return b.aggregateReviewCount > a.aggregateReviewCount ? b : a;
+            });
+            award(bestRated.slug, 'best_rated');
+        }
+
+        const valuePool = reliableRated.length > 0
+            ? [...reliableRated]
+                .sort((a, b) => b.aggregateRating - a.aggregateRating)
+                .slice(0, Math.ceil(reliableRated.length / 2))
+            : pricedProviders;
+        const valuePoolWithPrice = valuePool.filter(
+            (p): p is typeof p & { cheapestPriceFloor: number } => p.cheapestPriceFloor !== null,
+        );
+        if (valuePoolWithPrice.length > 0) {
+            const bestValue = valuePoolWithPrice.reduce(
+                (a, b) => (a.cheapestPriceFloor <= b.cheapestPriceFloor ? a : b),
+            );
+            award(bestValue.slug, 'best_value');
+        }
+
+        if (perTicket.size > 0) stamps.set(ticket.id, perTicket);
+    }
+
+    return stamps;
+}
+
+/**
+ * Resolve the "primary winner" provider per ticket — the cell whose
+ * highest-priority stamp ranks first in `stampPriority`. This single
+ * winner per column drives :
+ *   - the solid CTA button styling (others render outlined)
+ *   - the clickable column header link target
+ *
+ * Returns Map<ticketId, providerSlug>. Tickets without stamps map to
+ * nothing (no winner = no special treatment).
+ */
+export function resolvePrimaryWinners(
+    stamps: Map<number, Map<string, Set<StampSlug>>>,
+    stampPriority: ReadonlyArray<StampSlug>,
+): Map<number, string> {
+    const winners = new Map<number, string>();
+    for (const [ticketId, perTicket] of stamps.entries()) {
+        let winnerSlug: string | null = null;
+        let winnerRank = stampPriority.length;
+        for (const [providerSlug, set] of perTicket.entries()) {
+            for (const stamp of set) {
+                const rank = stampPriority.indexOf(stamp);
+                if (rank === -1) continue;
+                if (rank < winnerRank) {
+                    winnerRank = rank;
+                    winnerSlug = providerSlug;
+                }
+            }
+        }
+        if (winnerSlug !== null) winners.set(ticketId, winnerSlug);
+    }
+    return winners;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Table-variant bucket context
+// ──────────────────────────────────────────────────────────────────
+
+/** Aggregated provider profile across a bucket — drives the
+ *  per-provider rows in the table variant. */
+export interface BucketProvider {
+    slug: string;
+    label: string;
+    faviconPath: string | null;
+    /** Brand wordmark + mark image — surfaced when the editor
+     *  picks `provider_indicator = 'logo'`. */
+    logoPath: string | null;
+    /** Brand hex colour — surfaced as a coloured dot when the
+     *  editor picks `provider_indicator = 'dot'`. */
+    brandColor: string | null;
+    /** How many tickets in the bucket this provider sells. Drives
+     *  the row order (most prevalent first) so the visitor's eyes
+     *  land on the broadest catalogue. */
+    coverage: number;
+}
+
+/** Per-bucket render context for the table variant — pre-computes
+ *  which feature rows are worth painting, whether the group_type
+ *  row should fire, the unique provider list, the per-cell
+ *  comparison stamps, AND the primary winner per ticket column
+ *  (deduced from `stampPriority`). Theme renderers consume this
+ *  directly. */
+export interface BucketContext {
+    bucket: ParsedBucket;
+    relevantFeatures: TableFeatureSlug[];
+    showGroupTypeRow: boolean;
+    showRatingRow: boolean;
+    showDurationRow: boolean;
+    providers: BucketProvider[];
+    stamps: Map<number, Map<string, Set<StampSlug>>>;
+    /** Map<ticketId, providerSlug> — the single "primary winner"
+     *  cell per column. Renderers paint its CTA solid (rest stay
+     *  outlined) and link the column header to its URL. */
+    primaryWinners: Map<number, string>;
+    /** Render order for the stamps inside each cell. Mirrors the
+     *  editor's `stamp_priority` so a re-ordering of the priority
+     *  list also re-orders the visible chips (left = primary). */
+    stampPriority: ReadonlyArray<StampSlug>;
+}
+
+/**
+ * Build a `BucketContext` for the table variant from a parsed bucket
+ * + the block's settings. Pure function — no theme awareness — so
+ * every theme implementing the table variant gets identical
+ * comparison semantics.
+ */
+export function buildBucketContext(
+    bucket: ParsedBucket,
+    settings: { minReliableReviews: number; stampPriority: ReadonlyArray<StampSlug> },
+): BucketContext {
+    const tickets = bucket.tickets;
+
+    /* Gather every distinct provider appearing across the bucket.
+       Same provider can back several tickets ; collapse to one entry
+       per slug and count coverage. */
+    const providerMap = new Map<string, BucketProvider>();
+    for (const ticket of tickets) {
+        for (const provider of ticket.providers) {
+            const existing = providerMap.get(provider.slug);
+            if (existing) {
+                existing.coverage += 1;
+            } else {
+                providerMap.set(provider.slug, {
+                    slug: provider.slug,
+                    label: provider.label,
+                    faviconPath: provider.faviconPath,
+                    logoPath: provider.logoPath,
+                    brandColor: provider.brandColor,
+                    coverage: 1,
+                });
+            }
+        }
+    }
+    const providers = [...providerMap.values()].sort((a, b) => {
+        if (b.coverage !== a.coverage) return b.coverage - a.coverage;
+        return a.label.localeCompare(b.label);
+    });
+
+    const stamps = computeStamps(tickets, settings.minReliableReviews, settings.stampPriority);
+    return {
+        bucket,
+        relevantFeatures: FEATURE_SLUGS_FOR_TABLE.filter((slug) =>
+            tickets.some((t) => ticketHasFeature(t, slug)),
+        ),
+        showGroupTypeRow: tickets.some((t) => t.groupType !== 'standard'),
+        showRatingRow: tickets.some((t) => t.ratingText !== null),
+        showDurationRow: tickets.some((t) => t.durationText !== null),
+        providers,
+        stamps,
+        primaryWinners: resolvePrimaryWinners(stamps, settings.stampPriority),
+        stampPriority: settings.stampPriority,
+    };
 }

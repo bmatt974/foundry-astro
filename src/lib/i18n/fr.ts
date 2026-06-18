@@ -87,6 +87,10 @@ const fr: Dictionary = {
             groupType: 'Type de groupe',
             featurePresent: '✓',
             featureAbsent: '—',
+            stampBestPrice: 'Meilleur prix',
+            stampBestRated: 'Meilleure note',
+            stampBestValue: 'Meilleur rapport',
+            stampMostReviewed: 'Plus avis',
         },
         feature: {
             skip_the_line: 'Coupe-file',

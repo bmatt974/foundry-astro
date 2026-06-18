@@ -87,6 +87,10 @@ const en: Dictionary = {
             groupType: 'Group type',
             featurePresent: '✓',
             featureAbsent: '—',
+            stampBestPrice: 'Best price',
+            stampBestRated: 'Best rated',
+            stampBestValue: 'Best value',
+            stampMostReviewed: 'Most reviewed',
         },
         feature: {
             skip_the_line: 'Skip-the-line',
