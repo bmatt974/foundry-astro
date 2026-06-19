@@ -297,6 +297,15 @@ export interface TenantResolution {
             link_to_profile: boolean;
             nofollow: boolean;
         };
+        /** Site-wide outbound-affiliate-link policy. Resolved
+         *  server-side ; `rel` is the pre-built attribute string the
+         *  renderer drops directly into every CTA `<a rel="...">` on
+         *  Tickets / Comparison blocks. `mode` is the underlying
+         *  editor knob, exposed for debug / analytics only. */
+        outbound_links: {
+            mode: 'minimal' | 'tracked' | 'private';
+            rel: string;
+        };
     };
     locales: WebsiteLocale[];
     default_locale: string | null;

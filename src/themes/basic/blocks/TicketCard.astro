@@ -16,6 +16,7 @@ const { ticket } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 ---
 
 <li class="brand-border group overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-md">
@@ -78,8 +79,10 @@ const t = useTranslations(locale, wording);
         {ticket.primaryCtaHref && (
             <a
                 href={ticket.primaryCtaHref}
+                target="_blank"
+                rel={outboundRel}
                 class="brand-bg-primary mt-2 inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-                referrerpolicy="origin"
+               
             >
                 {t('tickets.card.book')}
             </a>

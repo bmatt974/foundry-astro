@@ -44,6 +44,11 @@ const { block } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 const wording = Astro.locals.wording ?? null;
+/* Site-wide rel chain for affiliate CTAs — resolved server-side
+   from `websites.settings.outbound_links.rel_mode`. Defaults to
+   `nofollow` so a tenant with no setting (or no tenant at all in
+   isolated component tests) renders the dominant SERP pattern. */
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 const t = useTranslations(locale, wording);
 
 const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
@@ -215,8 +220,10 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                 {headerHref ? (
                                                     <a
                                                         href={headerHref}
+                                                        target="_blank"
+                                                        rel={outboundRel}
                                                         class="tt-header-link block no-underline"
-                                                        referrerpolicy="origin"
+                                                       
                                                         aria-label={ticket.title}
                                                     >
                                                         {innerHeader}
@@ -518,8 +525,10 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                             {isPrimaryWinner ? (
                                                                 <a
                                                                     href={offer.cheapestHref}
+                                                                    target="_blank"
+                                                                    rel={outboundRel}
                                                                     class="brand-bg-primary tt-cta-price inline-flex items-center justify-center rounded-md text-base text-white no-underline"
-                                                                    referrerpolicy="origin"
+                                                                   
                                                                     aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
                                                                 >
                                                                     {offer.cheapestPriceText}
@@ -527,8 +536,10 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                             ) : (
                                                                 <a
                                                                     href={offer.cheapestHref}
+                                                                    target="_blank"
+                                                                    rel={outboundRel}
                                                                     class="tt-cta-price-outlined text-base"
-                                                                    referrerpolicy="origin"
+                                                                   
                                                                     aria-label={`${provider.label} — ${offer.cheapestPriceText ?? ''}`}
                                                                 >
                                                                     {offer.cheapestPriceText}
@@ -552,7 +563,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                                         <a
                                                             href={homepage}
                                                             target="_blank"
-                                                            rel="noopener noreferrer sponsored nofollow"
+                                                            rel={outboundRel}
                                                             class="brand-text-muted inline-block text-[11px] underline-offset-2 hover:underline"
                                                         >
                                                             {provider.label} ›

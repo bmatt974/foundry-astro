@@ -11,6 +11,7 @@ interface Props {
 const { block } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath);
 const publishedAt = Astro.locals.pagePublishedAt ?? null;
 const relativeUpdated = formatRelativeDate(publishedAt, locale);
@@ -55,7 +56,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                             </td>
                             <td class="views-field views-field--cta">
                                 {row.ctaHref && (
-                                    <a href={row.ctaHref} target="_blank" rel="noopener noreferrer sponsored nofollow" referrerpolicy="origin" class="button button--primary">
+                                    <a href={row.ctaHref} target="_blank" rel={outboundRel} class="button button--primary">
                                         {labels.cta}
                                     </a>
                                 )}
