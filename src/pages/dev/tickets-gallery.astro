@@ -34,11 +34,13 @@ if (!tenant) {
     return new Response('Tenant not resolved — dev gallery requires a host with a registered website.', { status: 500 });
 }
 
-const locale = Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
+const params = Astro.url.searchParams;
+// Dev-only override : `?locale=` lets us flip the gallery between
+// any locale without changing URL prefix routing. Falls back to the
+// locale resolved by middleware (URL path) → tenant default.
+const locale = params.get('locale') ?? Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
 const theme = await getTheme(tenant.website.template);
 const { Layout, Block } = theme;
-
-const params = Astro.url.searchParams;
 const placeId = params.get('place') ?? '138642';
 const variant = params.get('variant') ?? 'simple';
 const heading = params.get('heading') ?? '';
@@ -86,6 +88,9 @@ const rowLayout = params.get('row_layout') === 'badges_first' ? 'badges_first' :
    editor order. The backend sanitizes against the same allowlist
    and falls back to the canonical default when empty. */
 const stampPriority = params.get('stamp_priority') ?? '';
+// '' = auto (controller derives from locale via CLDR). Explicit
+// 3-letter codes override the locale default.
+const currency = (params.get('currency') ?? '').toUpperCase();
 
 const foundryApiBase = import.meta.env.FOUNDRY_API_URL ?? 'http://foundry.test/api/v1';
 const upstream = new URLSearchParams();
@@ -108,6 +113,8 @@ if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minR
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
 if (rowLayout !== 'rating_first') upstream.set('row_layout', rowLayout);
 if (stampPriority.trim() !== '') upstream.set('stamp_priority', stampPriority.trim());
+// Empty currency = "auto" — backend derives from locale via CLDR.
+if (currency !== '') upstream.set('currency', currency);
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
 
 interface Aggregations {
@@ -149,6 +156,22 @@ function chipLabel(slug: string, axis: keyof Aggregations): string {
     return count !== undefined ? `${slug} (${count})` : slug;
 }
 
+// VIEW block — visitor-scope params (locale + currency). Independent
+// from the Settings block below, which captures editor-controlled
+// knobs that ship in `page_blocks.content.meta.settings`. Locale and
+// currency NEVER persist on block settings — they're routed by URL
+// (locale) + visitor cookie (currency, planned). Empty currency =
+// "auto" : the backend derives a default from the locale via CLDR.
+const LOCALES = [
+    'fr-FR', 'fr-BE', 'fr-CH', 'fr-CA',
+    'en-US', 'en-GB', 'en-CA', 'en-AU',
+    'de-DE', 'de-AT', 'de-CH',
+    'it-IT', 'es-ES', 'pt-PT', 'pt-BR',
+    'nl-NL', 'pl-PL', 'sv-SE', 'da-DK', 'nb-NO',
+    'ja-JP', 'ko-KR', 'zh-CN', 'tr-TR', 'ar-AE',
+] as const;
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'CHF', 'AUD', 'JPY', 'SGD', 'HKD', 'NZD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'TRY', 'MXN', 'INR', 'THB', 'CNY', 'BRL'] as const;
+
 const VARIANTS = ['simple', 'table'] as const;
 const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
 const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
@@ -177,6 +200,22 @@ function isChecked(slug: string, picked: string[]): boolean {
             font-size: 0.65rem; color: #6b7280; text-transform: uppercase;
             letter-spacing: 0.08em; font-weight: 700; white-space: nowrap;
             padding-top: 0.2rem;
+        }
+        /* "View" block — locale + currency. Visitor-scope params,
+           NOT editor-controlled settings. Slight color shift + a
+           bottom border on the right-side controls separates it from
+           the Settings rows that follow. */
+        .dev-gallery-toolbar .view-label { color: #0369a1; }
+        .dev-gallery-toolbar .view-row > .inline-controls {
+            padding-bottom: 0.5rem;
+            border-bottom: 1px dashed rgba(3, 105, 161, 0.25);
+        }
+        .dev-gallery-toolbar .field-label {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            font-size: 0.7rem; color: #4b5563;
+        }
+        .dev-gallery-toolbar .field-label > span {
+            text-transform: lowercase; font-weight: 500;
         }
         .dev-gallery-toolbar .chip-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
         .dev-gallery-toolbar .chip {
@@ -238,6 +277,26 @@ function isChecked(slug: string, picked: string[]): boolean {
 
     <div class="dev-gallery-toolbar">
         <form method="get" action="/dev/tickets-gallery">
+            <div class="row view-row">
+                <span class="group-label view-label">View</span>
+                <div class="inline-controls">
+                    <label class="field-label" title="URL locale override — drives heading translations, formatters, and the locale-derived default currency.">
+                        <span>locale</span>
+                        <select name="locale">
+                            {LOCALES.map((l) => <option value={l} selected={l === locale}>{l}</option>)}
+                        </select>
+                    </label>
+                    <label class="field-label" title="Visitor-scope currency. Empty = auto (CLDR-derived from locale). Persists via cookie in prod (planned).">
+                        <span>currency</span>
+                        <select name="currency">
+                            <option value="" selected={currency === ''}>auto</option>
+                            {CURRENCIES.map((c) => <option value={c} selected={c === currency}>{c}</option>)}
+                        </select>
+                    </label>
+                </div>
+                <span></span>
+            </div>
+
             <div class="row">
                 <span class="group-label">Place</span>
                 <div class="inline-controls">

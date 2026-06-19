@@ -226,6 +226,13 @@ export interface TicketSource {
  *  with the "why this is the pick" signal. */
 export interface ProviderSnapshot {
     priceFloor: number | null;
+    /** Server-side locale-formatted price (e.g. "$27.51" / "24,00 €")
+     *  for the snapshot's currency. Pre-converted by the backend
+     *  CurrencyConverter — renderers display this directly. */
+    priceText: string | null;
+    /** ISO 4217 of the displayed amount. Echoed for renderers that
+     *  want to label the price (e.g. "$27.51 USD"). */
+    currency: string | null;
     rating: number | null;
     reviewCount: number | null;
     coverImage: string | null;
@@ -461,6 +468,14 @@ interface RawSource {
  *  from the SAME listing as the winning stamp. */
 interface RawProviderPerspective {
     price_eur: number | null;
+    /** Pre-converted local-currency amount from the PHP
+     *  CurrencyConverter. May equal `price_eur` when target currency
+     *  is EUR. */
+    price_local: number | null;
+    /** ISO 4217 of `price_local` / `price_text`. */
+    currency: string | null;
+    /** Locale-aware formatted string (NumberFormatter PHP side). */
+    price_text: string | null;
     rating: number | null;
     review_count: number | null;
     image_url: string | null;
@@ -1024,6 +1039,8 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         if (!raw) return null;
         return {
             priceFloor: typeof raw.price_eur === 'number' ? raw.price_eur : null,
+            priceText: typeof raw.price_text === 'string' ? raw.price_text : null,
+            currency: typeof raw.currency === 'string' ? raw.currency : null,
             rating: typeof raw.rating === 'number' ? raw.rating : null,
             reviewCount: typeof raw.review_count === 'number' ? raw.review_count : null,
             coverImage: typeof raw.image_url === 'string' ? raw.image_url : null,
@@ -1047,6 +1064,13 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                     slug: featureSlug,
                     label: t(`tickets.feature.${featureSlug}` as TranslationKey),
                 }));
+            /* Prefer the server-formatted price_text from the
+               backend aggregator when present (multi-currency
+               support flows through here). Falls back to the
+               TS-formatted EUR text from the per-source grouping
+               when the API didn't ship perspectives. */
+            const cheapestPerspective = rawProvidersBySlug.get(slug)?.perspectives?.cheapest;
+            const serverPriceText = typeof cheapestPerspective?.price_text === 'string' ? cheapestPerspective.price_text : null;
             return {
                 slug,
                 label: entry.label,
@@ -1056,11 +1080,11 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 sourceCount: entry.count,
                 coverImage: entry.cheapest.imageUrl,
                 perspectives: {
-                    cheapest: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.cheapest),
+                    cheapest: toSnapshot(cheapestPerspective),
                     bestRated: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.best_rated),
                     mostReviewed: toSnapshot(rawProvidersBySlug.get(slug)?.perspectives?.most_reviewed),
                 },
-                cheapestPriceText: entry.cheapest.priceText,
+                cheapestPriceText: serverPriceText ?? entry.cheapest.priceText,
                 cheapestPriceFloor: parsePriceFloor(entry.cheapest.priceText),
                 // Aggregate rating + review count over ALL of this
                 // provider's sources — see comment above on why this
@@ -1092,13 +1116,25 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         },
     );
 
+    /* "From price" on the ticket header should also reflect the
+       active currency. Pick the price_text from the provider whose
+       cheapest perspective carries the LOWEST priceFloor — that's
+       the source feeding `raw.price_from_eur` for this ticket. Falls
+       back to the TS-formatted EUR when no provider perspective is
+       shipped (legacy payload). */
+    const cheapestProviderPriceText = providers
+        .map((p) => p.perspectives.cheapest)
+        .filter((s): s is ProviderSnapshot => s !== null && typeof s.priceText === 'string')
+        .sort((a, b) => (a.priceFloor ?? Infinity) - (b.priceFloor ?? Infinity))
+        [0]?.priceText ?? null;
+
     return {
         id: raw.id,
         title: raw.title,
         format,
         groupType,
         experienceType,
-        priceText: formatPrice(raw.price_from_eur ?? null, locale),
+        priceText: cheapestProviderPriceText ?? formatPrice(raw.price_from_eur ?? null, locale),
         priceFloor: typeof raw.price_from_eur === 'number' ? raw.price_from_eur : null,
         durationText: formatDuration(raw.duration_minutes ?? null, locale),
         ratingText: formatRating(raw.rating_avg ?? null, raw.review_count_sum ?? null, locale, reviewsSuffix),
