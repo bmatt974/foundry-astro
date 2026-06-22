@@ -204,6 +204,27 @@ export interface Dictionary {
             stampBestValue: string;
             stampMostReviewed: string;
         };
+        /** "Compare" variant UI strings — single-row-per-format-bucket
+         *  table (variant = 'compare'). Columns mirror what a fresh
+         *  visitor scans first : feature presence ✓/✗, then price,
+         *  then a per-row CTA. */
+        compare: {
+            colType: string;
+            colSkipLine: string;
+            colAudioGuide: string;
+            colLiveGuide: string;
+            colCancellation: string;
+            colSupplier: string;
+            colPrice: string;
+            colRating: string;
+            colAction: string;
+            /** "+:count more options" — substitution for the
+             *  "more tickets in this bucket" hint under the row title. */
+            moreOptions: string;
+            /** "Prices updated on" — prefix before the relative date
+             *  in the table footer. */
+            pricesUpdated: string;
+        };
         /** Per-feature badge labels (subset surfaced on cards). The full
          *  `TicketFeature` enum has 23 cases ; only the ones the renderer
          *  actually paints on cards live here. */

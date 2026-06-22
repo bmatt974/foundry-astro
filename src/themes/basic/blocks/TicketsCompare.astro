@@ -1,0 +1,398 @@
+---
+/**
+ * Tickets — `variant = 'compare'`.
+ *
+ * Provider-per-row layout : one TABLE row per `(ticket × provider)`
+ * tuple, with the bucket / ticket / feature cells shown only on the
+ * FIRST occurrence so the eye groups naturally without the renderer
+ * needing rowspan. Each row carries its own Supplier · Price · Rating
+ * · CTA columns so every line reads as a discrete, click-ready
+ * affiliate option.
+ *
+ * Conversion-first design — the visitor scans the matrix and books
+ * the row that matches their constraint (price, rating, supplier
+ * preference). Every row has a visible CTA button : no row is just
+ * "data" that needs a hover to click.
+ *
+ * Grouping levels :
+ *   1. Format bucket  (Admission, Guided, Special, Bundle)
+ *   2. Group type     (Standard implicit ; Small group, Private as
+ *                      separate sub-buckets)
+ *   3. Ticket title   (one set of feature cells per ticket — repeated
+ *                      checkmarks across that ticket's provider rows
+ *                      would just be noise)
+ *   4. Provider       (cheapest first, alternates underneath)
+ *
+ * Visually matches the existing legacy Comparison block (basic /
+ * wp-classic / drupal-bartik themes) so a page mixing both reads
+ * coherently. The difference : THIS variant is driven by the
+ * `TicketProviderAggregator` (per-source classification, multi-
+ * provider real prices, currency + locale URL rewrite, ECB-driven
+ * multi-currency) instead of the legacy `ComparisonBlockDrafter`.
+ */
+import {
+    parseTicketsBlock,
+    type ParsedBucket,
+    type ParsedTicket,
+    type TicketGroupTypeSlug,
+    type UniqueProvider,
+    GROUP_DISPLAY_ORDER,
+    ticketHasFeature,
+    ratingStarless,
+} from '../../../lib/blocks/tickets';
+import { useTranslations } from '../../../lib/i18n/index';
+import { formatDate, formatRelativeDate } from '../../../lib/format';
+import { slugify } from '../../../lib/toc';
+import type { PageBlock } from '../../../lib/foundry';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
+const publishedAt = Astro.locals.pagePublishedAt ?? null;
+const relativeUpdated = formatRelativeDate(publishedAt, locale);
+const absoluteUpdated = formatDate(publishedAt, locale);
+
+const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
+const buckets = (parsed?.buckets ?? []).filter((b) => b.tickets.length > 0);
+/* Editor-controlled visual knobs from `block.content.meta.settings`,
+   defaults-applied by the parser. Mirrors the TicketsTable variant
+   so the same setting drives both. */
+const providerIndicator = parsed?.settings.providerIndicator ?? 'favicon';
+const heading = (parsed?.heading ?? '').trim() || null;
+const headingId = heading ? slugify(heading) : null;
+const headingLevel = parsed?.settings.headingLevel ?? 3;
+const HeadingTag = `h${headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+
+/* Each row is a `(ticket × provider)` combo. The renderer reads
+   `isSubgroupFirst` / `isTicketFirst` to decide which cells carry
+   their label vs leave the slot blank (visual grouping via
+   first-occurrence anchoring, no rowspan). The future collapse pass
+   hides every row where `!isTicketFirst` so each ticket shrinks to
+   its cheapest provider. */
+interface CompareRow {
+    bucket: ParsedBucket;
+    ticket: ParsedTicket;
+    groupType: TicketGroupTypeSlug;
+    provider: UniqueProvider;
+    /** True for the first row of each (format × group_type)
+     *  sub-bucket — drives the bucket-label rendering. */
+    isSubgroupFirst: boolean;
+    /** True for the first PROVIDER row of each ticket — drives the
+     *  ticket-title rendering and the feature cells (which only
+     *  paint on this row ; subsequent provider rows of the same
+     *  ticket leave those cells blank). */
+    isTicketFirst: boolean;
+    /** Total tickets in this (format × group_type) combo — surfaced
+     *  next to the bucket label as a "· N" hint. Set to 0 on rows
+     *  that don't own the bucket label. */
+    subgroupSize: number;
+    /** Ticket-level feature flags. Skip-the-line / Audio guide are
+     *  product-defining ; Live guide is bucket-defined (implicit on
+     *  `guided` and `special_access`). All three are constant across
+     *  this ticket's provider rows. */
+    hasSkipLine: boolean;
+    hasAudio: boolean;
+    hasLiveGuide: boolean;
+    /** Per-provider annotation flag : free_cancellation can differ
+     *  between OTAs on the same ticket (Tiqets may offer it on a
+     *  listing Viator doesn't) — so we read it off the PROVIDER's
+     *  annotation badges, not the ticket-level pivot. */
+    hasFreeCancellation: boolean;
+}
+
+/**
+ * Order a ticket's providers by their cheapest price ASC. Providers
+ * with no price fall to the end. Stable on ties — preserves the
+ * editorial `affiliate_programs` order configured on the block.
+ */
+function sortProvidersByPrice(providers: ReadonlyArray<UniqueProvider>): UniqueProvider[] {
+    return [...providers].sort((a, b) => {
+        const aHas = a.cheapestPriceFloor !== null;
+        const bHas = b.cheapestPriceFloor !== null;
+        if (aHas && bHas) return (a.cheapestPriceFloor as number) - (b.cheapestPriceFloor as number);
+        if (aHas) return -1;
+        if (bHas) return 1;
+        return 0;
+    });
+}
+
+const rows: CompareRow[] = buckets.flatMap((bucket) =>
+    GROUP_DISPLAY_ORDER.flatMap((groupType) => {
+        const matchingTickets = bucket.tickets.filter((tk) => tk.groupType === groupType);
+        return matchingTickets.flatMap((ticket, ticketIdx) => {
+            const providers = sortProvidersByPrice(ticket.providers);
+            const hasSkipLine = ticketHasFeature(ticket, 'skip_the_line');
+            const hasAudio = ticketHasFeature(ticket, 'audio_guide');
+            const hasLiveGuide = bucket.format === 'guided' || bucket.format === 'special_access';
+
+            return providers.map((provider, providerIdx) => ({
+                bucket,
+                ticket,
+                groupType,
+                provider,
+                isSubgroupFirst: ticketIdx === 0 && providerIdx === 0,
+                isTicketFirst: providerIdx === 0,
+                subgroupSize: ticketIdx === 0 && providerIdx === 0 ? matchingTickets.length : 0,
+                hasSkipLine,
+                hasAudio,
+                hasLiveGuide,
+                hasFreeCancellation: provider.annotationBadges.some((b) => b.slug === 'free_cancellation'),
+            }));
+        });
+    }),
+);
+
+function subgroupLabel(bucket: ParsedBucket, groupType: TicketGroupTypeSlug): string {
+    if (groupType === 'standard') {
+        return bucket.label;
+    }
+    return `${bucket.label} · ${t(`tickets.groupType.${groupType}`)}`;
+}
+
+const headers = {
+    type: t('tickets.compare.colType'),
+    skipLine: t('tickets.compare.colSkipLine'),
+    audioGuide: t('tickets.compare.colAudioGuide'),
+    liveGuide: t('tickets.compare.colLiveGuide'),
+    cancellation: t('tickets.compare.colCancellation'),
+    supplier: t('tickets.compare.colSupplier'),
+    price: t('tickets.compare.colPrice'),
+    rating: t('tickets.compare.colRating'),
+    action: t('tickets.compare.colAction'),
+};
+const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
+---
+
+{rows.length > 0 && (
+    <section class="my-10">
+        {heading && (
+            <HeadingTag id={headingId ?? undefined} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
+                {heading}
+            </HeadingTag>
+        )}
+
+        {/* Mobile / narrow : card stack — one card per provider row.
+            Bucket label + ticket title surface only on each ticket's
+            first provider card. */}
+        <ul class="space-y-3 sm:hidden">
+            {rows.map(({ bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation }) => (
+                <li
+                    class:list={[
+                        'brand-border overflow-hidden rounded-lg border bg-white',
+                        !isTicketFirst && 'opacity-95',
+                    ]}
+                    data-bucket={bucket.format}
+                    data-group-type={groupType}
+                    data-subgroup-first={isSubgroupFirst}
+                    data-ticket-first={isTicketFirst}
+                >
+                    <div class="p-4">
+                        {isSubgroupFirst && (
+                            <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{subgroupLabel(bucket, groupType)}</p>
+                        )}
+                        {isTicketFirst && (
+                            <h3 class:list={['text-sm font-semibold leading-snug', isSubgroupFirst ? 'mt-1' : '']}>{ticket.title}</h3>
+                        )}
+                        {isTicketFirst && (
+                            <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
+                                <li>{hasSkipLine ? '✅' : '❌'} {headers.skipLine}</li>
+                                <li>{hasAudio ? '✅' : '❌'} {headers.audioGuide}</li>
+                                <li>{hasLiveGuide ? '✅' : '❌'} {headers.liveGuide}</li>
+                                <li>{hasFreeCancellation ? '✅' : '❌'} {headers.cancellation}</li>
+                            </ul>
+                        )}
+                        <div class:list={['flex items-center justify-between gap-3', isTicketFirst ? 'mt-4' : '']}>
+                            <div class="flex items-center gap-2">
+                                {providerIndicator === 'dot' && provider.brandColor && (
+                                    <span
+                                        aria-hidden="true"
+                                        class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                        style={`background-color: ${provider.brandColor}`}
+                                    />
+                                )}
+                                {providerIndicator === 'favicon' && provider.faviconPath && (
+                                    <img
+                                        src={provider.faviconPath}
+                                        alt=""
+                                        loading="lazy"
+                                        width="28"
+                                        height="28"
+                                        class="h-7 w-7 flex-shrink-0 rounded object-contain"
+                                    />
+                                )}
+                                {providerIndicator === 'logo' && provider.logoPath && (
+                                    <img
+                                        src={provider.logoPath}
+                                        alt=""
+                                        loading="lazy"
+                                        class="h-8 w-auto flex-shrink-0 object-contain"
+                                    />
+                                )}
+                                <div>
+                                    {provider.cheapestPriceText && (
+                                        <p class="text-base font-semibold">{provider.cheapestPriceText}</p>
+                                    )}
+                                    <p class="brand-text-muted text-xs">
+                                        {provider.label}
+                                        {ratingStarless(provider.cheapestRatingText) && (
+                                            <span> · ★ {ratingStarless(provider.cheapestRatingText)}</span>
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+                            {provider.cheapestHref && (
+                                <a
+                                    href={provider.cheapestHref}
+                                    target="_blank"
+                                    rel={outboundRel}
+                                    class:list={[
+                                        'inline-block whitespace-nowrap rounded-md px-4 py-2 text-sm font-semibold',
+                                        isTicketFirst
+                                            ? 'brand-bg-primary text-white hover:opacity-90'
+                                            : 'brand-border brand-text-primary border bg-white hover:bg-gray-50',
+                                    ]}
+                                >
+                                    {ctaLabel}
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                </li>
+            ))}
+        </ul>
+
+        {/* Desktop / wide : explicit columns — Type, features, Supplier,
+            Price, Rating, Action. Bucket label / ticket title / feature
+            cells only render on the first occurrence (visual grouping by
+            anchoring, no rowspan). */}
+        <div class="hidden overflow-x-auto sm:block">
+            <table class="brand-border w-full border-collapse border text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[12rem]">{headers.type}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.skipLine}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.audioGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.liveGuide}</th>
+                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.cancellation}</th>
+                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{headers.supplier}</th>
+                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{headers.price}</th>
+                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{headers.rating}</th>
+                        <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{headers.action}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map(({ bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, subgroupSize, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation }) => (
+                        <tr
+                            class:list={[
+                                'brand-border border-t align-middle',
+                                isTicketFirst ? '' : 'bg-gray-50/40',
+                            ]}
+                            data-bucket={bucket.format}
+                            data-group-type={groupType}
+                            data-subgroup-first={isSubgroupFirst}
+                            data-ticket-first={isTicketFirst}
+                        >
+                            <td class="p-3 align-top">
+                                {isSubgroupFirst && (
+                                    <p class="whitespace-nowrap font-semibold">
+                                        {subgroupLabel(bucket, groupType)}
+                                        {subgroupSize > 1 && (
+                                            <span class="brand-text-muted ml-1 text-xs font-normal">
+                                                · {subgroupSize}
+                                            </span>
+                                        )}
+                                    </p>
+                                )}
+                                {isTicketFirst && (
+                                    <p class:list={['text-xs leading-snug', isSubgroupFirst ? 'brand-text-muted mt-1' : '']}>
+                                        {ticket.title}
+                                    </p>
+                                )}
+                            </td>
+                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasSkipLine ? '✅' : '❌') : ''}</td>
+                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasAudio ? '✅' : '❌') : ''}</td>
+                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasLiveGuide ? '✅' : '❌') : ''}</td>
+                            <td class="p-3 text-center align-middle">{hasFreeCancellation ? '✅' : '❌'}</td>
+                            <td class="p-3 align-middle">
+                                <span class="flex items-center gap-2">
+                                    {/* Editor-controlled visual marker —
+                                        matches TicketsTable so the same
+                                        setting flows across variants.
+                                        Each branch degrades gracefully
+                                        when the supplier lacks the asset. */}
+                                    {providerIndicator === 'dot' && provider.brandColor && (
+                                        <span
+                                            aria-hidden="true"
+                                            class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+                                            style={`background-color: ${provider.brandColor}`}
+                                        />
+                                    )}
+                                    {providerIndicator === 'favicon' && provider.faviconPath && (
+                                        <img
+                                            src={provider.faviconPath}
+                                            alt=""
+                                            loading="lazy"
+                                            width="24"
+                                            height="24"
+                                            class="h-6 w-6 flex-shrink-0 rounded object-contain"
+                                        />
+                                    )}
+                                    {providerIndicator === 'logo' && provider.logoPath && (
+                                        <img
+                                            src={provider.logoPath}
+                                            alt=""
+                                            loading="lazy"
+                                            class="h-7 w-auto flex-shrink-0 object-contain"
+                                        />
+                                    )}
+                                    <span class="font-medium">{provider.label}</span>
+                                </span>
+                            </td>
+                            <td class="p-3 text-right align-middle font-semibold whitespace-nowrap">
+                                {provider.cheapestPriceText}
+                            </td>
+                            <td class="brand-text-muted p-3 text-right align-middle text-xs whitespace-nowrap">
+                                {ratingStarless(provider.cheapestRatingText) && (
+                                    <>★ {ratingStarless(provider.cheapestRatingText)}</>
+                                )}
+                            </td>
+                            <td class="p-3 align-middle">
+                                {provider.cheapestHref && (
+                                    <a
+                                        href={provider.cheapestHref}
+                                        target="_blank"
+                                        rel={outboundRel}
+                                        class:list={[
+                                            'inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold',
+                                            isTicketFirst
+                                                ? 'brand-bg-primary text-white hover:opacity-90'
+                                                : 'brand-border brand-text-primary border bg-white hover:bg-gray-50',
+                                        ]}
+                                    >
+                                        {ctaLabel}
+                                    </a>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+
+        {relativeUpdated && publishedAt && (
+            <p class="brand-text-muted mt-4 text-xs italic">
+                {t('tickets.compare.pricesUpdated')}{' '}
+                <time datetime={publishedAt} title={absoluteUpdated ?? undefined}>
+                    {relativeUpdated}
+                </time>
+            </p>
+        )}
+    </section>
+)}

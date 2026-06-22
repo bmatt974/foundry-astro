@@ -12,6 +12,10 @@
  *   - `'simple'`              → TicketsSimple   (stripped-down rows)
  *   - `'table'`               → TicketsTable    (features × tickets
  *                                                comparison matrix)
+ *   - `'compare'`             → TicketsCompare  (one row per format
+ *                                                bucket, features as
+ *                                                columns — 4-row
+ *                                                meta-search layout)
  *   - default / null / other  → TicketsRich     (full 4-bucket card
  *                                                grid + chips +
  *                                                threshold sub-sections)
@@ -25,6 +29,7 @@ import { useTranslations } from '../../../lib/i18n/index';
 import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
 import TicketsTable from './TicketsTable.astro';
+import TicketsCompare from './TicketsCompare.astro';
 
 interface Props {
     block: PageBlock;
@@ -33,7 +38,8 @@ interface Props {
 const { block } = Astro.props;
 const isSimple = block.variant === 'simple';
 const isTable = block.variant === 'table';
-const isCustomVariant = isSimple || isTable;
+const isCompare = block.variant === 'compare';
+const isCustomVariant = isSimple || isTable || isCompare;
 
 const locale = Astro.locals.locale ?? 'en';
 const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
@@ -58,6 +64,7 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 
 {isSimple && <TicketsSimple block={block} />}
 {isTable && <TicketsTable block={block} />}
+{isCompare && <TicketsCompare block={block} />}
 
 {!isCustomVariant && totalCount > 0 && (
     <section class="my-10 space-y-12">
