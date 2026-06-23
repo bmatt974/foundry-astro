@@ -66,8 +66,11 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
     <div class="space-y-2">
         {/* Title weight matched to the price (text-base bold) so the
             two visual anchors of the card carry the same hierarchy :
-            "what is this ticket" + "what does it cost" read together. */}
-        <TitleTag class="text-base !font-bold leading-snug" style="color: #1f2937">{ticket.title}</TitleTag>
+            "what is this ticket" + "what does it cost" read together.
+            Capped to 2 lines on narrow viewports so a long product
+            title doesn't dominate the card and push the price + CTA
+            below the fold. */}
+        <TitleTag class="tt-simple-title text-base !font-bold leading-snug" style="color: #1f2937">{ticket.title}</TitleTag>
 
         {/* Single meta line — rating, duration AND all 3-tier
             badges share one flex-wrap row. Reads as one continuous
@@ -128,10 +131,10 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
         {showAggregationHint && (
             /* Methodological disclosure — clarifies that the (review)
                count above is the cumulative total across surviving
-               providers, not a single marketplace's score. Sub-line
-               at 10px so it reads as fine-print without competing
-               with the rating or duration. */
-            <p class="brand-text-muted text-[10px]">
+               providers, not a single marketplace's score. Sized at
+               text-xs (12px) so it reads as legible fine-print
+               without competing with the main rating + duration line. */
+            <p class="brand-text-muted text-xs">
                 {t('tickets.card.aggregatedAcross', { count: String(ticket.providers.length) })}
             </p>
         )}
@@ -244,8 +247,14 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                        Best price call-to-action stays visually
                        louder than its neighbours (Trivago : winner
                        gets solid, others get outlined). */
+                /* Price as the visual anchor of the row : `text-lg`
+                   (18px) on mobile bumps it above the CTA's bold
+                   12-13px so the value reads as the primary signal,
+                   not the action. On desktop we revert to `text-base`
+                   (16px) since the row is denser and matches the
+                   simple card's typography elsewhere. */
                 const priceTag = priceLabel ? (
-                    <span class="text-base font-bold leading-none" style={`color: ${priceColor}`}>
+                    <span class="text-lg font-bold leading-none sm:text-base" style={`color: ${priceColor}`}>
                         {priceLabel}
                     </span>
                 ) : null;
@@ -259,13 +268,13 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                 const ctaSolid = settings.priceAsButton || hasStamp;
                 const ctaButton = settings.ctaLabel ? (
                     ctaSolid ? (
-                        <span class="brand-bg-primary inline-flex items-center gap-1 rounded-md px-3 py-2 text-xs font-semibold text-white">
+                        <span class="brand-bg-primary inline-flex flex-1 items-center justify-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white sm:flex-none sm:px-3 sm:py-2">
                             <span>{settings.ctaLabel}</span>
                             {settings.showProviderArrow && <span aria-hidden="true">›</span>}
                         </span>
                     ) : (
                         <span
-                            class="brand-text-primary inline-flex items-center gap-1 rounded-md border px-3 py-2 text-xs font-semibold"
+                            class="brand-text-primary inline-flex flex-1 items-center justify-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-semibold sm:flex-none sm:px-3 sm:py-2"
                             style="border-color: var(--brand-primary)"
                         >
                             <span>{settings.ctaLabel}</span>
@@ -287,8 +296,15 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                 const providerStarless = ratingStarless(provider.cheapestRatingText);
 
                 const inner = (
+                    /* Mobile-first : stack the left cluster (provider
+                       identity + rating + badges) ABOVE the right
+                       cluster (price + CTA) so the provider name has
+                       the full row width — no truncation. Above sm:
+                       (≥640px) switch to horizontal split-row layout
+                       (left vs right cluster on the same line) for
+                       the desktop Trivago pattern. */
                     <div
-                        class="relative flex items-center justify-between gap-3 p-2.5"
+                        class="relative flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-2.5"
                         style={rowBg ? `background-color: ${rowBg}` : ''}
                     >
                         {/* LEFT cluster on 2 lines. Order driven by
@@ -305,7 +321,7 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                               hook). */}
                         {(() => {
                             const nameTag = (
-                                <span class="truncate text-sm font-semibold" style={`color: ${labelColor}`}>
+                                <span class="text-sm font-semibold sm:truncate" style={`color: ${labelColor}`}>
                                     {provider.label}
                                 </span>
                             );
@@ -332,6 +348,16 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                                 </span>
                             ));
                             const isBadgesFirst = settings.rowLayout === 'badges_first';
+                            /* Mobile : identity column carries name +
+                               rating + badges stacked vertically (same
+                               as before). Desktop : identity column
+                               drops the badges block — the badges
+                               render as a SIBLING flex item below the
+                               IIFE so they sit at the center of the
+                               row between identity and price+CTA,
+                               filling the otherwise empty middle space.
+                               `sm:hidden` on the in-cluster badge slot
+                               keeps backward compat for narrow widths. */
                             return (
                                 <div class="flex min-w-0 items-start gap-2.5">
                                     {indicator}
@@ -339,44 +365,63 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                                         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                             {nameTag}
                                             {outlierTag}
-                                            {isBadgesFirst ? badgeTags : ratingTag}
+                                            {isBadgesFirst ? <span class="sm:hidden">{badgeTags}</span> : ratingTag}
                                         </div>
                                         {isBadgesFirst
                                             ? ratingTag
                                             : (badgeTags.length > 0 && (
-                                                <div class="flex flex-wrap gap-1">{badgeTags}</div>
+                                                <div class="flex flex-wrap gap-1 sm:hidden">{badgeTags}</div>
                                             ))}
                                     </div>
                                 </div>
                             );
                         })()}
+
+                        {/* CENTER cluster — desktop only. Annotation
+                            badges (Instant confirmation, Mobile ticket,
+                            Free cancellation, etc.) sit in the empty
+                            horizontal space between identity and the
+                            price+CTA. Visible on sm+ ; mobile keeps them
+                            inside the identity column (see above). */}
+                        {provider.annotationBadges.length > 0 && (
+                            <div class="hidden flex-1 flex-wrap items-center justify-start gap-1 sm:flex">
+                                {provider.annotationBadges.map((badge) => (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
+                                    >
+                                        {badge.label}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                         {/* RIGHT cluster — Trivago horizontal split :
-                            [price] [CTA button]. The price sits left,
-                            the CTA right. Both vertically centered
-                            against the 2-line LEFT cluster. The CTA
+                            [price] [CTA button]. On mobile the cluster
+                            spans the FULL row width below the left
+                            cluster : price at the left, CTA stretched
+                            to fill the remaining width (large tap
+                            target — meta-search conversion pattern).
+                            On sm+ it collapses back to the natural-
+                            width side-by-side desktop layout. The CTA
                             is solid for highlighted rows + when
                             priceAsButton is on, outlined otherwise. */}
-                        <div class="flex flex-shrink-0 items-center gap-4">
+                        <div class="flex w-full items-center gap-3 sm:w-auto sm:flex-shrink-0 sm:gap-4">
                             {priceTag}
                             {ctaButton}
                         </div>
-                        {/* Floating deal zone — "stamp" pattern. The
-                            badges sit absolute, partly above the row
-                            (top: -8px) and partly outside its right
-                            edge — like a postage stamp affixed at the
-                            corner of an envelope, pokes out both ways.
-                            The price stays vertically centered in the
-                            row because the badges don't participate
-                            in the layout flow. Future promo codes
-                            (active vouchers, limited-time discounts)
-                            join the same row so the visitor reads the
-                            full offer in one glance. pointer-events:
-                            none keeps the row's outer <a> click target
-                            intact under the stamp. */}
+                        {/* Deal zone — Best price + Save % badges.
+                            On mobile the stamps sit on their own line
+                            ABOVE the row content (inline flow, full
+                            width left-aligned) so they read as a
+                            clear value signal before the visitor sees
+                            the price + CTA. On sm+ they switch to the
+                            classic "postage stamp" pattern — absolute
+                            in the row's top-right corner, partly
+                            poking out above and to the right of the
+                            row's rounded border for visual interest. */}
                         {hasStamp && (
                             <div
-                                class="pointer-events-none absolute z-10 flex items-center justify-end gap-1"
-                                style="top: -9px; right: -6px"
+                                class="tt-simple-stamp pointer-events-none order-first flex items-center gap-1 sm:absolute sm:order-none sm:z-10 sm:justify-end"
                             >
                                 {highlightLabelKey && (
                                     <span
@@ -425,3 +470,29 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
         </ul>
     )}
 </li>
+
+<style>
+    /* Cap long product titles to 2 lines so the price + CTA stay
+       above the fold on narrow viewports. The full title remains
+       in the DOM for SEO + a11y — only the visual is clipped. */
+    .tt-simple-title {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Per-provider deal stamp — "postage stamp" pattern on desktop.
+       The Tailwind `sm:absolute sm:order-none` flips the element
+       into absolute positioning above sm: ; the `top`/`right`
+       offsets push it partly outside the row's rounded border for
+       the "stamp affixed to the corner" look. Mobile leaves the
+       element in normal flex flow (`order-first` lifts it ABOVE the
+       identity cluster so the value signal reads first). */
+    @media (min-width: 640px) {
+        .tt-simple-stamp {
+            top: -9px;
+            right: -6px;
+        }
+    }
+</style>

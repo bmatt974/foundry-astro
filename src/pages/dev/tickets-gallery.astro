@@ -193,9 +193,37 @@ function isChecked(slug: string, picked: string[]): boolean {
             margin-bottom: 1.5rem;
             font-family: ui-sans-serif, system-ui, sans-serif;
             font-size: 0.8rem;
+            /* Clamp toolbar width to viewport so the long chip rows
+               + max-content grid columns don't push the page body
+               wider than the viewport on narrow screens. Internal
+               horizontal scroll handles any overflow without leaking
+               into the Tickets block render below. */
+            max-width: 100%;
+            overflow-x: auto;
         }
-        .dev-gallery-toolbar form { display: grid; grid-template-columns: max-content 1fr max-content; gap: 0.5rem 0.75rem; align-items: center; }
-        .dev-gallery-toolbar .row { display: contents; }
+        /* Mobile : stack everything vertically — the desktop 3-col
+           grid (max-content 1fr max-content) is too wide for phones.
+           From sm: upward we restore the grid so the labels + chip
+           rows + meta align as before. */
+        .dev-gallery-toolbar form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .dev-gallery-toolbar .row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        @media (min-width: 640px) {
+            .dev-gallery-toolbar form {
+                display: grid;
+                grid-template-columns: max-content 1fr max-content;
+                gap: 0.5rem 0.75rem;
+                align-items: center;
+            }
+            .dev-gallery-toolbar .row { display: contents; }
+        }
         .dev-gallery-toolbar .group-label {
             font-size: 0.65rem; color: #6b7280; text-transform: uppercase;
             letter-spacing: 0.08em; font-weight: 700; white-space: nowrap;
