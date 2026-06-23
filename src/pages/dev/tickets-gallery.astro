@@ -151,6 +151,29 @@ try {
     fetchError = err instanceof Error ? err.message : String(err);
 }
 
+/* Catalogue of Places that have at least one Ticket — drives the
+   toolbar's place picker. Fetched SSR-side, capped at 50, ordered
+   by ticket count DESC. Failure is silently ignored : the picker
+   falls back to a free-text input via the current `placeId` so the
+   gallery stays usable even when the catalogue endpoint is down. */
+interface PlaceOption {
+    id: number;
+    name: string;
+    ticket_count: number;
+}
+let placeOptions: PlaceOption[] = [];
+try {
+    const catalogueRes = await fetch(`${foundryApiBase}/dev/places-with-tickets?limit=50&locale=${encodeURIComponent(locale)}`, {
+        headers: { Accept: 'application/json' },
+    });
+    if (catalogueRes.ok) {
+        const catalogueBody = await catalogueRes.json();
+        placeOptions = Array.isArray(catalogueBody.data) ? catalogueBody.data : [];
+    }
+} catch {
+    /* keep empty — picker falls back to the free-text input */
+}
+
 function chipLabel(slug: string, axis: keyof Aggregations): string {
     const count = aggregations[axis]?.[slug];
     return count !== undefined ? `${slug} (${count})` : slug;
@@ -177,7 +200,6 @@ const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
 const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
 const EXPERIENCE_SLUGS = ['classic', 'photo', 'family', 'food', 'night', 'vr', 'workshop', 'adventure', 'wellness'] as const;
 const AFFILIATE_SLUGS = ['viator', 'getyourguide', 'tiqets', 'headout', 'klook', 'musement'] as const;
-const SAMPLE_PLACES = [{ id: '138642', label: 'Colisée (138642)' }];
 
 function isChecked(slug: string, picked: string[]): boolean {
     return picked.includes(slug);
@@ -282,6 +304,23 @@ function isChecked(slug: string, picked: string[]): boolean {
             border-radius: 8px; font-family: ui-monospace, monospace;
             font-size: 0.85rem; word-break: break-all;
         }
+        /* Place picker — standalone control above the H1. No
+           horizontal padding so the dropdown's left edge aligns
+           with the H1's left edge (both flush with the parent
+           container's leading edge). */
+        .dev-gallery-place-picker {
+            margin: 1rem 0 0.25rem;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+        }
+        .dev-gallery-place-picker select {
+            font: inherit;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
         .dev-gallery-empty {
             margin: 2rem auto; max-width: 50rem; padding: 1rem 1.25rem;
             border: 1px dashed #d1d5db; background: #f9fafb; color: #6b7280;
@@ -328,16 +367,8 @@ function isChecked(slug: string, picked: string[]): boolean {
             <div class="row">
                 <span class="group-label">Place</span>
                 <div class="inline-controls">
-                    <input
-                        type="text"
-                        name="place"
-                        value={placeId}
-                        list="dev-gallery-place-suggestions"
-                        size="12"
-                    />
-                    <datalist id="dev-gallery-place-suggestions">
-                        {SAMPLE_PLACES.map((p) => <option value={p.id}>{p.label}</option>)}
-                    </datalist>
+                    <span class="brand-text-muted text-xs">→ moved above the H1</span>
+                    <input type="hidden" name="place" value={placeId} />
                     <select name="variant">
                         {VARIANTS.map((v) => <option value={v} selected={v === variant}>{v}</option>)}
                     </select>
@@ -494,6 +525,60 @@ function isChecked(slug: string, picked: string[]): boolean {
             <summary>Debug — block.settings ({Object.keys(blockSettings).length} keys)</summary>
             <pre>{JSON.stringify(blockSettings, null, 2)}</pre>
         </details>
+    )}
+
+    {/* H1 = the Place name. Mirrors the production page hierarchy
+        (a public POI page would render its name as H1 above the
+        Tickets block) so the dev gallery shows blocks in their
+        real heading context. The block's own H2/H3 (driven by
+        `settings.heading_level`) cascades correctly underneath. */}
+    {/* Standalone Place picker — sits above the H1 so the editor
+        swaps POI in one click. Auto-submits on change : the inline
+        onchange rewrites `?place=` while keeping every other
+        query param intact (variant, locale, currency, filter
+        chips...) so the active dev config carries over to the new
+        place. Standalone form (NOT inside the toolbar form) so the
+        Reload button on the toolbar stays the canonical submit. */}
+    {!fetchError && placeOptions.length > 0 && (
+        <div class="dev-gallery-place-picker">
+            <select
+                id="place"
+                aria-label="Place"
+                title="Top 50 places by ticket count"
+            >
+                {!placeOptions.some((p) => String(p.id) === placeId) && (
+                    <option value={placeId} selected>{`Place #${placeId}`}</option>
+                )}
+                {placeOptions.map((p) => (
+                    <option value={String(p.id)} selected={String(p.id) === placeId}>
+                        {`${p.name} · ${p.ticket_count}`}
+                    </option>
+                ))}
+            </select>
+            {/* `is:inline` skips the Vite asset bundling pass so the
+                script lands as a raw <script> in the document head /
+                inline body — necessary for the change handler to
+                attach BEFORE the visitor interacts. Inline `onchange`
+                attributes are usually fine in dev but get stripped by
+                strict CSP headers ; this listener pattern works under
+                any policy. */}
+            <script is:inline>
+                document.getElementById('place')?.addEventListener('change', (e) => {
+                    const u = new URL(location.href);
+                    u.searchParams.set('place', e.target.value);
+                    /* Land the new page anchored on the H1 so the
+                       visitor's eye lands on the place name + the
+                       block render that just changed, skipping
+                       past the (potentially long) dev toolbar. */
+                    u.hash = 'place';
+                    location.href = u.toString();
+                });
+            </script>
+        </div>
+    )}
+
+    {!fetchError && (placeName || placeId) && (
+        <h1>Tickets {placeName ?? `Place #${placeId}`}</h1>
     )}
 
     {!fetchError && block && <Block block={block} />}
