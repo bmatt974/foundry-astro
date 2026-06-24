@@ -341,10 +341,16 @@ export interface UniqueProvider {
     savingsText: string | null;
 }
 
+/** Sub-axis WITHIN the Bundle format bucket. Null for non-Bundle
+ *  tickets. Drives the optional sub-sectioning the renderer applies
+ *  inside the "Passes & Combos" bucket when it carries ≥ 2 subtypes. */
+export type BundleSubtypeSlug = 'card' | 'day_trip' | 'bus' | 'cruise' | 'combo';
+
 export interface ParsedTicket {
     id: number;
     title: string;
     format: TicketFormatSlug;
+    bundleSubtype: BundleSubtypeSlug | null;
     groupType: TicketGroupTypeSlug;
     experienceType: TicketExperienceTypeSlug;
     priceText: string | null;
@@ -504,6 +510,13 @@ interface RawTicket {
     id?: number;
     title?: string;
     format?: TicketFormatSlug;
+    /** Sub-axis WITHIN the Bundle bucket — `card` (city pass),
+     *  `day_trip` (excursion), `bus` (sightseeing bus), `cruise`
+     *  (boat tour) or `combo` (venue + venue). Null on non-Bundle
+     *  tickets. Lets the renderer split a 15+ Passes & Combos list
+     *  into scannable sub-sections without changing the bucket
+     *  count itself. */
+    bundle_subtype?: 'card' | 'day_trip' | 'bus' | 'cruise' | 'combo' | null;
     group_type?: TicketGroupTypeSlug;
     experience_type?: TicketExperienceTypeSlug;
     price_from_eur?: number | null;
@@ -1145,10 +1158,21 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         .sort((a, b) => (a.priceFloor ?? Infinity) - (b.priceFloor ?? Infinity))
         [0]?.priceText ?? null;
 
+    /* Bundle-subtype passes through as-is from the API. Null on
+       non-Bundle tickets ; on Bundle tickets the aggregator classifies
+       from source titles (city pass / day trip / bus / cruise / combo)
+       so the renderer can sub-section the "Passes & Combos" bucket
+       without re-implementing the classification. */
+    const rawSubtype = raw.bundle_subtype;
+    const bundleSubtype: BundleSubtypeSlug | null = format === 'bundle' && rawSubtype && ['card', 'day_trip', 'bus', 'cruise', 'combo'].includes(rawSubtype)
+        ? (rawSubtype as BundleSubtypeSlug)
+        : null;
+
     return {
         id: raw.id,
         title: raw.title,
         format,
+        bundleSubtype,
         groupType,
         experienceType,
         priceText: cheapestProviderPriceText ?? formatPrice(raw.price_from_eur ?? null, locale),

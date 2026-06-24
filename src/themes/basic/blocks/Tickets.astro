@@ -25,6 +25,7 @@
  */
 import type { PageBlock } from '../../../lib/foundry';
 import { parseTicketsBlock, type ParsedBucket } from '../../../lib/blocks/tickets';
+import { groupBundleTickets, bundleSubtypeLabel } from '../../../lib/tickets/bundle-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
@@ -68,7 +69,18 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 
 {!isCustomVariant && totalCount > 0 && (
     <section class="my-10 space-y-12">
-        {visibleBuckets.map((bucket: ParsedBucket) => (
+        {visibleBuckets.map((bucket: ParsedBucket) => {
+            /* Bundle bucket gets its own sub-axis : the aggregator
+               classifies each ticket as city `card`, `day_trip`,
+               `bus`, `cruise` or `combo`. When the bucket carries ≥ 2
+               sub-types we surface sub-headers ("Pass & cartes",
+               "Bus touristique"...) so a 15-item Passes & Combos
+               list reads as scannable groups instead of a wall of
+               similar-looking cards. Single-subtype buckets render
+               flat (no redundant sub-header above a flat list). */
+            const bundleGroups = bucket.format === 'bundle' ? groupBundleTickets(bucket.tickets) : [];
+            const showBundleSubsections = bundleGroups.length > 1;
+            return (
             <article aria-labelledby={`tickets-bucket-${bucket.format}`}>
                 <header class="mb-5">
                     <h2 id={`tickets-bucket-${bucket.format}`} class="brand-text-primary text-2xl font-semibold tracking-tight">
@@ -104,7 +116,27 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                     )}
                 </header>
 
-                {bucket.groupSubsections.length > 0 ? (
+                {showBundleSubsections ? (
+                    /* Bundle bucket sub-axis : Pass & cartes / Excursions /
+                       Bus touristique / Croisières / Combos. Renderer
+                       paints a sub-header per group ; intra-group sort
+                       order is preserved (sort_by already applied
+                       upstream). */
+                    <div class="space-y-8">
+                        {bundleGroups.map((group) => (
+                            <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
+                                <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                    {bundleSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted text-sm font-normal">({group.tickets.length})</span>
+                                </h3>
+                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                    {group.tickets.map((ticket) => (
+                                        <TicketCard ticket={ticket} />
+                                    ))}
+                                </ul>
+                            </section>
+                        ))}
+                    </div>
+                ) : bucket.groupSubsections.length > 0 ? (
                     <div class="space-y-8">
                         {bucket.groupSubsections.map((sub) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
@@ -142,7 +174,8 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                     </ul>
                 )}
             </article>
-        ))}
+            );
+        })}
 
     </section>
 )}
