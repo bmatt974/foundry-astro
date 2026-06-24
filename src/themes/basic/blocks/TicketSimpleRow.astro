@@ -148,9 +148,12 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
 
     {ticket.providers.length > 0 && (
         <ul class="brand-border divide-y rounded-md border bg-gray-50">
-            {ticket.providers
-                .filter((provider) => !(settings.hidePriceOutliers && provider.isPriceOutlier))
-                .map((provider) => {
+            {/* `ticket.providers` is the API-filtered set (the
+                aggregator already drops outliers when
+                hide_price_outliers fires, applies min_reliable_reviews,
+                etc.). The renderer is bare and iterates exactly what
+                the backend kept — no client-side re-filtering. */}
+            {ticket.providers.map((provider) => {
                 // Per-provider price stays terse — the column is
                 // already labelled by visual position ("you can see
                 // it's a price"). Dropping the "From" / "À partir

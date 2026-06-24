@@ -1048,7 +1048,24 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         };
     };
 
-    const providers: UniqueProvider[] = [...providerAccumulator.entries()].map(
+    /* The API ships `raw.providers[]` already filtered by the
+       aggregator (hide_price_outliers, min_reliable_reviews, etc.).
+       The accumulator above is built from `raw.sources[]` — the
+       LEGACY unfiltered field — so it can contain provider slugs
+       the API explicitly dropped. When `raw.providers[]` is shipped,
+       narrow the accumulator's entries to the slugs the API kept so
+       every visible row (and every count, like "Aggregated across
+       N providers") matches the server-side truth. Falls back to
+       the full accumulator on legacy payloads that don't ship
+       `raw.providers`. */
+    const apiAllowedSlugs = (raw.providers ?? null)
+        ? new Set([...rawProvidersBySlug.keys()])
+        : null;
+    const providerEntriesForRender = apiAllowedSlugs
+        ? [...providerAccumulator.entries()].filter(([slug]) => apiAllowedSlugs.has(slug))
+        : [...providerAccumulator.entries()];
+
+    const providers: UniqueProvider[] = providerEntriesForRender.map(
         ([slug, entry]) => {
             const aggregateRating = entry.ratingWeightTotal > 0
                 ? entry.ratingWeightedSum / entry.ratingWeightTotal
