@@ -32,6 +32,7 @@ import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
 import TicketsTable from './TicketsTable.astro';
 import TicketsCompare from './TicketsCompare.astro';
+import TicketsQuickPicks from './TicketsQuickPicks.astro';
 
 interface Props {
     block: PageBlock;
@@ -48,13 +49,20 @@ const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
 
-// `parsed` is only used by the rich layout below ; skip the work
-// when we'll delegate to a child variant immediately.
-const parsed = isCustomVariant
-    ? null
-    : parseTicketsBlock(block, locale, linkProxyPath, wording);
-const buckets = parsed?.buckets ?? [];
-const totalCount = parsed?.totalCount ?? 0;
+// Parsed unconditionally : the rich layout consumes the buckets, and
+// EVERY variant (simple / table / compare included) needs
+// `parsed.quickPicks` for the verdict strip above the comparator.
+// Child variants re-parse internally — pure CPU, acceptable at SSG /
+// dev time.
+const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
+const buckets = parsed.buckets;
+const totalCount = parsed.totalCount;
+
+// The "details ↓" anchor targets `id="ticket-{id}"` on each row —
+// shipped by TicketSimpleRow (simple) and TicketCard (rich). Table /
+// compare don't carry per-ticket anchors yet, so their strip stays
+// CTA-only rather than shipping dead links.
+const supportsAnchors = isSimple || !isCustomVariant;
 
 /** Drop buckets with zero tickets — keeps the page tight on small
  *  Places where (e.g.) Special access carries nothing yet. */
@@ -62,7 +70,13 @@ const visibleBuckets = buckets.filter((b) => b.tickets.length > 0);
 
 const groupHeaderLabel = t('tickets.filter.groupHeader');
 const experienceHeaderLabel = t('tickets.filter.experienceHeader');
+
+/** Max tickets a bundle sub-group shows before the tail collapses
+ *  behind a "Show N more offers" disclosure. */
+const BUNDLE_GROUP_CAP = 6;
 ---
+
+<TicketsQuickPicks picks={parsed.quickPicks} settings={parsed.settings} showDetailsAnchor={supportsAnchors} />
 
 {isSimple && <TicketsSimple block={block} />}
 {isTable && <TicketsTable block={block} />}
@@ -122,22 +136,44 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                     )}
                 </header>
 
-                {showBundleSubsections ? (
+                {bucket.format === 'bundle' ? (
                     /* Bundle bucket sub-axis : Pass & cartes / Excursions /
-                       Bus touristique / Croisières / Combos. */
+                       Bus touristique / Croisières / Combos. Groups are
+                       capped — the tail of an oversized group collapses
+                       behind a native <details> so 13 combos stop owning
+                       the page's scroll. Sub-headers only render when ≥ 2
+                       sub-types survive. */
                     <div class="space-y-8">
-                        {bundleGroups.map((group) => (
-                            <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
-                                <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                </h3>
-                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {group.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                    ))}
-                                </ul>
-                            </section>
-                        ))}
+                        {bundleGroups.map((group) => {
+                            const visibleTickets = group.tickets.slice(0, BUNDLE_GROUP_CAP);
+                            const overflowTickets = group.tickets.slice(BUNDLE_GROUP_CAP);
+                            return (
+                                <section aria-labelledby={showBundleSubsections ? `tickets-sub-${bucket.format}-${group.subtype}` : undefined}>
+                                    {showBundleSubsections && (
+                                        <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                            {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
+                                        </h3>
+                                    )}
+                                    <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                        {visibleTickets.map((ticket) => (
+                                            <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
+                                        ))}
+                                    </ul>
+                                    {overflowTickets.length > 0 && (
+                                        <details class="mt-3">
+                                            <summary class="brand-text-muted cursor-pointer text-sm underline">
+                                                {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })}
+                                            </summary>
+                                            <ul class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                                {overflowTickets.map((ticket) => (
+                                                    <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
+                                                ))}
+                                            </ul>
+                                        </details>
+                                    )}
+                                </section>
+                            );
+                        })}
                     </div>
                 ) : showAccessSubsections ? (
                     /* Access bucket sub-axis : Officiel / Avec audio

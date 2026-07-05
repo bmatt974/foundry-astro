@@ -1,0 +1,237 @@
+---
+/**
+ * Quick-picks verdict strip — "Pour les plus pressés".
+ *
+ * Renders above every Tickets variant (dispatched by `Tickets.astro`)
+ * : one entry per editorial verdict the API resolved (our
+ * recommendation / cheapest / best rated / most complete / with kids
+ * / something different). Wirecutter-style answer box : most readers
+ * only consume the picks, so each entry carries everything needed to
+ * act — label, product, price, rating and the affiliate link — plus a
+ * "details" anchor that scrolls to the ticket's full row in the
+ * comparator below.
+ *
+ * Three visual treatments via `settings.quickPicksVariant` — the two
+ * text-flavoured ones keep the pick's title as an in-content
+ * affiliate link (reads as article prose, not a widget : in-article
+ * integration, AI/SEO citability, anti-footprint) :
+ *   - 'stacked' (default) : editorial paragraphs — each pick over
+ *     2-3 lines : label + title, then price · rating on their own
+ *     line. Closest to hand-written prose.
+ *   - 'columns' : one aligned grid line per pick (label / title /
+ *     price-rating right). Denser comparator-like scan.
+ *   - 'card' : bordered comparator-style strip with label chips and
+ *     solid CTA buttons — higher visual weight for commerce pages.
+ *
+ * The component renders NOTHING when `picks` is empty (editor
+ * disabled the strip, or fewer than 3 distinct tickets won a slot —
+ * both thresholds resolved upstream).
+ */
+import type { ParsedQuickPick, TicketsSettings } from '../../../lib/blocks/tickets';
+import { ratingStarless } from '../../../lib/blocks/tickets';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    picks: ParsedQuickPick[];
+    settings: Pick<TicketsSettings, 'ctaLabel' | 'quickPicksVariant'>;
+    /** True when the active variant carries `id="ticket-{id}"` anchors
+     *  on its rows (simple + rich today) — gates the "details" link so
+     *  we never ship a dead anchor. */
+    showDetailsAnchor: boolean;
+}
+
+const { picks, settings, showDetailsAnchor } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
+
+const isCard = settings.quickPicksVariant === 'card';
+const isColumns = settings.quickPicksVariant === 'columns';
+const isStacked = !isCard && !isColumns;
+const ctaLabel = settings.ctaLabel || t('tickets.card.viewOffer');
+const detailsLabel = t('tickets.quickPicks.details');
+
+/** The listing's REAL commercial name (what the visitor reads after
+ *  clicking through) — canonical title only as fallback. */
+const displayTitleOf = (pick: ParsedQuickPick): string =>
+    pick.ticket.primaryCtaTitle ?? pick.ticket.title;
+---
+
+{picks.length > 0 && isCard && (
+    <aside class="tt-quick-picks brand-border my-8 rounded-lg border bg-white" aria-label={t('tickets.quickPicks.title')}>
+        <p class="brand-text-muted border-b px-4 pb-2 pt-3 text-xs font-semibold uppercase tracking-wider" style="border-color: inherit">
+            {t('tickets.quickPicks.title')}
+        </p>
+        <ul class="divide-y">
+            {picks.map((pick) => {
+                const starless = ratingStarless(pick.ticket.ratingText);
+                return (
+                    <li class="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+                        <div class="flex shrink-0 flex-wrap items-center gap-1.5 sm:w-44 sm:flex-col sm:items-start">
+                            {pick.labels.map((label) => (
+                                <span
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                                    style="background-color: var(--brand-accent-success)"
+                                >
+                                    {label}
+                                </span>
+                            ))}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="brand-text-primary text-sm font-semibold">{displayTitleOf(pick)}</p>
+                            {starless && (
+                                <p class="brand-text-muted mt-0.5 text-xs">
+                                    <span class="text-amber-500">★</span> {starless}
+                                </p>
+                            )}
+                        </div>
+                        <div class="flex shrink-0 items-center gap-3">
+                            {pick.ticket.priceText && (
+                                <span class="brand-text-primary text-base font-bold">{pick.ticket.priceText}</span>
+                            )}
+                            {pick.ticket.primaryCtaHref && (
+                                <a
+                                    href={pick.ticket.primaryCtaHref}
+                                    target="_blank"
+                                    rel={outboundRel}
+                                    class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold text-white no-underline"
+                                >
+                                    {ctaLabel}
+                                </a>
+                            )}
+                            {showDetailsAnchor && (
+                                <a href={`#ticket-${pick.ticket.id}`} class="brand-text-muted text-xs underline">
+                                    {detailsLabel} ↓
+                                </a>
+                            )}
+                        </div>
+                    </li>
+                );
+            })}
+        </ul>
+    </aside>
+)}
+
+{picks.length > 0 && isColumns && (
+    /* Columns treatment — unboxed but ALIGNED : on sm+ each entry is
+       a 3-column grid (label / title / price+rating) so the prices
+       stack into a column the eye can sweep — marketing-length titles
+       truncate to one line (full text stays in the DOM via `title` +
+       the "details" anchor) instead of wrapping the price to a random
+       spot. Mobile stacks label / title / meta. */
+    <div class="tt-quick-picks my-8" aria-label={t('tickets.quickPicks.title')}>
+        <p class="brand-text-primary font-semibold">{t('tickets.quickPicks.title')}</p>
+        <ul class="mt-3 space-y-2.5 sm:space-y-1.5">
+            {picks.map((pick) => {
+                const starless = ratingStarless(pick.ticket.ratingText);
+                return (
+                    <li class="relative text-sm transition hover:opacity-80 sm:grid sm:grid-cols-[11rem_minmax(0,1fr)_auto] sm:items-baseline sm:gap-x-3">
+                        <strong class="brand-text-primary block">{pick.labels.join(' · ')}</strong>
+                        {pick.ticket.primaryCtaHref ? (
+                            <a
+                                href={pick.ticket.primaryCtaHref}
+                                target="_blank"
+                                rel={outboundRel}
+                                title={displayTitleOf(pick)}
+                                class="block underline after:absolute after:inset-0 after:content-[''] sm:truncate"
+                            >
+                                {displayTitleOf(pick)}
+                            </a>
+                        ) : (
+                            <span class="block sm:truncate" title={displayTitleOf(pick)}>{displayTitleOf(pick)}</span>
+                        )}
+                        <span class="block whitespace-nowrap sm:text-right">
+                            {pick.ticket.priceText && (
+                                <strong>{pick.ticket.priceText}</strong>
+                            )}
+                            {starless && (
+                                <span class="brand-text-muted"> · ★ {starless}</span>
+                            )}
+                            {showDetailsAnchor && (
+                                <a href={`#ticket-${pick.ticket.id}`} class="brand-text-muted relative z-10 ml-2 text-xs underline">
+                                    {detailsLabel} ↓
+                                </a>
+                            )}
+                        </span>
+                    </li>
+                );
+            })}
+        </ul>
+    </div>
+)}
+
+{picks.length > 0 && isStacked && (
+    /* Stacked treatment — the most editorial of the three : each pick
+       is a short paragraph. Label + real listing name flow together
+       (and wrap freely — no truncation), the price · rating · details
+       line ALWAYS starts fresh so the money signal sits at a stable
+       spot whatever the title length.
+
+       The WHOLE entry is clickable via the stretched-link pattern :
+       the affiliate <a> carries an `after` pseudo covering the `<li>`
+       (no nested anchors), and the "details" anchor floats above it
+       with `z-10`. `<span class="block">` instead of `<p>` so the
+       theme's prose margins can't inflate the intra-entry spacing. */
+    <div class="tt-quick-picks my-8" aria-label={t('tickets.quickPicks.title')}>
+        <p class="brand-text-primary font-semibold">{t('tickets.quickPicks.title')}</p>
+        <ul class="mt-3 space-y-4">
+            {picks.map((pick) => {
+                const starless = ratingStarless(pick.ticket.ratingText);
+                return (
+                    <li class="relative text-sm leading-snug transition hover:opacity-80">
+                        <span class="block">
+                            <strong class="brand-text-primary">{pick.labels.join(' · ')}</strong>
+                            {' : '}
+                            {pick.ticket.primaryCtaHref ? (
+                                <a
+                                    href={pick.ticket.primaryCtaHref}
+                                    target="_blank"
+                                    rel={outboundRel}
+                                    class="underline after:absolute after:inset-0 after:content-['']"
+                                >
+                                    {displayTitleOf(pick)}
+                                </a>
+                            ) : (
+                                displayTitleOf(pick)
+                            )}
+                        </span>
+                        <span class="mt-0.5 block">
+                            {pick.ticket.priceText && (
+                                <strong>{pick.ticket.priceText}</strong>
+                            )}
+                            {starless && (
+                                <span class="brand-text-muted"> · ★ {starless}</span>
+                            )}
+                            {showDetailsAnchor && (
+                                <a href={`#ticket-${pick.ticket.id}`} class="brand-text-muted relative z-10 ml-2 text-xs underline">
+                                    {detailsLabel} ↓
+                                </a>
+                            )}
+                        </span>
+                    </li>
+                );
+            })}
+        </ul>
+    </div>
+)}
+
+<style is:global>
+    /* Anchor targets live in the sibling variant components
+       (TicketSimpleRow / TicketCard root <li>) — global so the
+       offset + flash apply wherever the row renders. */
+    [id^='ticket-'] {
+        scroll-margin-top: 5rem;
+    }
+    [id^='ticket-']:target {
+        animation: tt-quick-pick-flash 1.6s ease-out 1;
+    }
+    @keyframes tt-quick-pick-flash {
+        0% {
+            background-color: color-mix(in srgb, var(--brand-accent-success) 18%, white);
+        }
+        100% {
+            background-color: transparent;
+        }
+    }
+</style>

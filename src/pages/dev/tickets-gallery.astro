@@ -65,8 +65,11 @@ const filterFormat = collectMulti('format');
 const filterGroup = collectMulti('group');
 const filterExperience = collectMulti('experience');
 const affiliatePrograms = collectMulti('affiliate_programs');
-const sortBy = params.get('sort_by') ?? 'price';
+const sortBy = params.get('sort_by') ?? 'relevance';
 const providerIndicator = params.get('provider_indicator') ?? 'favicon';
+const quickPicksVariant = ['columns', 'card'].includes(params.get('quick_picks_variant') ?? '')
+    ? params.get('quick_picks_variant') as string
+    : 'stacked';
 
 // Checkbox absent from the URL = first load (use the default), not
 // "user unchecked it on the previous submit". A paired hidden input
@@ -82,6 +85,7 @@ const showProviderArrow = readBoolParam('show_provider_arrow', false);
 const priceAsButton = readBoolParam('price_as_button', false);
 const showReviews = readBoolParam('show_reviews', false);
 const showPhotos = readBoolParam('show_photos', true);
+const showQuickPicks = readBoolParam('show_quick_picks', true);
 const highlightTarget = params.get('highlight_target') ?? 'cheapest';
 const hidePriceOutliers = readBoolParam('hide_price_outliers', false);
 const minReliableReviews = (() => {
@@ -109,7 +113,7 @@ if (filterFormat.length) upstream.set('format', filterFormat.join(','));
 if (filterGroup.length) upstream.set('group', filterGroup.join(','));
 if (filterExperience.length) upstream.set('experience', filterExperience.join(','));
 if (affiliatePrograms.length) upstream.set('affiliate_programs', affiliatePrograms.join(','));
-if (sortBy !== 'price') upstream.set('sort_by', sortBy);
+if (sortBy !== 'relevance') upstream.set('sort_by', sortBy);
 if (providerIndicator !== 'favicon') upstream.set('provider_indicator', providerIndicator);
 if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
 if (!showPhotos) upstream.set('show_photos', '0');
@@ -121,6 +125,8 @@ if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minR
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
 if (rowLayout !== 'rating_first') upstream.set('row_layout', rowLayout);
 if (stampPriority.trim() !== '') upstream.set('stamp_priority', stampPriority.trim());
+if (quickPicksVariant !== 'stacked') upstream.set('quick_picks_variant', quickPicksVariant);
+if (!showQuickPicks) upstream.set('show_quick_picks', '0');
 // Empty currency = "auto" — backend derives from locale via CLDR.
 if (currency !== '') upstream.set('currency', currency);
 const endpoint = `${foundryApiBase}/dev/places/${encodeURIComponent(placeId)}/tickets-block?${upstream.toString()}`;
@@ -399,8 +405,16 @@ function isChecked(slug: string, picked: string[]): boolean {
                         {[2, 3, 4, 5].map((lvl) => <option value={String(lvl)} selected={lvl === headingLevel}>{`h${lvl}`}</option>)}
                     </select>
                     <select name="sort_by">
-                        {['price', 'rating', 'reviews'].map((mode) => <option value={mode} selected={mode === sortBy}>{`sort:${mode}`}</option>)}
+                        {['relevance', 'price', 'rating', 'reviews'].map((mode) => <option value={mode} selected={mode === sortBy}>{`sort:${mode}`}</option>)}
                     </select>
+                    <select name="quick_picks_variant">
+                        {['stacked', 'columns', 'card'].map((mode) => <option value={mode} selected={mode === quickPicksVariant}>{`picks:${mode}`}</option>)}
+                    </select>
+                    <input type="hidden" name="show_quick_picks" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="show_quick_picks" value="1" checked={showQuickPicks} />
+                        picks
+                    </label>
                     <select name="provider_indicator">
                         {['dot', 'favicon', 'logo', 'none'].map((mode) => <option value={mode} selected={mode === providerIndicator}>{`marker:${mode}`}</option>)}
                     </select>

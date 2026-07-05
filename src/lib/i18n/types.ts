@@ -130,6 +130,22 @@ export interface Dictionary {
             audio_guide: string;
             priority: string;
         };
+        /** "Quick picks" verdict strip above the comparator — one
+         *  label per QuickPickSlot slug the API resolves. Title +
+         *  labels are the anti-footprint wording surface : override
+         *  per website via `wording`. */
+        quickPicks: {
+            title: string;
+            recommended: string;
+            cheapest: string;
+            best_rated: string;
+            most_complete: string;
+            family: string;
+            unusual: string;
+            /** Anchor link that scrolls to the ticket's row in the
+             *  comparator below ("details"). */
+            details: string;
+        };
         /** Filter chip rows above each bucket. */
         filter: {
             /** Header above the group-type chips. */
@@ -141,6 +157,11 @@ export interface Dictionary {
         };
         /** Bucket-level UI strings. */
         bucket: {
+            /** Disclosure summary hiding the tail of an oversized
+             *  group (":count" = hidden ticket count). Keeps a
+             *  13-combo "Passes & Combos" bucket from owning the
+             *  page's scroll. */
+            showMore: string;
             /** ":format (:count)" — header on each bucket section. */
             header: string;
             /** Shown when no tickets land in a bucket. */

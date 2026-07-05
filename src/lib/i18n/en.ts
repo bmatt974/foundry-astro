@@ -69,12 +69,23 @@ const en: Dictionary = {
             audio_guide: 'With audio guide',
             priority: 'Skip-the-line',
         },
+        quickPicks: {
+            title: 'In a hurry? The short list',
+            recommended: 'Our pick',
+            cheapest: 'Cheapest',
+            best_rated: 'Best rated',
+            most_complete: 'Most complete',
+            family: 'With kids',
+            unusual: 'Something different',
+            details: 'details',
+        },
         filter: {
             groupHeader: 'With whom',
             experienceHeader: 'Experience',
             all: 'All',
         },
         bucket: {
+            showMore: 'Show :count more offers',
             header: ':format (:count)',
             empty: 'No tickets in this category yet.',
         },

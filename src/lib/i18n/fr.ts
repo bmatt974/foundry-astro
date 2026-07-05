@@ -69,12 +69,23 @@ const fr: Dictionary = {
             audio_guide: 'Avec audio guide',
             priority: 'Coupe-file',
         },
+        quickPicks: {
+            title: 'Pour les plus pressés',
+            recommended: 'Notre recommandation',
+            cheapest: 'Le moins cher',
+            best_rated: 'Le mieux noté',
+            most_complete: 'Le plus complet',
+            family: 'Avec des enfants',
+            unusual: 'Le plus insolite',
+            details: 'détails',
+        },
         filter: {
             groupHeader: 'Avec qui',
             experienceHeader: 'Expérience',
             all: 'Tous',
         },
         bucket: {
+            showMore: 'Voir :count autres offres',
             header: ':format (:count)',
             empty: 'Aucun billet dans cette catégorie pour le moment.',
         },

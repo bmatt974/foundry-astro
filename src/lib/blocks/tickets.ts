@@ -124,7 +124,14 @@ export interface TicketsSettings {
     affiliatePrograms: string[];
     /** Order tickets WITHIN each bucket — applied server-side. The
      *  renderer just walks the array order it receives. */
-    sortBy: 'price' | 'rating' | 'reviews';
+    sortBy: 'relevance' | 'price' | 'rating' | 'reviews';
+    /** Visual treatment of the quick-picks strip :
+     *   - 'stacked' : editorial paragraphs (default) — each pick over
+     *                 2-3 lines, price · rating on their own line.
+     *   - 'columns' : one aligned grid line per pick, prices
+     *                 right-aligned.
+     *   - 'card'    : bordered strip with label chips + CTA buttons. */
+    quickPicksVariant: 'stacked' | 'columns' | 'card';
     /** Per-provider row visual marker :
      *   - 'dot'     : brand-coloured circle
      *   - 'favicon' : 48×48 mark-only image
@@ -212,6 +219,9 @@ export interface TicketSource {
      *  AffiliateLinkGenerator has minted a tracked id, raw partner_url
      *  otherwise, null when neither is available. */
     href: string | null;
+    /** The listing's real commercial name for the active locale —
+     *  null when the API didn't ship one (older payloads). */
+    title: string | null;
     priceText: string | null;
     ratingText: string | null;
     imageUrl: string | null;
@@ -398,6 +408,12 @@ export interface ParsedTicket {
     /** Cheapest-source CTA — what the headline "Book" button targets.
      *  Falls back to the first source with a usable href. */
     primaryCtaHref: string | null;
+    /** Real commercial name of the SAME listing `primaryCtaHref`
+     *  targets — the quick-picks strip shows it instead of the dry
+     *  canonical title so the name survives the click-through. Null
+     *  when that source ships no title (renderer falls back to
+     *  `title`). */
+    primaryCtaTitle: string | null;
     /** First image_url across sources, used as the card hero. */
     coverImage: string | null;
 }
@@ -457,6 +473,22 @@ export interface ParsedTickets {
      *   - 'per-bucket'  : top heading optional, each surviving bucket
      *                     renders its own H_n header + list. */
     layout: 'single' | 'per-bucket';
+    /** Verdict strip rows ("Pour les plus pressés") in display order.
+     *  Empty when the API shipped none OR when the block's editorial
+     *  filters dropped enough winners to fall under 3 distinct rows
+     *  — a strip that repeats one ticket reads as an ad. */
+    quickPicks: ParsedQuickPick[];
+}
+
+export interface ParsedQuickPick {
+    /** Slot slugs won by this ticket, in QuickPickSlot display order
+     *  (`recommended`, `cheapest`, `best_rated`, `most_complete`,
+     *  `family`, `unusual`). */
+    slots: string[];
+    /** Pre-resolved labels via `t('tickets.quickPicks.{slot}')`,
+     *  parallel to `slots`. */
+    labels: string[];
+    ticket: ParsedTicket;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -476,6 +508,10 @@ interface RawSource {
     provider_favicon_path?: string | null;
     provider_brand_color?: string | null;
     partner_url?: string | null;
+    /** The listing's real commercial name (locale-translated when the
+     *  sync captured one) — displayed by the quick-picks strip so the
+     *  visitor reads the SAME name after clicking through. */
+    raw_title?: string | null;
     click_id?: string | null;
     price_eur?: number | null;
     rating?: number | null;
@@ -567,8 +603,9 @@ interface RawMeta {
         filter_group_type?: string[];
         filter_experience_type?: string[];
         affiliate_programs?: string[];
-        sort_by?: 'price' | 'rating' | 'reviews';
+        sort_by?: 'relevance' | 'price' | 'rating' | 'reviews';
         provider_indicator?: 'dot' | 'favicon' | 'logo' | 'none';
+        quick_picks_variant?: 'stacked' | 'columns' | 'card';
         show_photos?: boolean;
         show_provider_arrow?: boolean;
         price_as_button?: boolean;
@@ -587,6 +624,16 @@ interface RawMeta {
 interface RawContent {
     meta?: RawMeta;
     tickets?: RawTicket[];
+    /** Verdict strip entries resolved server-side by the
+     *  QuickPicksResolver — `{slots, ticket_id}` references into
+     *  `tickets`. Empty / absent when the editor disabled the strip
+     *  or fewer than 3 distinct tickets won a slot. */
+    quick_picks?: RawQuickPick[];
+}
+
+interface RawQuickPick {
+    slots?: string[];
+    ticket_id?: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -652,7 +699,10 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
         affiliatePrograms: Array.isArray(s.affiliate_programs)
             ? s.affiliate_programs.filter((p): p is string => typeof p === 'string' && p !== '')
             : [],
-        sortBy: (s.sort_by === 'rating' || s.sort_by === 'reviews') ? s.sort_by : 'price',
+        sortBy: (s.sort_by === 'price' || s.sort_by === 'rating' || s.sort_by === 'reviews') ? s.sort_by : 'relevance',
+        quickPicksVariant: (s.quick_picks_variant === 'card' || s.quick_picks_variant === 'columns')
+            ? s.quick_picks_variant
+            : 'stacked',
         providerIndicator: (
             s.provider_indicator === 'logo'
             || s.provider_indicator === 'dot'
@@ -826,6 +876,7 @@ function buildSource(raw: RawSource, locale: string, linkProxyPath: string, revi
         providerFaviconPath: raw.provider_favicon_path ?? null,
         providerBrandColor: raw.provider_brand_color ?? null,
         href: resolveSourceHref(raw, linkProxyPath),
+        title: typeof raw.raw_title === 'string' && raw.raw_title.trim() !== '' ? raw.raw_title.trim() : null,
         priceText: formatPrice(raw.price_eur ?? null, locale),
         ratingText: formatRating(raw.rating ?? null, raw.review_count ?? null, locale, reviewsSuffix),
         imageUrl: raw.image_url ?? null,
@@ -862,7 +913,9 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         .filter((p) => typeof p.id === 'number' && typeof p.name === 'string')
         .map((p) => ({ id: p.id as number, name: p.name as string, isPrimary: p.is_primary === true }));
 
-    const primaryCtaHref = sources.find((s) => s.href !== null)?.href ?? null;
+    const primaryCtaSource = sources.find((s) => s.href !== null) ?? null;
+    const primaryCtaHref = primaryCtaSource?.href ?? null;
+    const primaryCtaTitle = primaryCtaSource?.title ?? null;
     const coverImage = sources.find((s) => s.imageUrl !== null)?.imageUrl ?? null;
 
     // Group sources by provider slug — one display row per provider
@@ -1226,6 +1279,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         sources,
         providers,
         primaryCtaHref,
+        primaryCtaTitle,
         coverImage,
     };
 }
@@ -1391,7 +1445,60 @@ export function parseTicketsBlock(
         totalCount: tickets.length,
         heading,
         layout,
+        quickPicks: buildQuickPicks(content.quick_picks ?? [], tickets, t),
     };
+}
+
+/**
+ * Resolve the API's `{slots, ticket_id}` quick-pick references
+ * against the FILTERED ticket set — a pick whose winner was dropped
+ * by the block's editorial filters is skipped, and the strip hides
+ * entirely when fewer than 3 distinct rows survive (mirrors the
+ * backend QuickPicksResolver's own threshold).
+ */
+function buildQuickPicks(
+    raw: ReadonlyArray<RawQuickPick>,
+    tickets: ReadonlyArray<ParsedTicket>,
+    t: T,
+): ParsedQuickPick[] {
+    if (raw.length === 0) {
+        return [];
+    }
+
+    const byId = new Map(tickets.map((ticket) => [ticket.id, ticket]));
+
+    const picks: ParsedQuickPick[] = [];
+    for (const entry of raw) {
+        const ticket = typeof entry.ticket_id === 'number' ? byId.get(entry.ticket_id) : undefined;
+        const slots = (entry.slots ?? []).filter((s): s is string => typeof s === 'string');
+        if (ticket === undefined || slots.length === 0) {
+            continue;
+        }
+        picks.push({
+            slots,
+            labels: slots.map((slot) => quickPickLabel(slot, t)),
+            ticket,
+        });
+    }
+
+    return picks.length >= 3 ? picks : [];
+}
+
+/**
+ * Label for one QuickPickSlot slug. Explicit branches (not a template
+ * key) so the `TranslationKey` union keeps compile-time coverage —
+ * same pattern as `groupTypeLabel` below.
+ */
+function quickPickLabel(slot: string, t: T): string {
+    switch (slot) {
+        case 'recommended': return t('tickets.quickPicks.recommended');
+        case 'cheapest': return t('tickets.quickPicks.cheapest');
+        case 'best_rated': return t('tickets.quickPicks.best_rated');
+        case 'most_complete': return t('tickets.quickPicks.most_complete');
+        case 'family': return t('tickets.quickPicks.family');
+        case 'unusual': return t('tickets.quickPicks.unusual');
+        default: return slot;
+    }
 }
 
 /**

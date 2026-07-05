@@ -66,6 +66,10 @@ const filtersAreActive
     = settings.filterFormat.length > 0
     || settings.filterGroupType.length > 0
     || settings.filterExperienceType.length > 0;
+
+/** Max tickets a bundle sub-group shows before the tail collapses
+ *  behind a "Show N more offers" disclosure. */
+const BUNDLE_GROUP_CAP = 6;
 ---
 
 {totalCount === 0 && filtersAreActive && (
@@ -118,20 +122,46 @@ const filtersAreActive
                             >
                                 {bucket.label} <span class="brand-text-muted ml-1 text-sm font-normal">({bucket.tickets.length})</span>
                             </SubHeading>
-                            {showBundleSubsections ? (
+                            {bucket.format === 'bundle' ? (
+                                /* Bundle groups are capped : the tail of an
+                                   oversized group (13 combos on a tier-1
+                                   Place) collapses behind a native
+                                   <details> so the bucket stops owning the
+                                   page's scroll. Sub-headers only render
+                                   when ≥ 2 sub-types survive — single-
+                                   subtype buckets stay visually flat but
+                                   still get the cap. */
                                 <div class="space-y-6">
-                                    {bundleGroups.map((group) => (
-                                        <section aria-labelledby={`tickets-simple-sub-${bucket.format}-${group.subtype}`}>
-                                            <h4 id={`tickets-simple-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-2 text-base font-semibold">
-                                                {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                            </h4>
-                                            <ul class="brand-border divide-y rounded-lg border bg-white">
-                                                {group.tickets.map((ticket) => (
-                                                    <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
-                                                ))}
-                                            </ul>
-                                        </section>
-                                    ))}
+                                    {bundleGroups.map((group) => {
+                                        const visibleTickets = group.tickets.slice(0, BUNDLE_GROUP_CAP);
+                                        const overflowTickets = group.tickets.slice(BUNDLE_GROUP_CAP);
+                                        return (
+                                            <section aria-labelledby={showBundleSubsections ? `tickets-simple-sub-${bucket.format}-${group.subtype}` : undefined}>
+                                                {showBundleSubsections && (
+                                                    <h4 id={`tickets-simple-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-2 text-base font-semibold">
+                                                        {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
+                                                    </h4>
+                                                )}
+                                                <ul class="brand-border divide-y rounded-lg border bg-white">
+                                                    {visibleTickets.map((ticket) => (
+                                                        <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                                    ))}
+                                                </ul>
+                                                {overflowTickets.length > 0 && (
+                                                    <details class="mt-2">
+                                                        <summary class="brand-text-muted cursor-pointer text-sm underline">
+                                                            {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })}
+                                                        </summary>
+                                                        <ul class="brand-border mt-2 divide-y rounded-lg border bg-white">
+                                                            {overflowTickets.map((ticket) => (
+                                                                <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                                            ))}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </section>
+                                        );
+                                    })}
                                 </div>
                             ) : showAccessSubsections ? (
                                 <div class="space-y-6">

@@ -62,7 +62,7 @@ const hasBundleHint = ticket.isBundle && secondaryPlaces.length > 0;
 const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRating);
 ---
 
-<li class="flex flex-col gap-3 p-4">
+<li id={`ticket-${ticket.id}`} class="flex flex-col gap-3 p-4">
     {/* Top info cluster — title + meta + badges, with an optional
         cover thumbnail to the LEFT when `show_photos` is on. The
         thumbnail acts as a visual anchor for the ticket without
