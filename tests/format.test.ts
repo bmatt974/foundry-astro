@@ -12,7 +12,7 @@
  */
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { formatDate, formatRelativeDate } from '../src/lib/format.ts';
+import { formatDate, formatRating, formatRelativeDate } from '../src/lib/format.ts';
 
 const now = new Date('2026-05-16T12:00:00Z');
 
@@ -81,4 +81,37 @@ test('formatDate: long form in fr', () => {
 test('formatDate: returns null for missing input', () => {
     assert.equal(formatDate(null, 'en'), null);
     assert.equal(formatDate('not-a-date', 'en'), null);
+});
+
+test('formatRating: returns null when rating is missing', () => {
+    assert.equal(formatRating(null, 100, 'en'), null);
+    assert.equal(formatRating(undefined, 100, 'en'), null);
+    assert.equal(formatRating(Number.NaN, 100, 'en'), null);
+});
+
+test('formatRating: omits the count when reviewCount is missing or zero', () => {
+    assert.equal(formatRating(4.3, null, 'en'), '★ 4.3');
+    assert.equal(formatRating(4.3, 0, 'en'), '★ 4.3');
+});
+
+test('formatRating: counts under 1k stay exact', () => {
+    assert.equal(formatRating(4.5, 847, 'en'), '★ 4.5 (847)');
+    assert.equal(formatRating(4.5, 847, 'fr', 'avis'), '★ 4,5 (847 avis)');
+});
+
+test('formatRating: counts at 1k+ collapse to compact notation (en)', () => {
+    // en: thousands abbreviate to K (no space). Modern marketplaces use
+    // this to stop 5-digit counts from crowding the row.
+    assert.equal(formatRating(4.5, 48175, 'en', 'reviews'), '★ 4.5 (48K reviews)');
+    assert.equal(formatRating(4.5, 127543, 'en', 'reviews'), '★ 4.5 (128K reviews)');
+});
+
+test('formatRating: counts at 1k+ collapse to compact notation (fr)', () => {
+    // fr: thousands abbreviate to "k" with a non-breaking thin space
+    // (Intl emits U+202F before the unit). Assertions use a startsWith
+    // check on the visible prefix to stay robust to ICU separator drift.
+    const result = formatRating(4.5, 48175, 'fr', 'avis');
+    assert.ok(result !== null);
+    assert.ok(result.startsWith('★ 4,5 (48'));
+    assert.ok(result.endsWith('avis)'));
 });

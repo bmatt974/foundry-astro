@@ -69,9 +69,35 @@ export function formatDuration(
 }
 
 /**
- * Format a rating + review count into "★ 4.3 (160)" — the compact
- * form most marketplaces use. Returns null when there's no rating to
- * show.
+ * Adaptive compact formatter for review counts. Mirrors the
+ * YouTube / Twitter / Trivago convention :
+ *   - < 1 k     : exact ("847")
+ *   - 1 k–10 k  : one decimal ("1,2 k" / "1.2K")
+ *   - ≥ 10 k    : integer ("48 k" / "48K", "1,2 M" / "1.2M")
+ * The decimal collapses at 10 k+ because at that magnitude the
+ * tenth-of-a-thousand-reviews is below the visitor's resolution and
+ * just adds visual noise next to the price.
+ */
+function formatCompactCount(count: number, locale: string): string {
+    if (count < 1000) {
+        return new Intl.NumberFormat(locale).format(count);
+    }
+
+    return new Intl.NumberFormat(locale, {
+        notation: 'compact',
+        maximumFractionDigits: count < 10_000 ? 1 : 0,
+    }).format(count);
+}
+
+/**
+ * Format a rating + review count into "★ 4.3 (48 k avis)" — the
+ * compact form modern comparators use (Trivago, Skyscanner). Returns
+ * null when there's no rating to show.
+ *
+ * Counts use a locale-aware adaptive compact formatter — see
+ * `formatCompactCount()` for the magnitude rules. The collapsed form
+ * keeps the row scannable : 5-digit review counts otherwise crowd
+ * the price and CTA on narrow viewports.
  */
 export function formatRating(
     rating: number | null | undefined,
@@ -79,8 +105,8 @@ export function formatRating(
     locale: string,
     /** Optional locale-aware word appended after the count
      *  ("avis" / "reviews" / "Bewertungen"). When provided, the
-     *  output becomes `★ 4.5 (12,345 avis)` instead of the
-     *  ambiguous `★ 4.5 (12,345)`. The caller resolves the word
+     *  output becomes `★ 4.5 (12 k avis)` instead of the
+     *  ambiguous `★ 4.5 (12 k)`. The caller resolves the word
      *  via its `useTranslations()` instance ; the formatter just
      *  glues it in. */
     reviewWord?: string,
@@ -91,7 +117,7 @@ export function formatRating(
     const decimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })
         .format(rating);
     if (reviewCount && reviewCount > 0) {
-        const count = new Intl.NumberFormat(locale).format(reviewCount);
+        const count = formatCompactCount(reviewCount, locale);
         const trailing = reviewWord ? `${count} ${reviewWord}` : count;
         return `★ ${decimal} (${trailing})`;
     }
