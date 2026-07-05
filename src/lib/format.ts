@@ -111,7 +111,10 @@ export function formatRating(
      *  glues it in. */
     reviewWord?: string,
 ): string | null {
-    if (rating === null || rating === undefined || !Number.isFinite(rating)) {
+    // `rating <= 0` covers the providers that ship `0` for "not yet
+    // rated" (OTA scales start at 1) — a "★ 0" line reads as a
+    // terrible score, not as missing data.
+    if (rating === null || rating === undefined || !Number.isFinite(rating) || rating <= 0) {
         return null;
     }
     const decimal = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })

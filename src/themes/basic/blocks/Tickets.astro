@@ -161,8 +161,8 @@ const BUNDLE_GROUP_CAP = 6;
                                     </ul>
                                     {overflowTickets.length > 0 && (
                                         <details class="mt-3">
-                                            <summary class="brand-text-muted cursor-pointer text-sm underline">
-                                                {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })}
+                                            <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
+                                                {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
                                             </summary>
                                             <ul class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                                 {overflowTickets.map((ticket) => (

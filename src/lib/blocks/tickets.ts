@@ -288,6 +288,10 @@ export interface UniqueProvider {
     /** Number of underlying `ticket_sources` rows for this provider —
      *  exposed so the renderer can show "Viator (12)" or just "Viator". */
     sourceCount: number;
+    /** This provider's OTHER listings for the same ticket (everything
+     *  but the cheapest), price-ascending. Drives the Skyscanner-style
+     *  "+N more options" expandable under the provider row. */
+    alternateSources: TicketSource[];
     /** Cover image URL from this provider's cheapest source for the
      *  ticket. Used by the table variant's column header so the
      *  picture matches the click target (when this provider is the
@@ -952,6 +956,10 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         faviconPath: string | null;
         count: number;
         cheapest: TicketSource;
+        /** Every source of this provider, input order — the
+         *  Skyscanner-style "+N more options" expandable derives its
+         *  mini-rows from `allSources − cheapest`. */
+        allSources: TicketSource[];
         ratingWeightedSum: number;
         ratingWeightTotal: number;
         reviewSum: number;
@@ -982,6 +990,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 faviconPath: source.providerFaviconPath,
                 count: 1,
                 cheapest: source,
+                allSources: [source],
                 ratingWeightedSum: reliable
                     ? (source.rating as number) * (source.reviewCount as number)
                     : 0,
@@ -991,6 +1000,7 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             });
         } else {
             entry.count += 1;
+            entry.allSources.push(source);
             const currentPrice = parsePriceFloor(entry.cheapest.priceText);
             const candidatePrice = parsePriceFloor(source.priceText);
             // Replace the seed when the candidate has a defined price
@@ -1188,6 +1198,18 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 logoPath: entry.logoPath,
                 faviconPath: entry.faviconPath,
                 sourceCount: entry.count,
+                // Everything but the row's CTA listing, price-ascending
+                // (unpriced last) — the "+N more options" mini-rows.
+                alternateSources: entry.allSources
+                    .filter((s) => s !== entry.cheapest)
+                    .sort((a, b) => {
+                        const pa = parsePriceFloor(a.priceText);
+                        const pb = parsePriceFloor(b.priceText);
+                        if (pa === null && pb === null) return 0;
+                        if (pa === null) return 1;
+                        if (pb === null) return -1;
+                        return pa - pb;
+                    }),
                 coverImage: entry.cheapest.imageUrl,
                 perspectives: {
                     cheapest: toSnapshot(cheapestPerspective),

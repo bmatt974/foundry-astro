@@ -74,7 +74,9 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
 
         {ticket.providers.length > 0 && (
             <p class="brand-text-muted text-xs">
-                {t('tickets.card.providers', { count: String(ticket.providers.length) })}
+                {ticket.providers.length === 1
+                    ? t('tickets.card.providersOne')
+                    : t('tickets.card.providers', { count: String(ticket.providers.length) })}
                 {' '}: {ticket.providers.map((p) => p.label).join(' · ')}
             </p>
         )}

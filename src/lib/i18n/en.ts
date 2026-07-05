@@ -92,6 +92,9 @@ const en: Dictionary = {
         card: {
             priceFrom: 'From :price',
             providers: ':count providers',
+            providersOne: '1 provider',
+            moreFromProvider: 'See :count more :provider offers',
+            moreFromProviderOne: 'See 1 more :provider offer',
             reviews: ':count reviews',
             reviewsSuffix: 'reviews',
             durationHours: ':hours h',
@@ -127,6 +130,7 @@ const en: Dictionary = {
             colRating: 'Rating',
             colAction: 'Action',
             moreOptions: '+:count more options',
+            moreOptionsOne: '+1 more option',
             pricesUpdated: 'Prices updated on',
         },
         feature: {

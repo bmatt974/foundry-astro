@@ -89,6 +89,12 @@ test('formatRating: returns null when rating is missing', () => {
     assert.equal(formatRating(Number.NaN, 100, 'en'), null);
 });
 
+test('formatRating: returns null when rating is zero (provider "not yet rated" sentinel)', () => {
+    assert.equal(formatRating(0, 0, 'en'), null);
+    assert.equal(formatRating(0, 12, 'en'), null);
+    assert.equal(formatRating(-1, 12, 'en'), null);
+});
+
 test('formatRating: omits the count when reviewCount is missing or zero', () => {
     assert.equal(formatRating(4.3, null, 'en'), '★ 4.3');
     assert.equal(formatRating(4.3, 0, 'en'), '★ 4.3');

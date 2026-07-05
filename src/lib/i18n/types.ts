@@ -173,6 +173,16 @@ export interface Dictionary {
             priceFrom: string;
             /** ":count providers" — link out for cross-provider compare. */
             providers: string;
+            /** Singular form of `providers` — used when exactly one
+             *  provider backs the ticket ("1 fournisseur", not
+             *  "1 fournisseurs"). */
+            providersOne: string;
+            /** Disclosure summary of a provider's alternate listings —
+             *  Trivago wording, names the provider ("Voir :count
+             *  autres offres :provider"). */
+            moreFromProvider: string;
+            /** Singular form of `moreFromProvider`. */
+            moreFromProviderOne: string;
             /** ":count reviews" — rating count on the card. */
             reviews: string;
             /** Static suffix glued into `formatRating()` output —
@@ -263,6 +273,8 @@ export interface Dictionary {
             /** "+:count more options" — substitution for the
              *  "more tickets in this bucket" hint under the row title. */
             moreOptions: string;
+            /** Singular form of `moreOptions` ("+1 more option"). */
+            moreOptionsOne: string;
             /** "Prices updated on" — prefix before the relative date
              *  in the table footer. */
             pricesUpdated: string;

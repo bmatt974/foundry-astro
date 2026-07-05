@@ -473,6 +473,52 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                         ) : (
                             inner
                         )}
+                        {provider.alternateSources.length > 0 && (
+                            /* Skyscanner-style progressive disclosure :
+                               the row shows the provider's CHEAPEST
+                               listing ; its other listings for the same
+                               ticket collapse behind "+N more options"
+                               as compact price + name mini-rows. Sits
+                               OUTSIDE the row's <a> wrapper (no nested
+                               anchors). */
+                            <details class="bg-white px-4 py-2.5">
+                                <summary class="brand-text-muted cursor-pointer list-none text-xs underline [&::-webkit-details-marker]:hidden">
+                                    {provider.alternateSources.length === 1
+                                        ? t('tickets.card.moreFromProviderOne', { provider: provider.label })
+                                        : t('tickets.card.moreFromProvider', { count: String(provider.alternateSources.length), provider: provider.label })} ›
+                                </summary>
+                                <ul class="mt-2 space-y-1.5">
+                                    {provider.alternateSources.map((alt) => (
+                                        /* Each mini-row must EARN its price gap
+                                           against the cheapest above : these are
+                                           different products of the same provider
+                                           (not the same room at N vendors à la
+                                           Skyscanner), so TITLE leads and the
+                                           per-listing rating justifies a 69 €
+                                           line under a 29 € winner. Price sits
+                                           RIGHT — same column as the main
+                                           provider rows, one price grammar for
+                                           the whole component. Underlined title
+                                           carries the click affordance. */
+                                        <li>
+                                            <a
+                                                href={alt.href ?? provider.cheapestHref ?? '#'}
+                                                target="_blank"
+                                                rel={outboundRel}
+                                                class="flex items-baseline gap-2 text-xs no-underline"
+                                            >
+                                                <span class="min-w-0 truncate underline">{alt.title ?? provider.label}</span>
+                                                {alt.ratingText && (
+                                                    <span class="brand-text-muted shrink-0">{alt.ratingText}</span>
+                                                )}
+                                                <span class="brand-text-primary ml-auto shrink-0 font-semibold">{alt.priceText ?? '—'}</span>
+                                                <span class="brand-text-muted shrink-0" aria-hidden="true">›</span>
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </details>
+                        )}
                     </li>
                 );
             })}
