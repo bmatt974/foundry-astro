@@ -41,7 +41,7 @@ import {
     ticketHasFeature,
     ratingStarless,
 } from '../../../lib/blocks/tickets';
-import { BUNDLE_SUBTYPE_ORDER, bundleSubtypeLabel } from '../../../lib/tickets/bundle-subgroups';
+import { BUNDLE_SUBTYPE_ORDER } from '../../../lib/tickets/bundle-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import { formatDate, formatRelativeDate } from '../../../lib/format';
 import { slugify } from '../../../lib/toc';
@@ -204,7 +204,7 @@ const rows: CompareRow[] = buckets.flatMap((bucket) => {
  */
 function subgroupLabel(row: CompareRow): string {
     if (row.bundleSubtype !== null) {
-        return bundleSubtypeLabel(row.bundleSubtype, locale);
+        return t(`tickets.bundleSubtype.${row.bundleSubtype}`);
     }
     if (row.groupType === 'standard') {
         return row.bucket.label;

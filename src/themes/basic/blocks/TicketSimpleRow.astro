@@ -27,7 +27,7 @@ interface Props {
     /** Subset of the parent block's settings that affect the row's
      *  presentation. Passed in instead of read from props.block so
      *  the row stays decoupled from the wider block shape. */
-    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'highlightTarget' | 'hidePriceOutliers' | 'rowLayout'>;
+    settings: Pick<TicketsSettings, 'providerIndicator' | 'showProviderArrow' | 'priceAsButton' | 'ctaLabel' | 'rowLayout' | 'showPhotos'>;
 }
 
 const { ticket, headingLevel, settings } = Astro.props;

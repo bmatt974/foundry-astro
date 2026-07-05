@@ -35,41 +35,9 @@ export const BUNDLE_SUBTYPE_ORDER: ReadonlyArray<BundleSubtypeSlug> = [
     'combo',
 ] as const;
 
-/**
- * Localised labels per sub-type. Two locales today (fr / en) — the
- * helper falls back to English for any unrecognised lang prefix
- * rather than printing the raw slug, so a `de-DE` visitor sees
- * "Day trips" not `day_trip`. Add a lang when a new tier-1 locale
- * lands.
- */
-const LABELS: Record<string, Record<BundleSubtypeSlug, string>> = {
-    fr: {
-        card: 'Pass & cartes',
-        day_trip: 'Excursions',
-        bus: 'Bus touristique',
-        cruise: 'Croisières',
-        combo: 'Combos',
-    },
-    en: {
-        card: 'Passes & cards',
-        day_trip: 'Day trips',
-        bus: 'Sightseeing bus',
-        cruise: 'Cruises',
-        combo: 'Combos',
-    },
-};
-
-/**
- * Localise a bundle sub-type slug. Unknown slugs return as-is so the
- * caller can spot a contract drift in the UI (a new sub-type added
- * server-side without a matching front label).
- */
-export function bundleSubtypeLabel(slug: BundleSubtypeSlug | string, locale = 'fr'): string {
-    const lang = locale.slice(0, 2).toLowerCase();
-    const dict = LABELS[lang] ?? LABELS.en;
-
-    return dict[slug as BundleSubtypeSlug] ?? slug;
-}
+/* Labels live in the i18n dictionaries (`tickets.bundleSubtype.*`)
+   so per-site wording overrides apply — render with
+   `t(\`tickets.bundleSubtype.${subtype}\`)`. */
 
 export interface BundleSubgroup {
     subtype: BundleSubtypeSlug;

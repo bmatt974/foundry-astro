@@ -29,30 +29,9 @@ export const ACCESS_SUBTYPE_ORDER: ReadonlyArray<AccessSubtypeSlug> = [
     'priority',
 ] as const;
 
-/**
- * Localised labels per sub-type. Falls back to English for any
- * unrecognised lang prefix so a new locale doesn't surface raw
- * slugs in the UI.
- */
-const LABELS: Record<string, Record<AccessSubtypeSlug, string>> = {
-    fr: {
-        standard: 'Officiel',
-        audio_guide: 'Avec audio guide',
-        priority: 'Coupe-file',
-    },
-    en: {
-        standard: 'Official',
-        audio_guide: 'With audio guide',
-        priority: 'Skip-the-line',
-    },
-};
-
-export function accessSubtypeLabel(slug: AccessSubtypeSlug | string, locale = 'fr'): string {
-    const lang = locale.slice(0, 2).toLowerCase();
-    const dict = LABELS[lang] ?? LABELS.en;
-
-    return dict[slug as AccessSubtypeSlug] ?? slug;
-}
+/* Labels live in the i18n dictionaries (`tickets.accessSubtype.*`)
+   so per-site wording overrides apply — render with
+   `t(\`tickets.accessSubtype.${subtype}\`)`. */
 
 export interface AccessSubgroup {
     subtype: AccessSubtypeSlug;

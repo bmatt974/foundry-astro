@@ -114,6 +114,22 @@ export interface Dictionary {
             adventure: string;
             wellness: string;
         };
+        /** Bundle bucket sub-axis — sub-headers inside "Passes &
+         *  Combos" (see lib/tickets/bundle-subgroups.ts). */
+        bundleSubtype: {
+            card: string;
+            day_trip: string;
+            bus: string;
+            cruise: string;
+            combo: string;
+        };
+        /** Access bucket sub-axis — sub-headers inside "Entrée"
+         *  (see lib/tickets/access-subgroups.ts). */
+        accessSubtype: {
+            standard: string;
+            audio_guide: string;
+            priority: string;
+        };
         /** Filter chip rows above each bucket. */
         filter: {
             /** Header above the group-type chips. */

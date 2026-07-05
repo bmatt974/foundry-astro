@@ -42,8 +42,7 @@ const locale = params.get('locale') ?? Astro.locals.locale ?? tenant.defaultLoca
 /* Propagate the override to `Astro.locals.locale` so child Block
    components (TicketsSimple, Tickets, etc.) reading from locals
    see the picked locale instead of the middleware-resolved default.
-   Without this, `useTranslations()` and helpers like
-   `bundleSubtypeLabel(slug, locale)` rendered English labels even
+   Without this, `useTranslations()` rendered English labels even
    when the toolbar said `fr-FR`. */
 Astro.locals.locale = locale;
 const theme = await getTheme(tenant.website.template);

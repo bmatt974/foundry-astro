@@ -57,6 +57,18 @@ const fr: Dictionary = {
             adventure: 'Aventure',
             wellness: 'Bien-être',
         },
+        bundleSubtype: {
+            card: 'Pass & cartes',
+            day_trip: 'Excursions',
+            bus: 'Bus touristique',
+            cruise: 'Croisières',
+            combo: 'Combos',
+        },
+        accessSubtype: {
+            standard: 'Officiel',
+            audio_guide: 'Avec audio guide',
+            priority: 'Coupe-file',
+        },
         filter: {
             groupHeader: 'Avec qui',
             experienceHeader: 'Expérience',
