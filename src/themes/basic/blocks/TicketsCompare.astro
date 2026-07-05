@@ -224,6 +224,14 @@ const headers = {
     action: t('tickets.compare.colAction'),
 };
 const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
+
+/* Feature glyphs come from the SAME dictionary keys as the table
+ * variant — never hardcoded : the glyph pair is a per-site wording
+ * axis (✓/— default, overridable to ✔/✗, ●/○, Oui/—, …). A glyph
+ * baked into the markup is a network-wide fingerprint ; the override
+ * surface is what makes it variance instead. */
+const featurePresent = t('tickets.table.featurePresent');
+const featureAbsent = t('tickets.table.featureAbsent');
 ---
 
 {rows.length > 0 && (
@@ -258,10 +266,10 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                         )}
                         {isTicketFirst && (
                             <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
-                                <li>{hasSkipLine ? '✅' : '❌'} {headers.skipLine}</li>
-                                <li>{hasAudio ? '✅' : '❌'} {headers.audioGuide}</li>
-                                <li>{hasLiveGuide ? '✅' : '❌'} {headers.liveGuide}</li>
-                                <li>{hasFreeCancellation ? '✅' : '❌'} {headers.cancellation}</li>
+                                <li><span class:list={[hasSkipLine ? 'tt-compare-success' : '']}>{hasSkipLine ? featurePresent : featureAbsent}</span> {headers.skipLine}</li>
+                                <li><span class:list={[hasAudio ? 'tt-compare-success' : '']}>{hasAudio ? featurePresent : featureAbsent}</span> {headers.audioGuide}</li>
+                                <li><span class:list={[hasLiveGuide ? 'tt-compare-success' : '']}>{hasLiveGuide ? featurePresent : featureAbsent}</span> {headers.liveGuide}</li>
+                                <li><span class:list={[hasFreeCancellation ? 'tt-compare-success' : '']}>{hasFreeCancellation ? featurePresent : featureAbsent}</span> {headers.cancellation}</li>
                             </ul>
                         )}
                         <div class:list={['flex items-center justify-between gap-3', isTicketFirst ? 'mt-4' : '']}>
@@ -328,28 +336,41 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
             Price, Rating, Action. Bucket label / ticket title / feature
             cells only render on the first occurrence (visual grouping by
             anchoring, no rowspan). */}
-        <div class="hidden overflow-x-auto sm:block">
-            <table class="brand-border w-full border-collapse border text-sm">
+        <div class="tt-compare-scroll hidden sm:block">
+            <table class="tt-compare-table brand-border w-full border-collapse border text-sm">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider min-w-[12rem]">{headers.type}</th>
+                        {/* Vendor right after Type — "29 € chez QUI ?"
+                            is trust-critical in a meta-search and must
+                            survive the default (unscrolled) viewport ;
+                            the feature emojis are the detail that can
+                            live behind the horizontal scroll. */}
+                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{headers.supplier}</th>
+                        {/* Price right after the vendor : "who + how
+                            much" reads without scrolling — features
+                            are the detail that can live behind the
+                            horizontal scroll. */}
+                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{headers.price}</th>
                         <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.skipLine}</th>
                         <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.audioGuide}</th>
                         <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.liveGuide}</th>
                         <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{headers.cancellation}</th>
-                        <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{headers.supplier}</th>
-                        <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{headers.price}</th>
                         <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{headers.rating}</th>
-                        <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{headers.action}</th>
+                        {/* Only the CTA is sticky : narrow enough to
+                            leave the price column visible by default,
+                            while the ACTION never scrolls out of view.
+                            The left-edge shadow doubles as the "more
+                            columns behind" affordance. Positioning +
+                            backgrounds for every sticky cell live in
+                            the style block below (`tt-compare-*`). */}
+                        <th class="tt-compare-money brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{headers.action}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {rows.map((row) => { const { bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, subgroupSize, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation } = row; return (
                         <tr
-                            class:list={[
-                                'brand-border border-t align-middle',
-                                isTicketFirst ? '' : 'bg-gray-50/40',
-                            ]}
+                            class="brand-border border-t align-middle"
                             data-bucket={bucket.format}
                             data-group-type={groupType}
                             data-subgroup-first={isSubgroupFirst}
@@ -372,10 +393,6 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                                     </p>
                                 )}
                             </td>
-                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasSkipLine ? '✅' : '❌') : ''}</td>
-                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasAudio ? '✅' : '❌') : ''}</td>
-                            <td class="p-3 text-center align-middle">{isTicketFirst ? (hasLiveGuide ? '✅' : '❌') : ''}</td>
-                            <td class="p-3 text-center align-middle">{hasFreeCancellation ? '✅' : '❌'}</td>
                             <td class="p-3 align-middle">
                                 <span class="flex items-center gap-2">
                                     {/* Editor-controlled visual marker —
@@ -414,19 +431,28 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                             <td class="p-3 text-right align-middle font-semibold whitespace-nowrap">
                                 {provider.cheapestPriceText}
                             </td>
+                            <td class:list={['p-3 text-center align-middle', isTicketFirst && hasSkipLine ? 'tt-compare-success' : 'brand-text-muted']}>{isTicketFirst ? (hasSkipLine ? featurePresent : featureAbsent) : ''}</td>
+                            <td class:list={['p-3 text-center align-middle', isTicketFirst && hasAudio ? 'tt-compare-success' : 'brand-text-muted']}>{isTicketFirst ? (hasAudio ? featurePresent : featureAbsent) : ''}</td>
+                            <td class:list={['p-3 text-center align-middle', isTicketFirst && hasLiveGuide ? 'tt-compare-success' : 'brand-text-muted']}>{isTicketFirst ? (hasLiveGuide ? featurePresent : featureAbsent) : ''}</td>
+                            <td class:list={['p-3 text-center align-middle', hasFreeCancellation ? 'tt-compare-success' : 'brand-text-muted']}>{hasFreeCancellation ? featurePresent : featureAbsent}</td>
                             <td class="brand-text-muted p-3 text-right align-middle text-xs whitespace-nowrap">
                                 {ratingStarless(provider.cheapestRatingText) && (
                                     <>★ {ratingStarless(provider.cheapestRatingText)}</>
                                 )}
                             </td>
-                            <td class="p-3 align-middle">
+                            {/* Sticky CTA cell — `background: inherit`
+                                in the style block keeps it in sync with
+                                the row's zebra stripe AND hover tint
+                                while staying opaque (scrolled columns
+                                slide underneath). */}
+                            <td class="tt-compare-money p-3 align-middle">
                                 {provider.cheapestHref && (
                                     <a
                                         href={provider.cheapestHref}
                                         target="_blank"
                                         rel={outboundRel}
                                         class:list={[
-                                            'inline-block whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold',
+                                            'inline-block whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold',
                                             isTicketFirst
                                                 ? 'brand-bg-primary text-white hover:opacity-90'
                                                 : 'brand-border brand-text-primary border bg-white hover:bg-gray-50',
@@ -452,3 +478,63 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
         )}
     </section>
 )}
+
+<style>
+    /* Present-feature glyph in the brand success accent — mirrors the
+       table variant's treatment so both matrices read the same. */
+    .tt-compare-success { color: var(--brand-accent-success); }
+
+    /* The matrix scrolls BOTH ways inside a viewport-sized box —
+       required for the sticky header : `position: sticky; top: 0`
+       only sticks against the nearest scroll container, and an
+       `overflow-x` wrapper would swallow it on page scroll. */
+    .tt-compare-scroll {
+        overflow: auto;
+        max-height: 75vh;
+    }
+
+    /* Zebra + hover live on the ROW ; every sticky cell inherits the
+       row's background explicitly so the stripe and the highlight
+       never break at the sticky seam, while staying opaque for the
+       columns sliding underneath. */
+    .tt-compare-table tbody tr {
+        background-color: #fff;
+        transition: background-color 0.15s;
+    }
+    .tt-compare-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+    .tt-compare-table tbody tr:hover {
+        background-color: #f3f4f6;
+    }
+
+    /* Header row sticks to the top of the scroll box. The bottom
+       border rides a box-shadow — border-collapse borders detach
+       from stuck cells. */
+    .tt-compare-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f9fafb;
+        box-shadow: 0 1px 0 0 var(--brand-border);
+    }
+
+    /* Money column sticks right ; the header corner cell sticks on
+       BOTH axes and needs both shadows (left scroll hint + bottom
+       border). */
+    .tt-compare-table .tt-compare-money {
+        position: sticky;
+        right: 0;
+    }
+    .tt-compare-table thead th.tt-compare-money {
+        z-index: 20;
+        box-shadow:
+            -8px 0 8px -8px rgba(15, 23, 42, 0.15),
+            0 1px 0 0 var(--brand-border);
+    }
+    .tt-compare-table tbody td.tt-compare-money {
+        z-index: 5;
+        background-color: inherit;
+        box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.15);
+    }
+</style>
