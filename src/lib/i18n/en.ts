@@ -78,6 +78,7 @@ const en: Dictionary = {
             bestRated: 'Best rated',
             differentPackage: 'Different inclusions',
             aggregatedAcross: 'Aggregated across :count providers',
+            viewOffer: 'View offer',
             saveAmount: 'Save :pct%',
         },
         table: {

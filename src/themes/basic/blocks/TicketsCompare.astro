@@ -35,11 +35,13 @@ import {
     type ParsedBucket,
     type ParsedTicket,
     type TicketGroupTypeSlug,
+    type BundleSubtypeSlug,
     type UniqueProvider,
     GROUP_DISPLAY_ORDER,
     ticketHasFeature,
     ratingStarless,
 } from '../../../lib/blocks/tickets';
+import { BUNDLE_SUBTYPE_ORDER, bundleSubtypeLabel } from '../../../lib/tickets/bundle-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import { formatDate, formatRelativeDate } from '../../../lib/format';
 import { slugify } from '../../../lib/toc';
@@ -80,9 +82,16 @@ interface CompareRow {
     bucket: ParsedBucket;
     ticket: ParsedTicket;
     groupType: TicketGroupTypeSlug;
+    /** Bundle sub-axis on the Bundle bucket — null on non-Bundle
+     *  rows. When non-null this drives the sub-group label
+     *  ("Pass & cartes", "Bus touristique", "Combos") instead of
+     *  the format × group_type combo. */
+    bundleSubtype: BundleSubtypeSlug | null;
     provider: UniqueProvider;
-    /** True for the first row of each (format × group_type)
-     *  sub-bucket — drives the bucket-label rendering. */
+    /** True for the first row of each sub-bucket — drives the
+     *  bucket-label rendering. Sub-buckets are (format × group_type)
+     *  for non-Bundle buckets and (format × bundle_subtype) for
+     *  the Bundle bucket. */
     isSubgroupFirst: boolean;
     /** True for the first PROVIDER row of each ticket — drives the
      *  ticket-title rendering and the feature cells (which only
@@ -123,8 +132,44 @@ function sortProvidersByPrice(providers: ReadonlyArray<UniqueProvider>): UniqueP
     });
 }
 
-const rows: CompareRow[] = buckets.flatMap((bucket) =>
-    GROUP_DISPLAY_ORDER.flatMap((groupType) => {
+/* The Bundle bucket gets its OWN sub-axis (bundle_subtype) — for
+   bucket.format === 'bundle' we iterate `BUNDLE_SUBTYPE_ORDER`
+   instead of `GROUP_DISPLAY_ORDER`. Bundle tickets are mostly
+   `groupType === 'standard'` (a city pass isn't "private"), so
+   the standard group_type grouping yields a single uninformative
+   subgroup. Splitting Bundle by bundle_subtype (Pass & cartes /
+   Excursions / Bus / Croisières / Combos) matches the visitor's
+   buying intent : "which kind of pass am I picking ?". Non-Bundle
+   buckets keep the group_type axis. */
+const rows: CompareRow[] = buckets.flatMap((bucket) => {
+    if (bucket.format === 'bundle') {
+        return BUNDLE_SUBTYPE_ORDER.flatMap((subtype) => {
+            const matchingTickets = bucket.tickets.filter(
+                (tk) => (tk.bundleSubtype ?? 'combo') === subtype,
+            );
+            return matchingTickets.flatMap((ticket, ticketIdx) => {
+                const providers = sortProvidersByPrice(ticket.providers);
+                const hasSkipLine = ticketHasFeature(ticket, 'skip_the_line');
+                const hasAudio = ticketHasFeature(ticket, 'audio_guide');
+                return providers.map((provider, providerIdx) => ({
+                    bucket,
+                    ticket,
+                    groupType: ticket.groupType,
+                    bundleSubtype: subtype,
+                    provider,
+                    isSubgroupFirst: ticketIdx === 0 && providerIdx === 0,
+                    isTicketFirst: providerIdx === 0,
+                    subgroupSize: ticketIdx === 0 && providerIdx === 0 ? matchingTickets.length : 0,
+                    hasSkipLine,
+                    hasAudio,
+                    hasLiveGuide: false,
+                    hasFreeCancellation: provider.annotationBadges.some((b) => b.slug === 'free_cancellation'),
+                }));
+            });
+        });
+    }
+
+    return GROUP_DISPLAY_ORDER.flatMap((groupType) => {
         const matchingTickets = bucket.tickets.filter((tk) => tk.groupType === groupType);
         return matchingTickets.flatMap((ticket, ticketIdx) => {
             const providers = sortProvidersByPrice(ticket.providers);
@@ -136,6 +181,7 @@ const rows: CompareRow[] = buckets.flatMap((bucket) =>
                 bucket,
                 ticket,
                 groupType,
+                bundleSubtype: null,
                 provider,
                 isSubgroupFirst: ticketIdx === 0 && providerIdx === 0,
                 isTicketFirst: providerIdx === 0,
@@ -146,14 +192,24 @@ const rows: CompareRow[] = buckets.flatMap((bucket) =>
                 hasFreeCancellation: provider.annotationBadges.some((b) => b.slug === 'free_cancellation'),
             }));
         });
-    }),
-);
+    });
+});
 
-function subgroupLabel(bucket: ParsedBucket, groupType: TicketGroupTypeSlug): string {
-    if (groupType === 'standard') {
-        return bucket.label;
+/**
+ * Label for the first row of each sub-group. Bundle bucket
+ * sub-groups are labelled by bundle_subtype ("Pass & cartes",
+ * "Bus touristique" — bare label, no bucket prefix since the
+ * bundle bucket label is implicit). Non-Bundle sub-groups follow
+ * the existing format-bucket + group_type pattern.
+ */
+function subgroupLabel(row: CompareRow): string {
+    if (row.bundleSubtype !== null) {
+        return bundleSubtypeLabel(row.bundleSubtype, locale);
     }
-    return `${bucket.label} · ${t(`tickets.groupType.${groupType}`)}`;
+    if (row.groupType === 'standard') {
+        return row.bucket.label;
+    }
+    return `${row.bucket.label} · ${t(`tickets.groupType.${row.groupType}`)}`;
 }
 
 const headers = {
@@ -182,7 +238,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
             Bucket label + ticket title surface only on each ticket's
             first provider card. */}
         <ul class="space-y-3 sm:hidden">
-            {rows.map(({ bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation }) => (
+            {rows.map((row) => { const { bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation } = row; return (
                 <li
                     class:list={[
                         'brand-border overflow-hidden rounded-lg border bg-white',
@@ -195,7 +251,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                 >
                     <div class="p-4">
                         {isSubgroupFirst && (
-                            <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{subgroupLabel(bucket, groupType)}</p>
+                            <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{subgroupLabel(row)}</p>
                         )}
                         {isTicketFirst && (
                             <h3 class:list={['text-sm font-semibold leading-snug', isSubgroupFirst ? 'mt-1' : '']}>{ticket.title}</h3>
@@ -265,7 +321,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                         </div>
                     </div>
                 </li>
-            ))}
+            ); })}
         </ul>
 
         {/* Desktop / wide : explicit columns — Type, features, Supplier,
@@ -288,7 +344,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map(({ bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, subgroupSize, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation }) => (
+                    {rows.map((row) => { const { bucket, ticket, groupType, provider, isSubgroupFirst, isTicketFirst, subgroupSize, hasSkipLine, hasAudio, hasLiveGuide, hasFreeCancellation } = row; return (
                         <tr
                             class:list={[
                                 'brand-border border-t align-middle',
@@ -302,7 +358,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                             <td class="p-3 align-top">
                                 {isSubgroupFirst && (
                                     <p class="whitespace-nowrap font-semibold">
-                                        {subgroupLabel(bucket, groupType)}
+                                        {subgroupLabel(row)}
                                         {subgroupSize > 1 && (
                                             <span class="brand-text-muted ml-1 text-xs font-normal">
                                                 · {subgroupSize}
@@ -381,7 +437,7 @@ const ctaLabel = parsed?.settings.ctaLabel?.trim() || t('tickets.card.book');
                                 )}
                             </td>
                         </tr>
-                    ))}
+                    ); })}
                 </tbody>
             </table>
         </div>

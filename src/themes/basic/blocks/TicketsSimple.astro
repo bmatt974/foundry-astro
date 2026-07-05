@@ -25,6 +25,8 @@ import {
     type ParsedBucket,
     type ParsedTicket,
 } from '../../../lib/blocks/tickets';
+import { groupBundleTickets, bundleSubtypeLabel } from '../../../lib/tickets/bundle-subgroups';
+import { groupAccessTickets, accessSubtypeLabel } from '../../../lib/tickets/access-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import type { PageBlock } from '../../../lib/foundry';
 import TicketSimpleRow from './TicketSimpleRow.astro';
@@ -90,21 +92,72 @@ const filtersAreActive
             </ul>
         ) : (
             <div class="space-y-8">
-                {visibleBuckets.map((bucket: ParsedBucket) => (
-                    <article aria-labelledby={`tickets-simple-${bucket.format}`}>
-                        <SubHeading
-                            id={`tickets-simple-${bucket.format}`}
-                            class="brand-text-primary mb-4 text-lg font-semibold tracking-tight"
-                        >
-                            {bucket.label} <span class="brand-text-muted text-sm font-normal">({bucket.tickets.length})</span>
-                        </SubHeading>
-                        <ul class="brand-border divide-y rounded-lg border bg-white">
-                            {bucket.tickets.map((ticket) => (
-                                <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
-                            ))}
-                        </ul>
-                    </article>
-                ))}
+                {visibleBuckets.map((bucket: ParsedBucket) => {
+                    /* Bundle bucket sub-axis : the aggregator classifies
+                       each Bundle ticket as `card` / `day_trip` /
+                       `bus` / `cruise` / `combo`. When ≥ 2 sub-types
+                       are present we paint sub-headers so the 15+
+                       Passes & Combos list reads as scannable groups.
+                       Single-subtype buckets render flat (no
+                       redundant sub-header above a flat list). The
+                       bucket header itself keeps the TOTAL count
+                       (16 = sum of sub-groups). */
+                    const bundleGroups = bucket.format === 'bundle' ? groupBundleTickets(bucket.tickets) : [];
+                    const showBundleSubsections = bundleGroups.length > 1;
+                    /* Access bucket sub-axis : Officiel / Avec audio
+                       guide / Coupe-file. Classified server-side from
+                       the feature pivot. Single-subtype buckets render
+                       flat (no redundant h4 above a flat list). */
+                    const accessGroups = bucket.format === 'access' ? groupAccessTickets(bucket.tickets) : [];
+                    const showAccessSubsections = accessGroups.length > 1;
+                    return (
+                        <article aria-labelledby={`tickets-simple-${bucket.format}`}>
+                            <SubHeading
+                                id={`tickets-simple-${bucket.format}`}
+                                class="brand-text-primary mb-4 text-lg font-semibold tracking-tight"
+                            >
+                                {bucket.label} <span class="brand-text-muted ml-1 text-sm font-normal">({bucket.tickets.length})</span>
+                            </SubHeading>
+                            {showBundleSubsections ? (
+                                <div class="space-y-6">
+                                    {bundleGroups.map((group) => (
+                                        <section aria-labelledby={`tickets-simple-sub-${bucket.format}-${group.subtype}`}>
+                                            <h4 id={`tickets-simple-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-2 text-base font-semibold">
+                                                {bundleSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
+                                            </h4>
+                                            <ul class="brand-border divide-y rounded-lg border bg-white">
+                                                {group.tickets.map((ticket) => (
+                                                    <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    ))}
+                                </div>
+                            ) : showAccessSubsections ? (
+                                <div class="space-y-6">
+                                    {accessGroups.map((group) => (
+                                        <section aria-labelledby={`tickets-simple-sub-${bucket.format}-${group.subtype}`}>
+                                            <h4 id={`tickets-simple-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-2 text-base font-semibold">
+                                                {accessSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
+                                            </h4>
+                                            <ul class="brand-border divide-y rounded-lg border bg-white">
+                                                {group.tickets.map((ticket) => (
+                                                    <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    ))}
+                                </div>
+                            ) : (
+                                <ul class="brand-border divide-y rounded-lg border bg-white">
+                                    {bucket.tickets.map((ticket) => (
+                                        <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                    ))}
+                                </ul>
+                            )}
+                        </article>
+                    );
+                })}
             </div>
         )}
     </section>

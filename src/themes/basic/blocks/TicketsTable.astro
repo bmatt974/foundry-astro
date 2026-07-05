@@ -104,7 +104,7 @@ const featureAbsent = t('tickets.table.featureAbsent');
                             id={`tickets-table-${bucket.format}`}
                             class="brand-text-primary mb-4 text-lg font-semibold tracking-tight"
                         >
-                            {bucket.label} <span class="brand-text-muted text-sm font-normal">({bucket.tickets.length})</span>
+                            {bucket.label} <span class="brand-text-muted ml-1 text-sm font-normal">({bucket.tickets.length})</span>
                         </SubHeading>
                     )}
 
@@ -133,7 +133,9 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                     : winningCriterion === 'most_reviewed'
                                         ? winnerProvider?.perspectives.mostReviewed
                                         : winnerProvider?.perspectives.cheapest;
-                                const cardCover = winnerSnapshot?.coverImage ?? winnerProvider?.coverImage ?? ticket.coverImage;
+                                const cardCover = settings.showPhotos
+                                    ? (winnerSnapshot?.coverImage ?? winnerProvider?.coverImage ?? ticket.coverImage)
+                                    : null;
                                 const cardHref = winnerSnapshot?.href ?? winnerProvider?.cheapestHref ?? ticket.primaryCtaHref;
                                 const cardRating = ratingStarless(ticket.ratingText);
                                 /* Sort providers cheapest first — matches the
@@ -329,7 +331,9 @@ const featureAbsent = t('tickets.table.featureAbsent');
                                            when perspectives aren't shipped
                                            (legacy payload, no winner). */
                                         const headerHref = winnerSnapshot?.href ?? winnerProvider?.cheapestHref ?? ticket.primaryCtaHref;
-                                        const headerCover = winnerSnapshot?.coverImage ?? winnerProvider?.coverImage ?? ticket.coverImage;
+                                        const headerCover = settings.showPhotos
+                                            ? (winnerSnapshot?.coverImage ?? winnerProvider?.coverImage ?? ticket.coverImage)
+                                            : null;
                                         const innerHeader = (
                                             <>
                                                 {headerCover ? (

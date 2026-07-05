@@ -36,7 +36,7 @@ const fr: Dictionary = {
     },
     tickets: {
         format: {
-            access: 'Entrée simple',
+            access: 'Entrée',
             guided: 'Visite guidée',
             special_access: 'Accès spécial',
             bundle: 'Pass & Combos',
@@ -78,6 +78,7 @@ const fr: Dictionary = {
             bestRated: 'Meilleure note',
             differentPackage: 'Inclusions différentes',
             aggregatedAcross: 'Agrégé sur :count fournisseurs',
+            viewOffer: 'Voir l\'offre',
             saveAmount: 'Économisez :pct %',
         },
         table: {

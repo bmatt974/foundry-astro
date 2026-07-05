@@ -148,6 +148,15 @@ export interface TicketsSettings {
      *  stay visible in both modes ; this setting controls only the
      *  trailing word. */
     showReviews: boolean;
+    /** Display the cover image on ticket renderers that ship one
+     *  (TicketCard, TicketsTable column header + mobile carousel,
+     *  Comparison block mobile card). When false the image slot
+     *  is omitted entirely — the row reads as a lean text-only
+     *  card, useful for editorial article bodies where photos
+     *  fight with the surrounding prose. The lean variants
+     *  (TicketsSimple, TicketsCompare) ignore this setting since
+     *  they never carried photos to begin with. Default true. */
+    showPhotos: boolean;
     /** Which provider gets the visual highlight on each ticket :
      *   - 'cheapest'   : lowest price wins (default).
      *   - 'best_rated' : highest aggregate rating wins.
@@ -346,11 +355,18 @@ export interface UniqueProvider {
  *  inside the "Passes & Combos" bucket when it carries ≥ 2 subtypes. */
 export type BundleSubtypeSlug = 'card' | 'day_trip' | 'bus' | 'cruise' | 'combo';
 
+/** Sub-axis WITHIN the Access (admission) format bucket. Null for
+ *  non-Access tickets. Splits the Entrée bucket by what's bundled
+ *  with the admission : Standard (plain "officiel"), AudioGuide
+ *  (with audio device / app), Priority (skip-the-line). */
+export type AccessSubtypeSlug = 'standard' | 'audio_guide' | 'priority';
+
 export interface ParsedTicket {
     id: number;
     title: string;
     format: TicketFormatSlug;
     bundleSubtype: BundleSubtypeSlug | null;
+    accessSubtype: AccessSubtypeSlug | null;
     groupType: TicketGroupTypeSlug;
     experienceType: TicketExperienceTypeSlug;
     priceText: string | null;
@@ -517,6 +533,12 @@ interface RawTicket {
      *  into scannable sub-sections without changing the bucket
      *  count itself. */
     bundle_subtype?: 'card' | 'day_trip' | 'bus' | 'cruise' | 'combo' | null;
+    /** Sub-axis WITHIN the Access bucket — `standard` (plain
+     *  admission, "officiel" ticket), `audio_guide` (with audio
+     *  device or app), `priority` (skip-the-line, no audio). Null
+     *  on non-Access tickets. Lets the renderer split a busy
+     *  Entrée bucket by what's bundled with the admission. */
+    access_subtype?: 'standard' | 'audio_guide' | 'priority' | null;
     group_type?: TicketGroupTypeSlug;
     experience_type?: TicketExperienceTypeSlug;
     price_from_eur?: number | null;
@@ -547,6 +569,7 @@ interface RawMeta {
         affiliate_programs?: string[];
         sort_by?: 'price' | 'rating' | 'reviews';
         provider_indicator?: 'dot' | 'favicon' | 'logo' | 'none';
+        show_photos?: boolean;
         show_provider_arrow?: boolean;
         price_as_button?: boolean;
         cta_label?: string | null;
@@ -643,6 +666,10 @@ function readSettings(raw: RawMeta | undefined): TicketsSettings {
             ? s.cta_label.trim()
             : null,
         showReviews: s.show_reviews === true,
+        /* Cover photos display ON by default — current rendering
+           behaviour. Editors can flip off for lean editorial pages
+           where the photo competes with the surrounding prose. */
+        showPhotos: s.show_photos === undefined ? true : s.show_photos === true,
         highlightTarget: (s.highlight_target === 'best_rated' || s.highlight_target === 'none')
             ? s.highlight_target
             : 'cheapest',
@@ -1168,11 +1195,22 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         ? (rawSubtype as BundleSubtypeSlug)
         : null;
 
+    /* Access-subtype passes through as-is from the API. Null on
+       non-Access tickets ; on Access tickets the aggregator
+       classifies from the feature pivot (audio_device / audio_app
+       → audio_guide ; skip_the_line / priority_entry → priority ;
+       else → standard). */
+    const rawAccessSubtype = raw.access_subtype;
+    const accessSubtype: AccessSubtypeSlug | null = format === 'access' && rawAccessSubtype && ['standard', 'audio_guide', 'priority'].includes(rawAccessSubtype)
+        ? (rawAccessSubtype as AccessSubtypeSlug)
+        : null;
+
     return {
         id: raw.id,
         title: raw.title,
         format,
         bundleSubtype,
+        accessSubtype,
         groupType,
         experienceType,
         priceText: cheapestProviderPriceText ?? formatPrice(raw.price_from_eur ?? null, locale),

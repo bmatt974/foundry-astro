@@ -39,6 +39,13 @@ const params = Astro.url.searchParams;
 // any locale without changing URL prefix routing. Falls back to the
 // locale resolved by middleware (URL path) → tenant default.
 const locale = params.get('locale') ?? Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
+/* Propagate the override to `Astro.locals.locale` so child Block
+   components (TicketsSimple, Tickets, etc.) reading from locals
+   see the picked locale instead of the middleware-resolved default.
+   Without this, `useTranslations()` and helpers like
+   `bundleSubtypeLabel(slug, locale)` rendered English labels even
+   when the toolbar said `fr-FR`. */
+Astro.locals.locale = locale;
 const theme = await getTheme(tenant.website.template);
 const { Layout, Block } = theme;
 const placeId = params.get('place') ?? '138642';
@@ -75,6 +82,7 @@ const readBoolParam = (name: string, defaultValue: boolean): boolean => {
 const showProviderArrow = readBoolParam('show_provider_arrow', false);
 const priceAsButton = readBoolParam('price_as_button', false);
 const showReviews = readBoolParam('show_reviews', false);
+const showPhotos = readBoolParam('show_photos', true);
 const highlightTarget = params.get('highlight_target') ?? 'cheapest';
 const hidePriceOutliers = readBoolParam('hide_price_outliers', false);
 const minReliableReviews = (() => {
@@ -105,6 +113,7 @@ if (affiliatePrograms.length) upstream.set('affiliate_programs', affiliateProgra
 if (sortBy !== 'price') upstream.set('sort_by', sortBy);
 if (providerIndicator !== 'favicon') upstream.set('provider_indicator', providerIndicator);
 if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
+if (!showPhotos) upstream.set('show_photos', '0');
 if (priceAsButton) upstream.set('price_as_button', '1');
 if (showReviews) upstream.set('show_reviews', '1');
 if (highlightTarget !== 'cheapest') upstream.set('highlight_target', highlightTarget);
@@ -146,6 +155,15 @@ try {
         placeName = meta?.place_name ?? null;
         blockSettings = meta?.settings ?? null;
         aggregations = meta?.aggregations ?? {};
+        /* Astro-side setting injection — the API doesn't yet honour
+           the `show_photos` knob (DTO not extended). We mutate the
+           parsed payload right here so the renderer's parseTicketsBlock
+           call sees the value the dev gallery toggle picked.
+           Promote to the PHP DTO + Filament form when the editor
+           contract solidifies. */
+        if (meta?.settings) {
+            (meta.settings as Record<string, unknown>).show_photos = showPhotos;
+        }
     }
 } catch (err) {
     fetchError = err instanceof Error ? err.message : String(err);
@@ -195,7 +213,13 @@ const LOCALES = [
 ] as const;
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'CHF', 'AUD', 'JPY', 'SGD', 'HKD', 'NZD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'TRY', 'MXN', 'INR', 'THB', 'CNY', 'BRL'] as const;
 
-const VARIANTS = ['simple', 'table', 'compare'] as const;
+/* `rich` triggers the default branch of `Tickets.astro` (any
+   variant slug not matching simple/table/compare) — the editorial
+   4-bucket card grid with bucket sub-sections (group_type /
+   experience_type / bundle_subtype). Exposed in the dev gallery so
+   editors can preview the layout that production pages will use by
+   default when no specific variant is set on the block. */
+const VARIANTS = ['simple', 'table', 'compare', 'rich'] as const;
 const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
 const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
 const EXPERIENCE_SLUGS = ['classic', 'photo', 'family', 'food', 'night', 'vr', 'workshop', 'adventure', 'wellness'] as const;
@@ -388,6 +412,11 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <label class="chip">
                         <input type="checkbox" name="show_provider_arrow" value="1" checked={showProviderArrow} />
                         arrow
+                    </label>
+                    <input type="hidden" name="show_photos" value="0" />
+                    <label class="chip">
+                        <input type="checkbox" name="show_photos" value="1" checked={showPhotos} />
+                        photos
                     </label>
                     <input type="hidden" name="price_as_button" value="0" />
                     <label class="chip">

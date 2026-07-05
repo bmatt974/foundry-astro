@@ -168,6 +168,11 @@ export interface Dictionary {
              *  marketplace's score. ":count" is the provider count.
              *  Renders only when count >= 2. */
             aggregatedAcross: string;
+            /** Default CTA label used by the simple variant when the
+             *  block's `settings.cta_label` is empty. Keeps every row
+             *  with a visible tap target without requiring editors
+             *  to remember to author one. */
+            viewOffer: string;
             /** Savings chip surfaced next to the Best price badge.
              *  ":amount" is the formatted absolute savings, ":pct" the
              *  integer percentage off. Calculated against the MOST

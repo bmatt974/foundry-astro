@@ -26,6 +26,7 @@
 import type { PageBlock } from '../../../lib/foundry';
 import { parseTicketsBlock, type ParsedBucket } from '../../../lib/blocks/tickets';
 import { groupBundleTickets, bundleSubtypeLabel } from '../../../lib/tickets/bundle-subgroups';
+import { groupAccessTickets, accessSubtypeLabel } from '../../../lib/tickets/access-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
@@ -80,6 +81,11 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                flat (no redundant sub-header above a flat list). */
             const bundleGroups = bucket.format === 'bundle' ? groupBundleTickets(bucket.tickets) : [];
             const showBundleSubsections = bundleGroups.length > 1;
+            /* Access bucket gets the same sub-axis treatment :
+               Officiel / Avec audio guide / Coupe-file. Classified
+               server-side from the ticket's feature pivot. */
+            const accessGroups = bucket.format === 'access' ? groupAccessTickets(bucket.tickets) : [];
+            const showAccessSubsections = accessGroups.length > 1;
             return (
             <article aria-labelledby={`tickets-bucket-${bucket.format}`}>
                 <header class="mb-5">
@@ -118,19 +124,33 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 
                 {showBundleSubsections ? (
                     /* Bundle bucket sub-axis : Pass & cartes / Excursions /
-                       Bus touristique / Croisières / Combos. Renderer
-                       paints a sub-header per group ; intra-group sort
-                       order is preserved (sort_by already applied
-                       upstream). */
+                       Bus touristique / Croisières / Combos. */
                     <div class="space-y-8">
                         {bundleGroups.map((group) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
                                 <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {bundleSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted text-sm font-normal">({group.tickets.length})</span>
+                                    {bundleSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
                                 </h3>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {group.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} />
+                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
+                                    ))}
+                                </ul>
+                            </section>
+                        ))}
+                    </div>
+                ) : showAccessSubsections ? (
+                    /* Access bucket sub-axis : Officiel / Avec audio
+                       guide / Coupe-file. */
+                    <div class="space-y-8">
+                        {accessGroups.map((group) => (
+                            <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
+                                <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                    {accessSubtypeLabel(group.subtype, locale)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
+                                </h3>
+                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                    {group.tickets.map((ticket) => (
+                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
                                     ))}
                                 </ul>
                             </section>
@@ -141,11 +161,11 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                         {bucket.groupSubsections.map((sub) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
                                 <h3 id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {sub.label} <span class="brand-text-muted text-sm font-normal">({sub.tickets.length})</span>
+                                    {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
                                 </h3>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {sub.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} />
+                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
                                     ))}
                                 </ul>
                             </section>
@@ -156,11 +176,11 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                         {bucket.experienceSubsections.map((sub) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
                                 <h3 id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {sub.label} <span class="brand-text-muted text-sm font-normal">({sub.tickets.length})</span>
+                                    {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
                                 </h3>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {sub.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} />
+                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
                                     ))}
                                 </ul>
                             </section>
@@ -169,7 +189,7 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
                 ) : (
                     <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                         {bucket.tickets.map((ticket) => (
-                            <TicketCard ticket={ticket} />
+                            <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
                         ))}
                     </ul>
                 )}

@@ -10,9 +10,14 @@ import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
     ticket: ParsedTicket;
+    /** Editor toggle from `settings.show_photos`. When false the card
+     *  skips the cover image slot entirely (no placeholder, no
+     *  reserved height) — useful for lean editorial pages where the
+     *  photo competes with the surrounding prose. Default true. */
+    showPhotos?: boolean;
 }
 
-const { ticket } = Astro.props;
+const { ticket, showPhotos = true } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
@@ -20,7 +25,7 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
 ---
 
 <li class="brand-border group overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-md">
-    {ticket.coverImage ? (
+    {showPhotos && ticket.coverImage ? (
         <div class="aspect-[4/3] overflow-hidden bg-gray-100">
             <img
                 src={imageUrl(ticket.coverImage, { width: 480 })}
@@ -33,9 +38,13 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
                 class="h-full w-full object-cover transition group-hover:scale-105"
             />
         </div>
-    ) : (
+    ) : showPhotos ? (
+        /* Placeholder when photos are ON but THIS ticket carries no
+           coverImage — keeps the grid rows aligned. When photos
+           are OFF entirely (`showPhotos=false`) we skip the slot
+           altogether so the card collapses to text. */
         <div class="brand-border aspect-[4/3] border-b bg-gray-50" aria-hidden="true" />
-    )}
+    ) : null}
     <div class="space-y-3 p-4">
         <h4 class="text-base font-semibold leading-snug">{ticket.title}</h4>
 
