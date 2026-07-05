@@ -571,6 +571,18 @@ interface RawProvider {
         best_rated?: RawProviderPerspective | null;
         most_reviewed?: RawProviderPerspective | null;
     };
+    /** Phase 2 of the API-side chantier : the highlight DECISIONS
+     *  (winner sets, stamp tie-break, savings claim, outlier band)
+     *  are computed by the PHP aggregator — the parser only DRESSES
+     *  them (labels resolve through the per-site wording overrides,
+     *  so the API ships keys + raw numbers, never text). */
+    highlight?: {
+        as?: 'cheapest' | 'best_rated' | null;
+        shows_stamp?: boolean;
+        savings_pct?: number | null;
+        savings_amount_eur?: number | null;
+        is_price_outlier?: boolean;
+    };
 }
 
 interface RawTicket {
@@ -855,39 +867,10 @@ function formatPriceWhole(amount: number, locale: string, currency: string = 'EU
     }
 }
 
-/**
- * Decide whether a provider's cheapest price falls outside the
- * ticket's "reference price band". Bidirectional :
- *   - 3+ providers : reference is the median price. Band is
- *     `[median / 2, median × 2]`. Outliers can be EITHER below
- *     (suspiciously cheap, often a stripped-down package) OR
- *     above (a premium variant). The renderer applies the same
- *     neutral "Different package" label either way — we don't
- *     claim to know which side is the "real" product.
- *   - 2 providers : no median ; fall back to the ratio rule
- *     (`max / min > 2` flags the more expensive one). Less
- *     reliable but avoids missing obvious mismatches.
- *   - 1 provider : never an outlier (nothing to compare against).
- *
- * Providers without a parseable price are never outliers (we have
- * nothing to evaluate them against).
- */
-function isOutlierPrice(priceText: string | null, allPrices: ReadonlyArray<number>): boolean {
-    const own = parsePriceFloor(priceText);
-    if (own === null || allPrices.length < 2) return false;
-
-    if (allPrices.length === 2) {
-        const cheapest = Math.min(...allPrices);
-        return cheapest > 0 && own > 2 * cheapest;
-    }
-
-    const sorted = [...allPrices].sort((a, b) => a - b);
-    const median = sorted.length % 2 === 1
-        ? sorted[Math.floor(sorted.length / 2)]
-        : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
-    if (median <= 0) return false;
-    return own < median / 2 || own > median * 2;
-}
+/* The outlier band, the highlight winner sets, the stamp tie-break
+ * and the savings claim all moved SERVER-SIDE in Phase 2 of the
+ * API-side chantier — see `TicketProviderAggregator::applyHighlights`
+ * (foundry). The parser reads `providers[].highlight` and dresses it. */
 
 function buildSource(raw: RawSource, locale: string, linkProxyPath: string, reviewsSuffix: string | undefined): TicketSource {
     return {
@@ -1061,121 +1044,6 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             [...providerAccumulator.values()].every((entry) => entry.annotationFeatures.has(slug)),
         ),
     );
-    // Pre-compute the highlight WINNER SETS per supported target.
-    // Sets, not single slugs : an exclusive "Best price" badge next
-    // to another provider at the SAME price lies by omission — every
-    // provider tied at the winning value carries the badge.
-    // Providers without parseable data never win (Infinity
-    // sentinels) ; epsilons absorb cent-level float noise.
-    let cheapestFloor = Infinity;
-    let bestRating = -Infinity;
-    for (const entry of providerAccumulator.values()) {
-        const floor = parsePriceFloor(entry.cheapest.priceText);
-        if (floor !== null && floor < cheapestFloor) {
-            cheapestFloor = floor;
-        }
-        const rating = entry.ratingWeightTotal > 0
-            ? entry.ratingWeightedSum / entry.ratingWeightTotal
-            : null;
-        if (rating !== null && rating > bestRating) {
-            bestRating = rating;
-        }
-    }
-    const cheapestSlugs = new Set<string>();
-    const bestRatedSlugs = new Set<string>();
-    for (const [slug, entry] of providerAccumulator) {
-        const floor = parsePriceFloor(entry.cheapest.priceText);
-        if (floor !== null && cheapestFloor !== Infinity && Math.abs(floor - cheapestFloor) < 0.01) {
-            cheapestSlugs.add(slug);
-        }
-        const rating = entry.ratingWeightTotal > 0
-            ? entry.ratingWeightedSum / entry.ratingWeightTotal
-            : null;
-        if (rating !== null && bestRating !== -Infinity && Math.abs(rating - bestRating) < 0.005) {
-            bestRatedSlugs.add(slug);
-        }
-    }
-
-    // Map the editor's chosen target onto the winning set. 'none'
-    // collapses the highlight entirely. So does a single-provider
-    // ticket — when there's only one option to click, calling it
-    // "Best price" or "Best rated" is tautological noise that
-    // weakens the badge's signal where it actually discriminates.
-    const highlightedSlugs: ReadonlySet<string> = (() => {
-        if (providerAccumulator.size < 2) return new Set<string>();
-        if (settings.highlightTarget === 'cheapest') return cheapestSlugs;
-        if (settings.highlightTarget === 'best_rated') return bestRatedSlugs;
-        return new Set<string>();
-    })();
-
-    // Collect every provider's cheapest-source price floor so the
-    // outlier detector can compute the median once and reuse it on
-    // each row evaluation. Providers without a parseable price drop
-    // out of the band computation but stay rendered.
-    const providerPriceFloors: number[] = [];
-    for (const entry of providerAccumulator.values()) {
-        const floor = parsePriceFloor(entry.cheapest.priceText);
-        if (floor !== null) providerPriceFloors.push(floor);
-    }
-
-    // Savings vs the MOST EXPENSIVE non-outlier provider. Outliers
-    // are already flagged by `isOutlierPrice()` (the same band that
-    // paints the "Different package" chip) and excluded here so the
-    // "Save €X" claim never inflates via the suspect listing we've
-    // labelled as suspect. Surfaces only when the delta clears 10 %
-    // of the reference price, otherwise the chip reads as noise
-    // next to the Best price badge.
-    const nonOutlierFloors: number[] = [];
-    for (const entry of providerAccumulator.values()) {
-        const floor = parsePriceFloor(entry.cheapest.priceText);
-        if (floor === null) continue;
-        if (isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)) continue;
-        nonOutlierFloors.push(floor);
-    }
-    const referenceFloor = nonOutlierFloors.length >= 2
-        ? Math.max(...nonOutlierFloors)
-        : null;
-    let cheapestSavingsText: string | null = null;
-    if (cheapestSlugs.size > 0 && referenceFloor !== null && cheapestFloor !== Infinity) {
-        const delta = referenceFloor - cheapestFloor;
-        const deltaPct = referenceFloor > 0 ? delta / referenceFloor : 0;
-        if (delta > 0 && deltaPct >= 0.10) {
-            // Smart decimal trimming : drop the ",00" / ".00" suffix
-            // when the savings is whole — "Save €11" lands harder
-            // than "Save €11.00".
-            const isWhole = Math.abs(delta - Math.round(delta)) < 0.01;
-            const amount = isWhole
-                ? formatPriceWhole(Math.round(delta), locale)
-                : formatPrice(delta, locale);
-            if (amount !== null) {
-                cheapestSavingsText = t('tickets.card.saveAmount', {
-                    amount,
-                    pct: String(Math.round(deltaPct * 100)),
-                });
-            }
-        }
-    }
-
-    // The one row of the highlighted group that renders the stamp
-    // pills. Tie-break : the BEST-RATED of the tied winners — a
-    // visitor-relevant rule, not the self-serving affiliate priority
-    // order (which only decides when ratings tie too, via iteration
-    // order). Tint applies to the whole group ; pills once.
-    let stampSlug: string | null = null;
-    let stampRating = -Infinity;
-    for (const [slug, entry] of providerAccumulator) {
-        if (!highlightedSlugs.has(slug) || isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)) {
-            continue;
-        }
-        const rating = entry.ratingWeightTotal > 0
-            ? entry.ratingWeightedSum / entry.ratingWeightTotal
-            : -Infinity;
-        if (stampSlug === null || rating > stampRating) {
-            stampSlug = slug;
-            stampRating = rating;
-        }
-    }
-
     /* Phase 1 lookup of the backend-aggregated provider entries,
        keyed by slug. When present, the corresponding `perspectives`
        payload feeds the per-criterion source snapshots on
@@ -1238,6 +1106,25 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                when the API didn't ship perspectives. */
             const cheapestPerspective = rawProvidersBySlug.get(slug)?.perspectives?.cheapest;
             const serverPriceText = typeof cheapestPerspective?.price_text === 'string' ? cheapestPerspective.price_text : null;
+            /* Phase 2 : the highlight DECISIONS (winner sets, stamp
+               tie-break, savings claim, outlier band) come from the
+               PHP aggregator — the parser only dresses them : the
+               savings label resolves through the per-site wording
+               overrides, the amount through the locale formatter.
+               Payloads without the field (legacy) render unbadged. */
+            const highlight = rawProvidersBySlug.get(slug)?.highlight;
+            const savingsPct = typeof highlight?.savings_pct === 'number' ? highlight.savings_pct : null;
+            const savingsAmount = typeof highlight?.savings_amount_eur === 'number' ? highlight.savings_amount_eur : null;
+            const savingsText = savingsPct !== null
+                ? t('tickets.card.saveAmount', {
+                    pct: String(savingsPct),
+                    amount: (savingsAmount !== null
+                        ? (Math.abs(savingsAmount - Math.round(savingsAmount)) < 0.01
+                            ? formatPriceWhole(Math.round(savingsAmount), locale)
+                            : formatPrice(savingsAmount, locale))
+                        : null) ?? '',
+                })
+                : null;
             return {
                 slug,
                 label: entry.label,
@@ -1273,24 +1160,12 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 aggregateReviewCount,
                 cheapestHref: entry.cheapest.href,
                 annotationBadges,
-                // Suppress the highlight when the provider's price falls
-                // outside the reference band. Badging a row as "Best
-                // price" while ALSO labelling it "Different package"
-                // is cognitively dissonant — we either trust it
-                // enough to recommend it OR we flag it as suspect ;
-                // never both at once.
-                highlightedAs: highlightedSlugs.has(slug) && !isOutlierPrice(entry.cheapest.priceText, providerPriceFloors)
-                    ? settings.highlightTarget as 'cheapest' | 'best_rated'
+                highlightedAs: highlight?.as === 'cheapest' || highlight?.as === 'best_rated'
+                    ? highlight.as
                     : null,
-                showsHighlightStamp: slug === stampSlug,
-                isPriceOutlier: isOutlierPrice(entry.cheapest.priceText, providerPriceFloors),
-                // The savings pill rides the stamp row only (one
-                // claim per group — tied siblings keep the tint) and
-                // only when that row IS the cheapest : a best-rated
-                // stamp must not inherit a price-savings claim.
-                savingsText: slug === stampSlug && cheapestSlugs.has(slug)
-                    ? cheapestSavingsText
-                    : null,
+                showsHighlightStamp: highlight?.shows_stamp === true,
+                isPriceOutlier: highlight?.is_price_outlier === true,
+                savingsText,
             };
         },
     );
