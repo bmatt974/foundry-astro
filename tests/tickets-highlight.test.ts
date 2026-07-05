@@ -96,6 +96,28 @@ test('outlier flag passes through', () => {
     assert.equal(providers.find((p) => p.slug === 'headout')?.isPriceOutlier, false);
 });
 
+test('table stamps and the primary flag pass through onto the providers', () => {
+    const parsed = parseTicketsBlock(
+        block([
+            provider('viator', 29, undefined) as Record<string, unknown> & { table_stamps?: string[] },
+            provider('headout', 49),
+        ].map((p, i) => ({
+            ...p,
+            table_stamps: i === 0 ? ['best_price', 'most_reviewed', 'not_a_stamp'] : [],
+            is_table_primary: i === 0,
+        }))),
+        'fr',
+    );
+
+    const providers = parsed.buckets.flatMap((b) => b.tickets).flatMap((t) => t.providers);
+    const viator = providers.find((p) => p.slug === 'viator');
+
+    // Unknown slugs from a drifting payload are dropped silently.
+    assert.deepEqual(viator?.tableStamps, ['best_price', 'most_reviewed']);
+    assert.equal(viator?.isTablePrimary, true);
+    assert.deepEqual(providers.find((p) => p.slug === 'headout')?.tableStamps, []);
+});
+
 test('payloads without the highlight field render unbadged', () => {
     const parsed = parseTicketsBlock(
         block([

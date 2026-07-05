@@ -352,6 +352,15 @@ export interface UniqueProvider {
      *  savings stamp pills. Tied siblings keep the tint but skip the
      *  pills so the group doesn't read as duplicated badges. */
     showsHighlightStamp: boolean;
+    /** TABLE-variant per-cell comparison stamps won by this provider
+     *  for this ticket (best_price / best_value / best_rated /
+     *  most_reviewed), decided server-side. Empty on single-provider
+     *  tickets and on non-table payload consumers. */
+    tableStamps: StampSlug[];
+    /** True on the ticket's "primary winner" cell — holder of the
+     *  highest-priority awarded stamp. Drives the solid CTA + the
+     *  linked column header in the table variant. */
+    isTablePrimary: boolean;
     /** True when this provider's cheapest price falls outside the
      *  ticket's reference price band ([median / 2, median × 2] for
      *  3+ providers, or a ratio > 2 vs the cheapest for 2 providers).
@@ -583,6 +592,12 @@ interface RawProvider {
         savings_amount_eur?: number | null;
         is_price_outlier?: boolean;
     };
+    /** Phase 3 : the TABLE variant's per-cell comparison stamps,
+     *  decided by the PHP aggregator (one winner per criterion within
+     *  the ticket's provider set, whitelisted + ranked by the
+     *  editor's `stamp_priority`). */
+    table_stamps?: string[];
+    is_table_primary?: boolean;
 }
 
 interface RawTicket {
@@ -1166,6 +1181,9 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                 showsHighlightStamp: highlight?.shows_stamp === true,
                 isPriceOutlier: highlight?.is_price_outlier === true,
                 savingsText,
+                tableStamps: (rawProvidersBySlug.get(slug)?.table_stamps ?? [])
+                    .filter((s): s is StampSlug => (STAMP_DEFAULT_PRIORITY as string[]).includes(s)),
+                isTablePrimary: rawProvidersBySlug.get(slug)?.is_table_primary === true,
             };
         },
     );
@@ -1635,133 +1653,13 @@ function sanitizeStampPriority(raw: ReadonlyArray<string> | undefined): StampSlu
     return kept.length > 0 ? kept : [...STAMP_DEFAULT_PRIORITY];
 }
 
-/**
- * Award per-cell stamps inside each ticket column.
- *
- * For every ticket with 2+ providers, find the winning provider for
- * each criterion and tag that (ticket, provider) cell :
- *   - Best price     : provider with the lowest cheapestPriceFloor
- *   - Most reviewed  : provider with the highest aggregateReviewCount
- *   - Best rated     : provider with the highest aggregateRating,
- *                       gated by `minReliableReviews` so a "★ 5
- *                       (3 reviews)" outlier never wins.
- *   - Best value     : cheapest provider within the TOP HALF of the
- *                       reliable-rated providers (sorted by rating
- *                       desc). Honest, predictable signal — "well-
- *                       rated AND affordable, within this column".
- *
- * Skip rules :
- *   - Tickets with only 1 provider get no stamps (no comparison).
- *   - When no provider passes the reliable-rated gate for a column,
- *     the "best value" pool falls back to the priced set so the
- *     stamp still surfaces something actionable.
- *   - A single (ticket, provider) cell can carry multiple stamps
- *     when it tops several criteria for that column.
- */
-export function computeStamps(
-    tickets: ReadonlyArray<ParsedTicket>,
-    minReliableReviews: number,
-    priorityFilter: ReadonlyArray<StampSlug> = STAMP_DEFAULT_PRIORITY,
-): Map<number, Map<string, Set<StampSlug>>> {
-    const stamps = new Map<number, Map<string, Set<StampSlug>>>();
-    const enabled = new Set<StampSlug>(priorityFilter);
-
-    for (const ticket of tickets) {
-        if (ticket.providers.length < 2) continue;
-        const perTicket = new Map<string, Set<StampSlug>>();
-
-        const award = (slug: string | null, stamp: StampSlug): void => {
-            if (slug === null || !enabled.has(stamp)) return;
-            const set = perTicket.get(slug) ?? new Set<StampSlug>();
-            set.add(stamp);
-            perTicket.set(slug, set);
-        };
-
-        const pricedProviders = ticket.providers.filter(
-            (p): p is typeof p & { cheapestPriceFloor: number } => p.cheapestPriceFloor !== null,
-        );
-        if (pricedProviders.length > 0) {
-            const cheapest = pricedProviders.reduce((a, b) => (a.cheapestPriceFloor <= b.cheapestPriceFloor ? a : b));
-            award(cheapest.slug, 'best_price');
-        }
-
-        const reviewedProviders = ticket.providers.filter(
-            (p): p is typeof p & { aggregateReviewCount: number } => p.aggregateReviewCount !== null,
-        );
-        if (reviewedProviders.length > 0) {
-            const mostReviewed = reviewedProviders.reduce(
-                (a, b) => (a.aggregateReviewCount >= b.aggregateReviewCount ? a : b),
-            );
-            award(mostReviewed.slug, 'most_reviewed');
-        }
-
-        const reliableRated = ticket.providers.filter(
-            (p): p is typeof p & { aggregateRating: number; aggregateReviewCount: number } =>
-                p.aggregateRating !== null
-                && p.aggregateReviewCount !== null
-                && p.aggregateReviewCount >= minReliableReviews,
-        );
-        if (reliableRated.length > 0) {
-            const bestRated = reliableRated.reduce((a, b) => {
-                if (b.aggregateRating !== a.aggregateRating) return b.aggregateRating > a.aggregateRating ? b : a;
-                return b.aggregateReviewCount > a.aggregateReviewCount ? b : a;
-            });
-            award(bestRated.slug, 'best_rated');
-        }
-
-        const valuePool = reliableRated.length > 0
-            ? [...reliableRated]
-                .sort((a, b) => b.aggregateRating - a.aggregateRating)
-                .slice(0, Math.ceil(reliableRated.length / 2))
-            : pricedProviders;
-        const valuePoolWithPrice = valuePool.filter(
-            (p): p is typeof p & { cheapestPriceFloor: number } => p.cheapestPriceFloor !== null,
-        );
-        if (valuePoolWithPrice.length > 0) {
-            const bestValue = valuePoolWithPrice.reduce(
-                (a, b) => (a.cheapestPriceFloor <= b.cheapestPriceFloor ? a : b),
-            );
-            award(bestValue.slug, 'best_value');
-        }
-
-        if (perTicket.size > 0) stamps.set(ticket.id, perTicket);
-    }
-
-    return stamps;
-}
-
-/**
- * Resolve the "primary winner" provider per ticket — the cell whose
- * highest-priority stamp ranks first in `stampPriority`. This single
- * winner per column drives :
- *   - the solid CTA button styling (others render outlined)
- *   - the clickable column header link target
- *
- * Returns Map<ticketId, providerSlug>. Tickets without stamps map to
- * nothing (no winner = no special treatment).
- */
-export function resolvePrimaryWinners(
-    stamps: Map<number, Map<string, Set<StampSlug>>>,
-    stampPriority: ReadonlyArray<StampSlug>,
-): Map<number, string> {
-    const winners = new Map<number, string>();
-    for (const [ticketId, perTicket] of stamps.entries()) {
-        let winnerSlug: string | null = null;
-        let winnerRank = stampPriority.length;
-        for (const [providerSlug, set] of perTicket.entries()) {
-            for (const stamp of set) {
-                const rank = stampPriority.indexOf(stamp);
-                if (rank === -1) continue;
-                if (rank < winnerRank) {
-                    winnerRank = rank;
-                    winnerSlug = providerSlug;
-                }
-            }
-        }
-        if (winnerSlug !== null) winners.set(ticketId, winnerSlug);
-    }
-    return winners;
-}
+/* The per-cell stamp DECISIONS (one winner per criterion, primary
+ * winner via the stamp_priority ranking) moved SERVER-SIDE in Phase 3
+ * of the API-side chantier — see
+ * `TicketProviderAggregator::applyTableStamps` (foundry). The parser
+ * reads `providers[].table_stamps` / `is_table_primary` and
+ * `buildBucketContext` below just reshapes them into the Maps the
+ * table renderers consume. */
 
 // ──────────────────────────────────────────────────────────────────
 // Table-variant bucket context
@@ -1847,7 +1745,23 @@ export function buildBucketContext(
         return a.label.localeCompare(b.label);
     });
 
-    const stamps = computeStamps(tickets, settings.minReliableReviews, settings.stampPriority);
+    /* Reshape the API-decided per-provider stamp fields into the
+       Maps the table renderers consume — pure plumbing, no rules. */
+    const stamps = new Map<number, Map<string, Set<StampSlug>>>();
+    const primaryWinners = new Map<number, string>();
+    for (const ticket of tickets) {
+        const perTicket = new Map<string, Set<StampSlug>>();
+        for (const provider of ticket.providers) {
+            if (provider.tableStamps.length > 0) {
+                perTicket.set(provider.slug, new Set(provider.tableStamps));
+            }
+            if (provider.isTablePrimary) {
+                primaryWinners.set(ticket.id, provider.slug);
+            }
+        }
+        if (perTicket.size > 0) stamps.set(ticket.id, perTicket);
+    }
+
     return {
         bucket,
         relevantFeatures: FEATURE_SLUGS_FOR_TABLE.filter((slug) =>
@@ -1858,7 +1772,7 @@ export function buildBucketContext(
         showDurationRow: tickets.some((t) => t.durationText !== null),
         providers,
         stamps,
-        primaryWinners: resolvePrimaryWinners(stamps, settings.stampPriority),
+        primaryWinners,
         stampPriority: settings.stampPriority,
     };
 }

@@ -116,8 +116,8 @@ const fr: Dictionary = {
             featureAbsent: '—',
             stampBestPrice: 'Meilleur prix',
             stampBestRated: 'Meilleure note',
-            stampBestValue: 'Meilleur rapport',
-            stampMostReviewed: 'Plus avis',
+            stampBestValue: 'Qualité-prix',
+            stampMostReviewed: 'Le plus d\'avis',
         },
         compare: {
             colType: 'Type',
