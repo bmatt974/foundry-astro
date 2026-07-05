@@ -197,9 +197,13 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                    that — both the badge AND the background disappear
                    together so we don't paint a green row with no
                    accompanying label. */
-                const highlightLabelKey = provider.highlightedAs === 'best_rated'
+                /* The stamp pills render on ONE row of the highlighted
+                   group (`showsHighlightStamp`) ; tied siblings keep
+                   the tint + solid CTA but skip the pills so a price
+                   tie doesn't read as duplicated badges. */
+                const highlightLabelKey = provider.showsHighlightStamp && provider.highlightedAs === 'best_rated'
                     ? 'tickets.card.bestRated'
-                    : provider.highlightedAs === 'cheapest'
+                    : provider.showsHighlightStamp && provider.highlightedAs === 'cheapest'
                         ? 'tickets.card.bestPrice'
                         : null;
                 const rowBg = provider.highlightedAs
@@ -286,7 +290,9 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                    outlined version. priceAsButton globally forces
                    solid on every row. */
                 const hasStamp = Boolean(highlightLabelKey || provider.savingsText);
-                const ctaSolid = settings.priceAsButton || hasStamp;
+                // Every row of the highlighted group gets the solid
+                // CTA — the tint marks the group, the stamp names it.
+                const ctaSolid = settings.priceAsButton || hasStamp || provider.highlightedAs !== null;
                 /* Every row gets a visible CTA — even when the
                    editor leaves settings.ctaLabel empty we fall
                    back to a generic "Voir l'offre" label so the

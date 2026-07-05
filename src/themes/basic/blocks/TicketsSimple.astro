@@ -28,6 +28,7 @@ import {
 import { groupBundleTickets } from '../../../lib/tickets/bundle-subgroups';
 import { groupAccessTickets } from '../../../lib/tickets/access-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
+import { formatDate } from '../../../lib/format';
 import type { PageBlock } from '../../../lib/foundry';
 import TicketSimpleRow from './TicketSimpleRow.astro';
 
@@ -70,6 +71,14 @@ const filtersAreActive
 /** Max tickets a bundle sub-group shows before the tail collapses
  *  behind a "Show N more offers" disclosure. */
 const BUNDLE_GROUP_CAP = 6;
+
+/* "Tarifs mis à jour le {date}" — dated price observations are a
+ * legal requirement for FR price comparators, and honest expectation
+ * management everywhere else. Hidden until the window-price refresher
+ * has covered this Place. */
+const pricesCheckedOn = parsed.pricesCheckedAt !== null
+    ? formatDate(parsed.pricesCheckedAt, locale)
+    : null;
 ---
 
 {totalCount === 0 && filtersAreActive && (
@@ -189,6 +198,12 @@ const BUNDLE_GROUP_CAP = 6;
                     );
                 })}
             </div>
+        )}
+
+        {pricesCheckedOn && (
+            <p class="brand-text-muted mt-4 text-xs italic">
+                {t('tickets.compare.pricesUpdated')}{' '}<time datetime={parsed.pricesCheckedAt}>{pricesCheckedOn}</time>
+            </p>
         )}
     </section>
 )}
