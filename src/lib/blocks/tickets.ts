@@ -476,6 +476,12 @@ export interface ParsedTickets {
      *  on" honesty line. Null = window pricing hasn't covered this
      *  Place yet (renderers hide the line). */
     pricesCheckedAt: string | null;
+    /** Set when this venue's ENTRY is granted by another place's
+     *  official ticket (Roman Forum → Colosseum). Renderers paint an
+     *  info line above the buckets ("entry included in the {name}
+     *  ticket") — the umbrella's inventory is already merged into the
+     *  buckets server-side. */
+    entryIncludedIn: { placeId: number; name: string } | null;
     settings: TicketsSettings;
     /** Buckets in display order : Admission, Guided, Special access,
      *  Bundle. Editors who want bundles in a dedicated section just
@@ -644,6 +650,9 @@ interface RawMeta {
      *  observations). Null until the rolling refresher covered the
      *  Place. */
     prices_checked_at?: string | null;
+    /** Umbrella place whose official ticket grants this venue's entry
+     *  (`place_relations` official_combo, reverse side). */
+    entry_included_in?: { place_id?: number; name?: string } | null;
     settings?: {
         heading_level?: number;
         heading_text?: string | null;
@@ -1400,11 +1409,18 @@ export function parseTicketsBlock(
     const populatedBuckets = buckets.filter((b) => b.tickets.length > 0);
     const { heading, layout } = deriveHeading(settings, populatedBuckets);
 
+    const rawEntryNote = content.meta?.entry_included_in;
+    const entryIncludedIn =
+        rawEntryNote && typeof rawEntryNote.place_id === 'number' && typeof rawEntryNote.name === 'string'
+            ? { placeId: rawEntryNote.place_id, name: rawEntryNote.name }
+            : null;
+
     return {
         placeId: content.meta?.place_id ?? null,
         pricesCheckedAt: typeof content.meta?.prices_checked_at === 'string'
             ? content.meta.prices_checked_at
             : null,
+        entryIncludedIn,
         settings,
         buckets,
         totalCount: tickets.length,

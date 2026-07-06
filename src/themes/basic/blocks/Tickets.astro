@@ -76,6 +76,12 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 const BUNDLE_GROUP_CAP = 6;
 ---
 
+{parsed.entryIncludedIn && totalCount > 0 && (
+    <p class="my-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        {t('tickets.entryIncludedIn', { name: parsed.entryIncludedIn.name })}
+    </p>
+)}
+
 <TicketsQuickPicks picks={parsed.quickPicks} settings={parsed.settings} showDetailsAnchor={supportsAnchors} />
 
 {isSimple && <TicketsSimple block={block} />}

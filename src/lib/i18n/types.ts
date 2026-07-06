@@ -89,6 +89,10 @@ export interface Dictionary {
      *   /docs/strategy/tickets/data-model.md
      */
     tickets: {
+        /** Info line on satellite pages whose entry is granted by an
+         *  umbrella place's official ticket (`:name` = umbrella name —
+         *  "L'entrée est incluse dans le billet du Colisée…"). */
+        entryIncludedIn: string;
         /** 4 top-level format buckets. */
         format: {
             access: string;

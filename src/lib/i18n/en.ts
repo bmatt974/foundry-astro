@@ -35,6 +35,8 @@ const en: Dictionary = {
         cta: 'Back to home',
     },
     tickets: {
+        entryIncludedIn:
+            'Entry is included with the :name ticket — every offer below grants access here.',
         format: {
             access: 'Admission',
             guided: 'Guided tour',
