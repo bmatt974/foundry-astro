@@ -55,13 +55,11 @@ const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
 const { totalCount, heading, layout, settings } = parsed;
 const visibleBuckets = parsed.buckets.filter((b: ParsedBucket) => b.tickets.length > 0);
 
-// Same heading hierarchy logic as TicketsSimple — the block's
-// `heading_level` describes the OUTERMOST tag. Per-bucket layouts
-// drop the top heading and let SubHeading act as it instead.
+// The block's top heading is painted by the dispatcher (Tickets.astro)
+// at H_N ; per-bucket sub-headers nest under it at H_(N+1).
 const topLevel = settings.headingLevel;
 
-const TopHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
-const SubHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+const SubHeading = `h${Math.min(topLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
 
 const filtersAreActive
     = settings.filterFormat.length > 0
@@ -90,12 +88,6 @@ const featureAbsent = t('tickets.table.featureAbsent');
 
 {visibleBuckets.length > 0 && (
     <section class="tickets-table my-8">
-        {layout === 'single' && heading !== '' && (
-            <TopHeading class="brand-text-primary mb-4 text-xl font-semibold tracking-tight">
-                {heading}
-            </TopHeading>
-        )}
-
         <div class="space-y-10">
             {contexts.map(({ bucket, relevantFeatures, showGroupTypeRow, showRatingRow, showDurationRow, providers, stamps, primaryWinners, stampPriority }) => (
                 <article aria-labelledby={`tickets-table-${bucket.format}`}>

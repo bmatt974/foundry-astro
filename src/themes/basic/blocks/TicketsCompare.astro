@@ -44,7 +44,6 @@ import {
 import { BUNDLE_SUBTYPE_ORDER } from '../../../lib/tickets/bundle-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
 import { formatDate, formatRelativeDate } from '../../../lib/format';
-import { slugify } from '../../../lib/toc';
 import type { PageBlock } from '../../../lib/foundry';
 
 interface Props {
@@ -67,10 +66,8 @@ const buckets = (parsed?.buckets ?? []).filter((b) => b.tickets.length > 0);
    defaults-applied by the parser. Mirrors the TicketsTable variant
    so the same setting drives both. */
 const providerIndicator = parsed?.settings.providerIndicator ?? 'favicon';
-const heading = (parsed?.heading ?? '').trim() || null;
-const headingId = heading ? slugify(heading) : null;
-const headingLevel = parsed?.settings.headingLevel ?? 3;
-const HeadingTag = `h${headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+// Top heading is painted by the dispatcher (Tickets.astro) for every
+// variant — nothing heading-related left to render here.
 
 /* Each row is a `(ticket × provider)` combo. The renderer reads
    `isSubgroupFirst` / `isTicketFirst` to decide which cells carry
@@ -236,12 +233,6 @@ const featureAbsent = t('tickets.table.featureAbsent');
 
 {rows.length > 0 && (
     <section class="my-10">
-        {heading && (
-            <HeadingTag id={headingId ?? undefined} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
-                {heading}
-            </HeadingTag>
-        )}
-
         {/* Mobile / narrow : card stack — one card per provider row.
             Bucket label + ticket title surface only on each ticket's
             first provider card. */}

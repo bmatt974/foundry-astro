@@ -43,19 +43,21 @@ const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
 
 const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
-const { totalCount, heading, layout, settings } = parsed;
+const { totalCount, layout, settings } = parsed;
 const visibleBuckets = parsed.buckets.filter((b: ParsedBucket) => b.tickets.length > 0);
 
-// The editor's `heading_level` describes the OUTERMOST tag the block
-// emits :
-//   single     : TopHeading at H_N, TicketHeading at H_(N+1).
-//   per-bucket : no TopHeading. SubHeading at H_N (acts as the
-//                outermost heading), TicketHeading at H_(N+1).
+// The block's top heading is painted by the DISPATCHER (Tickets.astro)
+// at H_N — above the entry note and the quick-picks strip, for every
+// variant. Levels inside this variant nest under it :
+//   single     : TicketHeading at H_(N+1).
+//   per-bucket : SubHeading at H_(N+1), TicketHeading at H_(N+2).
 const topLevel = settings.headingLevel;
-const ticketLevel = Math.min(topLevel + 1, 6) as 3 | 4 | 5 | 6;
+const subLevel = Math.min(topLevel + 1, 6);
+const ticketLevel = (layout === 'single'
+    ? Math.min(topLevel + 1, 6)
+    : Math.min(topLevel + 2, 6)) as 3 | 4 | 5 | 6;
 
-const TopHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
-const SubHeading = `h${topLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+const SubHeading = `h${subLevel}` as 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
 // Flat list when 'single' layout — concatenate every bucket's
 // tickets in display order so the format hierarchy doesn't leak.
@@ -91,12 +93,6 @@ const pricesCheckedOn = parsed.pricesCheckedAt !== null
 
 {visibleBuckets.length > 0 && (
     <section class="tickets-simple my-8">
-        {layout === 'single' && heading !== '' && (
-            <TopHeading class="brand-text-primary mb-4 text-xl font-semibold tracking-tight">
-                {heading}
-            </TopHeading>
-        )}
-
         {layout === 'single' ? (
             <ul class="brand-border divide-y rounded-lg border bg-white">
                 {flatTickets.map((ticket) => (

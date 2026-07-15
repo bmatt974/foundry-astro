@@ -74,7 +74,24 @@ const experienceHeaderLabel = t('tickets.filter.experienceHeader');
 /** Max tickets a bundle sub-group shows before the tail collapses
  *  behind a "Show N more offers" disclosure. */
 const BUNDLE_GROUP_CAP = 6;
+
+/* Block heading — rendered ONCE here (above the entry note and the
+ * quick-picks strip) for every variant. The parser always ships a
+ * heading when inventory exists : editor `heading_text`, the single
+ * narrowed bucket's label, or the i18n default ("Quel billet
+ * choisir ?"). Variants no longer paint their own top heading. */
+const BlockHeading = `h${parsed.settings.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+/* Rich-layout bucket + sub-group headers nest under the block
+ * heading : H_(N+1) / H_(N+2). */
+const BucketHeading = `h${Math.min(parsed.settings.headingLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
+const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as 'h4' | 'h5' | 'h6';
 ---
+
+{parsed.heading !== '' && totalCount > 0 && (
+    <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
+        {parsed.heading}
+    </BlockHeading>
+)}
 
 {parsed.entryIncludedIn && totalCount > 0 && (
     <p class="my-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -109,9 +126,9 @@ const BUNDLE_GROUP_CAP = 6;
             return (
             <article aria-labelledby={`tickets-bucket-${bucket.format}`}>
                 <header class="mb-5">
-                    <h2 id={`tickets-bucket-${bucket.format}`} class="brand-text-primary text-2xl font-semibold tracking-tight">
+                    <BucketHeading id={`tickets-bucket-${bucket.format}`} class="brand-text-primary text-2xl font-semibold tracking-tight">
                         {bucket.header}
-                    </h2>
+                    </BucketHeading>
                     {parsed?.settings.showFilters && (bucket.groupChips.length > 1 || bucket.experienceChips.length > 1) && (
                         <div class="mt-3 space-y-2">
                             {bucket.groupChips.length > 1 && (
@@ -156,9 +173,9 @@ const BUNDLE_GROUP_CAP = 6;
                             return (
                                 <section aria-labelledby={showBundleSubsections ? `tickets-sub-${bucket.format}-${group.subtype}` : undefined}>
                                     {showBundleSubsections && (
-                                        <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                        <SubGroupHeading id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
                                             {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                        </h3>
+                                        </SubGroupHeading>
                                     )}
                                     <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                         {visibleTickets.map((ticket) => (
@@ -187,9 +204,9 @@ const BUNDLE_GROUP_CAP = 6;
                     <div class="space-y-8">
                         {accessGroups.map((group) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
-                                <h3 id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
                                     {t(`tickets.accessSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                </h3>
+                                </SubGroupHeading>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {group.tickets.map((ticket) => (
                                         <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
@@ -202,9 +219,9 @@ const BUNDLE_GROUP_CAP = 6;
                     <div class="space-y-8">
                         {bucket.groupSubsections.map((sub) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
-                                <h3 id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
                                     {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
-                                </h3>
+                                </SubGroupHeading>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {sub.tickets.map((ticket) => (
                                         <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
@@ -217,9 +234,9 @@ const BUNDLE_GROUP_CAP = 6;
                     <div class="space-y-8">
                         {bucket.experienceSubsections.map((sub) => (
                             <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
-                                <h3 id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
+                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
                                     {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
-                                </h3>
+                                </SubGroupHeading>
                                 <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                     {sub.tickets.map((ticket) => (
                                         <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />

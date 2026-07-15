@@ -742,8 +742,8 @@ const AUDIO_FEATURE_SLUGS = new Set(['audio_device', 'audio_app']);
 
 function readSettings(raw: RawMeta | undefined): TicketsSettings {
     const s = raw?.settings ?? {};
-    const lvl = typeof s.heading_level === 'number' ? s.heading_level : 3;
-    const headingLevel: HeadingLevel = (lvl === 2 || lvl === 3 || lvl === 4 || lvl === 5) ? lvl : 3;
+    const lvl = typeof s.heading_level === 'number' ? s.heading_level : 2;
+    const headingLevel: HeadingLevel = (lvl === 2 || lvl === 3 || lvl === 4 || lvl === 5) ? lvl : 2;
 
     return {
         headingLevel,
@@ -1407,7 +1407,7 @@ export function parseTicketsBlock(
     );
 
     const populatedBuckets = buckets.filter((b) => b.tickets.length > 0);
-    const { heading, layout } = deriveHeading(settings, populatedBuckets);
+    const { heading, layout } = deriveHeading(settings, populatedBuckets, t);
 
     const rawEntryNote = content.meta?.entry_included_in;
     const entryIncludedIn =
@@ -1526,6 +1526,7 @@ function applyFilters(tickets: ReadonlyArray<ParsedTicket>, settings: TicketsSet
 function deriveHeading(
     settings: TicketsSettings,
     populatedBuckets: ReadonlyArray<ParsedBucket>,
+    t: T,
 ): { heading: string; layout: 'single' | 'per-bucket' } {
     if (settings.headingText !== null) {
         return { heading: settings.headingText, layout: 'single' };
@@ -1533,7 +1534,14 @@ function deriveHeading(
     if (populatedBuckets.length === 1) {
         return { heading: populatedBuckets[0].label, layout: 'single' };
     }
-    return { heading: '', layout: 'per-bucket' };
+    if (populatedBuckets.length === 0) {
+        return { heading: '', layout: 'per-bucket' };
+    }
+
+    // Multi-bucket comparator with no editor title : ship the default
+    // block heading ("Quel billet choisir ?") — i18n'd, overridable
+    // per site via wording so the label varies across the network.
+    return { heading: t('tickets.defaultHeading'), layout: 'per-bucket' };
 }
 
 // ──────────────────────────────────────────────────────────────────

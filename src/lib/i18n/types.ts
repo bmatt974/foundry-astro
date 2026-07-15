@@ -89,6 +89,10 @@ export interface Dictionary {
      *   /docs/strategy/tickets/data-model.md
      */
     tickets: {
+        /** Default block heading when the editor set none and several
+         *  buckets survive ("Quel billet choisir ?"). Per-site wording
+         *  overrides give the network label variety. */
+        defaultHeading: string;
         /** Info line on satellite pages whose entry is granted by an
          *  umbrella place's official ticket (`:name` = umbrella name —
          *  "L'entrée est incluse dans le billet du Colisée…"). */

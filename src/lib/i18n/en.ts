@@ -35,6 +35,7 @@ const en: Dictionary = {
         cta: 'Back to home',
     },
     tickets: {
+        defaultHeading: 'Which ticket should you buy?',
         entryIncludedIn:
             'Entry is included with the :name ticket — every offer below grants access here.',
         format: {
