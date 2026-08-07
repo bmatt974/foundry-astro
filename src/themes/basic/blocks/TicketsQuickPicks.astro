@@ -53,10 +53,10 @@ const isStacked = !isCard && !isColumns;
 const ctaLabel = settings.ctaLabel || t('tickets.card.viewOffer');
 const detailsLabel = t('tickets.quickPicks.details');
 
-/** The listing's REAL commercial name (what the visitor reads after
- *  clicking through) — canonical title only as fallback. */
-const displayTitleOf = (pick: ParsedQuickPick): string =>
-    pick.ticket.primaryCtaTitle ?? pick.ticket.title;
+/** The API-composed display title, verbatim — the same string the
+ *  anchored card below shows, so the pick and its target read as one
+ *  product. The listing's commercial name stays on the provider rows. */
+const displayTitleOf = (pick: ParsedQuickPick): string => pick.ticket.title;
 
 /* schema.org ItemList — the strip literally answers "what's the
  * cheapest / best Colosseum ticket ?", the exact shape AI Overviews /

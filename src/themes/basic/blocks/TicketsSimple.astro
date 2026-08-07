@@ -70,9 +70,10 @@ const filtersAreActive
     || settings.filterGroupType.length > 0
     || settings.filterExperienceType.length > 0;
 
-/** Max tickets a bundle sub-group shows before the tail collapses
- *  behind a "Show N more offers" disclosure. */
-const BUNDLE_GROUP_CAP = 6;
+/** Max tickets any group shows before the tail collapses behind a
+ *  "Show N more offers" disclosure — a 15-card Special access bucket
+ *  must not own the page's scroll any more than the combos list. */
+const GROUP_CAP = 6;
 
 /* "Tarifs mis à jour le {date}" — dated price observations are a
  * legal requirement for FR price comparators, and honest expectation
@@ -138,8 +139,8 @@ const pricesCheckedOn = parsed.pricesCheckedAt !== null
                                    still get the cap. */
                                 <div class="space-y-6">
                                     {bundleGroups.map((group) => {
-                                        const visibleTickets = group.tickets.slice(0, BUNDLE_GROUP_CAP);
-                                        const overflowTickets = group.tickets.slice(BUNDLE_GROUP_CAP);
+                                        const visibleTickets = group.tickets.slice(0, GROUP_CAP);
+                                        const overflowTickets = group.tickets.slice(GROUP_CAP);
                                         return (
                                             <section aria-labelledby={showBundleSubsections ? `tickets-simple-sub-${bucket.format}-${group.subtype}` : undefined}>
                                                 {showBundleSubsections && (
@@ -155,7 +156,9 @@ const pricesCheckedOn = parsed.pricesCheckedAt !== null
                                                 {overflowTickets.length > 0 && (
                                                     <details class="mt-2">
                                                         <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
-                                                            {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
+                                                            {overflowTickets.length === 1
+                                                                ? t('tickets.bucket.showMoreOne')
+                                                                : t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
                                                         </summary>
                                                         <ul class="brand-border mt-2 divide-y rounded-lg border bg-white">
                                                             {overflowTickets.map((ticket) => (
@@ -184,11 +187,27 @@ const pricesCheckedOn = parsed.pricesCheckedAt !== null
                                     ))}
                                 </div>
                             ) : (
-                                <ul class="brand-border divide-y rounded-lg border bg-white">
-                                    {bucket.tickets.map((ticket) => (
-                                        <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
-                                    ))}
-                                </ul>
+                                <>
+                                    <ul class="brand-border divide-y rounded-lg border bg-white">
+                                        {bucket.tickets.slice(0, GROUP_CAP).map((ticket) => (
+                                            <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                        ))}
+                                    </ul>
+                                    {bucket.tickets.length > GROUP_CAP && (
+                                        <details class="mt-2">
+                                            <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
+                                                {bucket.tickets.length - GROUP_CAP === 1
+                                                    ? t('tickets.bucket.showMoreOne')
+                                                    : t('tickets.bucket.showMore', { count: String(bucket.tickets.length - GROUP_CAP) })} ›
+                                            </summary>
+                                            <ul class="brand-border mt-2 divide-y rounded-lg border bg-white">
+                                                {bucket.tickets.slice(GROUP_CAP).map((ticket) => (
+                                                    <TicketSimpleRow ticket={ticket} headingLevel={ticketLevel} settings={settings} />
+                                                ))}
+                                            </ul>
+                                        </details>
+                                    )}
+                                </>
                             )}
                         </article>
                     );

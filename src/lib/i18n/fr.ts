@@ -37,7 +37,7 @@ const fr: Dictionary = {
     tickets: {
         defaultHeading: 'Quel billet choisir ?',
         entryIncludedIn:
-            "L'entrée est incluse dans le billet du :name — toutes les offres ci-dessous y donnent accès.",
+            "L'entrée est incluse dans le billet du :name. Toutes les offres ci-dessous y donnent accès.",
         format: {
             access: 'Entrée',
             guided: 'Visite guidée',
@@ -89,6 +89,7 @@ const fr: Dictionary = {
         },
         bucket: {
             showMore: 'Voir :count autres offres',
+            showMoreOne: 'Voir 1 autre offre',
             header: ':format (:count)',
             empty: 'Aucun billet dans cette catégorie pour le moment.',
         },

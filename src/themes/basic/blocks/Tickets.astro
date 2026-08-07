@@ -185,7 +185,9 @@ const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as '
                                     {overflowTickets.length > 0 && (
                                         <details class="mt-3">
                                             <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
-                                                {t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
+                                                {overflowTickets.length === 1
+                                                    ? t('tickets.bucket.showMoreOne')
+                                                    : t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
                                             </summary>
                                             <ul class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                                 {overflowTickets.map((ticket) => (
