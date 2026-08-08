@@ -19,6 +19,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { matchAffiliateClickPath, redirectClick } from './lib/affiliate-redirect';
 import { fetchWebsiteByHost, resolveTenantForBuild, type TenantResolution } from './lib/foundry';
+import { normaliseHost } from './lib/host';
 import { useRoutes } from './lib/routes';
 
 interface CacheEntry {
@@ -66,16 +67,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
     //   2. The real `Host` header — only consulted for non-
     //      prerendered routes (Astro logs a warning if `headers`
     //      is read on a prerender context, so we skip it there).
-    //   3. `WEBSITE_BUILD_HOSTNAME` — env fallback used at static
-    //      build time when no real request exists (Astro.url then
-    //      carries a placeholder like `localhost`).
+    //   3. `WEBSITE_BUILD_HOSTNAME` — env fallback for when no layer
+    //      above names a tenant: at build time (Astro.url then carries
+    //      a placeholder like `localhost`), and in `astro dev` when
+    //      browsing `localhost:<port>` directly rather than through a
+    //      proxy that sets a real Host header.
+    //
+    // Both loopback layers are filtered by `normaliseHost`, so a
+    // `localhost` URL does not smuggle itself back in through the
+    // `Host` header and burn a `/resolve` round-trip on a host the
+    // backend can never know.
     let resolved: TenantResolution | null = null;
-    const urlHost = context.url.hostname.toLowerCase();
-    const isPlaceholderHost = urlHost === 'localhost' || urlHost === '127.0.0.1' || urlHost === '';
-    let candidate: string | null = isPlaceholderHost ? null : urlHost;
+    let candidate = normaliseHost(context.url.hostname);
     if (!candidate && !context.isPrerendered) {
-        const headerHost = context.request.headers.get('host')?.split(':')[0].toLowerCase();
-        candidate = headerHost ?? null;
+        candidate = normaliseHost(context.request.headers.get('host'));
     }
 
     if (candidate) {
@@ -84,9 +89,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
             resolved.website.hostname = candidate;
         }
     }
-    if (!resolved && context.isPrerendered) {
+
+    // `devSsrForPrerenderedRoutes` (astro.config.mjs) turns the
+    // catch-all into an SSR route under `astro dev`, which makes
+    // `isPrerendered` false for the very routes this fallback was
+    // written to serve. Reinstating it under DEV keeps localhost dev
+    // working — one dev server per port, no proxy and no wildcard DNS
+    // needed. Production builds are untouched: the integration is
+    // dev-only, and `import.meta.env.DEV` is false there.
+    if (!resolved && (context.isPrerendered || import.meta.env.DEV)) {
         resolved = await resolveTenantForBuild();
-        if (!resolved) {
+        if (!resolved && context.isPrerendered) {
             throw new Error(
                 'WEBSITE_BUILD_HOSTNAME is required for prerendered builds.',
             );
