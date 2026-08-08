@@ -87,6 +87,15 @@ const HMR_VIA_HTTPS_PROXY = process.env.HMR_VIA_HTTPS_PROXY === '1';
 // suspected to come from Vite's hot-update channel.
 const HMR_DISABLE = process.env.HMR_DISABLE === '1';
 
+// `ASTRO_PORT` gives each checkout its own dev port, so several git
+// worktrees can serve at once. It belongs here rather than on the CLI:
+// Astro loads .env into process.env before evaluating this config, so
+// a per-worktree .env can set it — whereas `astro dev --port $VAR` in
+// an npm script is expanded by the shell, which never read that file.
+const DEV_PORT = process.env.ASTRO_PORT
+    ? Number.parseInt(process.env.ASTRO_PORT, 10)
+    : 4321;
+
 // Multi-tenant builds drop each website's artefacts under
 // `dist/<hostname>/` so successive `build:site` runs don't overwrite
 // each other and several sites can be served in parallel locally.
@@ -253,8 +262,12 @@ export default defineConfig({
     // Bind 0.0.0.0 so Astro accepts requests from any hostname
     // (multi-tenant setup needs this to receive proxied calls for
     // `site-a.foundry-astro.test`, `site-b.…`, …).
+    //
+    // `port` is what lets several checkouts serve at once: the port
+    // identifies the worktree, the Host header still picks the website.
     server: {
         host: true,
+        port: DEV_PORT,
     },
     vite: {
         plugins: [tailwindcss()],
