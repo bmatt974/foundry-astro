@@ -19,7 +19,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { matchAffiliateClickPath, redirectClick } from './lib/affiliate-redirect';
 import { fetchWebsiteByHost, resolveTenantForBuild, type TenantResolution } from './lib/foundry';
-import { normaliseHost } from './lib/host';
+import { normaliseHost, shouldUseBuildHostFallback } from './lib/host';
 import { useRoutes } from './lib/routes';
 
 interface CacheEntry {
@@ -97,7 +97,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // working — one dev server per port, no proxy and no wildcard DNS
     // needed. Production builds are untouched: the integration is
     // dev-only, and `import.meta.env.DEV` is false there.
-    if (!resolved && (context.isPrerendered || import.meta.env.DEV)) {
+    //
+    // A host the backend rejected is NOT a missing host: it must fall
+    // through to the 404 below, so a typo never renders the default
+    // website while wearing another name.
+    if (!resolved && shouldUseBuildHostFallback({
+        candidate,
+        isPrerendered: context.isPrerendered,
+        isDev: import.meta.env.DEV,
+    })) {
         resolved = await resolveTenantForBuild();
         if (!resolved && context.isPrerendered) {
             throw new Error(

@@ -61,3 +61,27 @@ export function normaliseHost(value: string | null | undefined): string | null {
 
     return host;
 }
+
+/**
+ * Whether to fall back to `WEBSITE_BUILD_HOSTNAME` after the request
+ * failed to name a tenant.
+ *
+ * The fallback answers "no host to go on" — a build with no request,
+ * or `astro dev` reached at `localhost:<port>`. It must NOT answer
+ * "this host is unknown": a host the backend rejects has to stay a
+ * 404, or a typo silently renders the default website under the wrong
+ * name and looks like it worked.
+ *
+ * @param candidate Normalised host, or null when none was usable.
+ */
+export function shouldUseBuildHostFallback(options: {
+    candidate: string | null;
+    isPrerendered: boolean;
+    isDev: boolean;
+}): boolean {
+    if (options.isPrerendered) {
+        return true;
+    }
+
+    return options.isDev && options.candidate === null;
+}

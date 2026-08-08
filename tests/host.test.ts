@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { normaliseHost } from '../src/lib/host.ts';
+import { normaliseHost, shouldUseBuildHostFallback } from '../src/lib/host.ts';
 
 // ─── real hostnames survive ─────────────────────────────────────
 
@@ -56,4 +56,40 @@ test('normaliseHost: empty, null and undefined resolve to null', () => {
     assert.equal(normaliseHost('   '), null);
     assert.equal(normaliseHost(null), null);
     assert.equal(normaliseHost(undefined), null);
+});
+
+// ─── when the build hostname may stand in ───────────────────────
+
+test('shouldUseBuildHostFallback: a build always falls back — no request, no host', () => {
+    assert.equal(
+        shouldUseBuildHostFallback({ candidate: null, isPrerendered: true, isDev: false }),
+        true,
+    );
+});
+
+test('shouldUseBuildHostFallback: dev on localhost falls back', () => {
+    assert.equal(
+        shouldUseBuildHostFallback({ candidate: null, isPrerendered: false, isDev: true }),
+        true,
+    );
+});
+
+test('shouldUseBuildHostFallback: a host the backend rejected must NOT fall back', () => {
+    // Regression: falling back here served the default website under
+    // a typo'd hostname with a 200, instead of the 404 that tells you
+    // the host is unknown.
+    assert.equal(
+        shouldUseBuildHostFallback({ candidate: 'typo.test', isPrerendered: false, isDev: true }),
+        false,
+    );
+});
+
+test('shouldUseBuildHostFallback: production never falls back on a live request', () => {
+    for (const candidate of [null, 'site-a.foundry-astro.test']) {
+        assert.equal(
+            shouldUseBuildHostFallback({ candidate, isPrerendered: false, isDev: false }),
+            false,
+            `expected no fallback for candidate ${candidate}`,
+        );
+    }
 });
