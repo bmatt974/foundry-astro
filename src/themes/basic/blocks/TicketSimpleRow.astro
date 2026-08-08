@@ -343,9 +343,17 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                             - 'badges_first' : name + annotation chips
                               on line 1, rating on line 2. */}
                         {(() => {
+                            {/* The variant rides WITH the seller's name, not
+                                as a badge: it qualifies this listing ("Viator
+                                — 2 h"), it does not decorate the card. The API
+                                sends it only when this seller's listing
+                                genuinely differs from its neighbours'. */}
                             const nameTag = (
                                 <span class="text-sm font-semibold sm:truncate" style={`color: ${labelColor}`}>
                                     {provider.label}
+                                    {provider.variantLabel && (
+                                        <span class="brand-text-muted font-normal"> · {provider.variantLabel}</span>
+                                    )}
                                 </span>
                             );
                             const outlierTag = provider.isPriceOutlier ? (

@@ -103,6 +103,8 @@ export interface Dictionary {
             guided: string;
             special_access: string;
             bundle: string;
+            photo: string;
+            immersive: string;
         };
         /** 3 group types — Axis 2. Card badge + filter chip + sub-section. */
         groupType: {

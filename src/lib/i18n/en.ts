@@ -43,6 +43,8 @@ const en: Dictionary = {
             guided: 'Guided tour',
             special_access: 'Special access',
             bundle: 'Passes & Combos',
+            photo: 'Photo session',
+            immersive: 'Immersive experience',
         },
         groupType: {
             standard: 'Standard',

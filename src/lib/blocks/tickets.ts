@@ -27,7 +27,7 @@ import { useTranslations, type TranslationKey } from '../i18n/index.ts';
 // Slug unions — mirror the PHP enums backing values.
 // ─────────────────────────────────────────────────────────────────────
 
-export type TicketFormatSlug = 'access' | 'guided' | 'special_access' | 'bundle';
+export type TicketFormatSlug = 'access' | 'guided' | 'special_access' | 'bundle' | 'photo' | 'immersive';
 
 export type TicketGroupTypeSlug = 'standard' | 'small_group' | 'private';
 
@@ -52,6 +52,12 @@ export const FORMAT_DISPLAY_ORDER: TicketFormatSlug[] = [
     'guided',
     'special_access',
     'bundle',
+    // Products that are not a visit of the venue at all: a photoshoot
+    // and a VR session answer a different intent, so they get their own
+    // buckets rather than sitting inside Special access where they were
+    // compared line by line against private tours.
+    'photo',
+    'immersive',
 ];
 
 export const GROUP_DISPLAY_ORDER: TicketGroupTypeSlug[] = [
@@ -238,6 +244,11 @@ export interface TicketSource {
      *  flags (skip_the_line, audio_guide) stay on the ticket-level
      *  pivot and never reach here. */
     features: string[];
+    /** What sets this row apart from its siblings — "pour les familles",
+     *  "2 h", "en espagnol" — composed API-side and printed verbatim.
+     *  Null when nothing distinguishes it, which is the common case for
+     *  a card holding a single offer. */
+    variantLabel: string | null;
 }
 
 /** One source snapshot per stamp criterion. Renderers pick the one
@@ -270,6 +281,11 @@ export interface UniqueProvider {
     /** Display label after dedup (e.g. "Viator" once even when 30+
      *  Viator sources back this ticket). */
     label: string;
+    /** What this seller's listing offers that its neighbours don't —
+     *  "2 h", "pour les familles". Null when the seller backs several
+     *  listings that differ, because the row then speaks for all of
+     *  them. Composed API-side, printed verbatim. */
+    variantLabel: string | null;
     /** Brand hex colour from `Supplier::brandColor()` — surfaces as
      *  a small dot prefix in front of the provider name so visitors
      *  scan the affiliate set by colour. Null when the supplier has
@@ -543,6 +559,9 @@ interface RawSource {
      *  visitor reads the SAME name after clicking through. */
     raw_title?: string | null;
     click_id?: string | null;
+    /** Composed API-side; absent on payloads drafted before the offers
+     *  read path shipped. */
+    variant_label?: string | null;
     price_eur?: number | null;
     rating?: number | null;
     review_count?: number | null;
@@ -578,6 +597,9 @@ interface RawProvider {
     favicon_path?: string | null;
     logo_path?: string | null;
     source_count?: number;
+    /** Composed API-side; absent on payloads drafted before the offers
+     *  read path shipped. */
+    variant_label?: string | null;
     aggregate_rating?: number | null;
     aggregate_review_count?: number | null;
     annotation_features?: string[];
@@ -913,6 +935,9 @@ function buildSource(raw: RawSource, locale: string, linkProxyPath: string, revi
         features: Array.isArray(raw.features)
             ? raw.features.filter((f): f is string => typeof f === 'string')
             : [],
+        variantLabel: typeof raw.variant_label === 'string' && raw.variant_label.trim() !== ''
+            ? raw.variant_label.trim()
+            : null,
     };
 }
 
@@ -1152,6 +1177,10 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
             return {
                 slug,
                 label: entry.label,
+                variantLabel: typeof rawProvidersBySlug.get(slug)?.variant_label === 'string'
+                    && rawProvidersBySlug.get(slug)!.variant_label!.trim() !== ''
+                    ? rawProvidersBySlug.get(slug)!.variant_label!.trim()
+                    : null,
                 brandColor: entry.brandColor,
                 logoPath: entry.logoPath,
                 faviconPath: entry.faviconPath,
@@ -1267,6 +1296,11 @@ function buildAxisChips<Slug extends string>(
         counts.set(slug, (counts.get(slug) ?? 0) + 1);
     }
 
+    // A filter offering one choice filters nothing.
+    if (counts.size < 2) {
+        return [];
+    }
+
     return displayOrder
         .filter((slug) => (counts.get(slug) ?? 0) > 0)
         .map((slug) => ({
@@ -1291,6 +1325,14 @@ function buildSubsections<Slug extends string>(
         } else {
             bucket.push(ticket);
         }
+    }
+
+    // A partition of one is not a partition: heading a bucket with the
+    // single slug every one of its tickets shares tells the visitor
+    // nothing and costs a line. Matters since the API stopped shipping
+    // `experience_type` — every ticket would answer 'classic'.
+    if (groups.size < 2) {
+        return [];
     }
 
     const anyFires = [...groups.values()].some((list) => list.length >= SUBSECTION_THRESHOLD);
