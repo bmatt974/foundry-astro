@@ -32,6 +32,7 @@ import TicketCard from './TicketCard.astro';
 import TicketsSimple from './TicketsSimple.astro';
 import TicketsTable from './TicketsTable.astro';
 import TicketsCompare from './TicketsCompare.astro';
+import TicketsOffers from './TicketsOffers.astro';
 import TicketsQuickPicks from './TicketsQuickPicks.astro';
 
 interface Props {
@@ -42,7 +43,10 @@ const { block } = Astro.props;
 const isSimple = block.variant === 'simple';
 const isTable = block.variant === 'table';
 const isCompare = block.variant === 'compare';
-const isCustomVariant = isSimple || isTable || isCompare;
+/* Phase 6 — a row is a listing, not a seller. Ships beside `simple`
+   rather than replacing it so both can be read on the same inventory. */
+const isOffers = block.variant === 'offers';
+const isCustomVariant = isSimple || isTable || isCompare || isOffers;
 
 const locale = Astro.locals.locale ?? 'en';
 const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
@@ -62,7 +66,7 @@ const totalCount = parsed.totalCount;
 // shipped by TicketSimpleRow (simple) and TicketCard (rich). Table /
 // compare don't carry per-ticket anchors yet, so their strip stays
 // CTA-only rather than shipping dead links.
-const supportsAnchors = isSimple || !isCustomVariant;
+const supportsAnchors = isSimple || isOffers || !isCustomVariant;
 
 /** Drop buckets with zero tickets — keeps the page tight on small
  *  Places where (e.g.) Special access carries nothing yet. */
@@ -120,6 +124,7 @@ const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as '
 {isSimple && <TicketsSimple block={block} />}
 {isTable && <TicketsTable block={block} />}
 {isCompare && <TicketsCompare block={block} />}
+{isOffers && <TicketsOffers block={block} />}
 
 {!isCustomVariant && totalCount > 0 && (
     <section class="my-10 space-y-12">

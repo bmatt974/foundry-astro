@@ -1,0 +1,100 @@
+---
+/**
+ * Tickets — `variant = 'offers'`.
+ *
+ * Same editorial shape as `simple`, one difference: a row is a LISTING,
+ * not a seller. Shipped beside `simple` rather than replacing it so the
+ * two can be compared on the same inventory — the seller layout is right
+ * wherever a seller backs one listing, and wrong wherever it backs five.
+ *
+ * Per-offer rendering lives in `TicketOfferRow.astro`.
+ */
+import {
+    parseTicketsBlock,
+    type ParsedBucket,
+} from '../../../lib/blocks/tickets';
+import { useTranslations } from '../../../lib/i18n/index';
+import { formatDate } from '../../../lib/format';
+import type { PageBlock } from '../../../lib/foundry';
+import TicketOfferRow from './TicketOfferRow.astro';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+
+const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
+const { totalCount, layout, settings } = parsed;
+const visibleBuckets = parsed.buckets.filter((b: ParsedBucket) => b.tickets.length > 0);
+
+// The dispatcher paints the block heading at H_N; levels nest under it,
+// exactly as in the simple variant.
+const topLevel = settings.headingLevel;
+const subLevel = Math.min(topLevel + 1, 6);
+const ticketLevel = (layout === 'single'
+    ? Math.min(topLevel + 1, 6)
+    : Math.min(topLevel + 2, 6)) as 3 | 4 | 5 | 6;
+
+const SubHeading = `h${subLevel}` as 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+const flatTickets = layout === 'single' ? visibleBuckets.flatMap((b) => b.tickets) : [];
+
+const filtersAreActive
+    = settings.filterFormat.length > 0
+    || settings.filterGroupType.length > 0
+    || settings.filterExperienceType.length > 0;
+
+const pricesCheckedOn = parsed.pricesCheckedAt !== null
+    ? formatDate(parsed.pricesCheckedAt, locale)
+    : null;
+---
+
+{totalCount === 0 && filtersAreActive && (
+    <section class="tickets-offers my-8">
+        <div class="brand-border rounded-lg border bg-white p-6 text-center">
+            <p class="brand-text-muted text-sm">{t('tickets.bucket.empty')}</p>
+        </div>
+    </section>
+)}
+
+{visibleBuckets.length > 0 && (
+    <section class="tickets-offers my-8">
+        {layout === 'single' ? (
+            <ul class="brand-border divide-y rounded-lg border bg-white">
+                {flatTickets.map((ticket) => (
+                    <TicketOfferRow ticket={ticket} headingLevel={ticketLevel} />
+                ))}
+            </ul>
+        ) : (
+            <div class="space-y-8">
+                {visibleBuckets.map((bucket: ParsedBucket) => (
+                    <article aria-labelledby={`tickets-offers-${bucket.format}`}>
+                        <SubHeading
+                            id={`tickets-offers-${bucket.format}`}
+                            class="brand-text-primary mb-4 text-lg font-semibold tracking-tight"
+                        >
+                            {bucket.label}
+                            <span class="brand-text-muted ml-1 text-sm font-normal">({bucket.tickets.length})</span>
+                        </SubHeading>
+                        <ul class="brand-border divide-y rounded-lg border bg-white">
+                            {bucket.tickets.map((ticket) => (
+                                <TicketOfferRow ticket={ticket} headingLevel={ticketLevel} />
+                            ))}
+                        </ul>
+                    </article>
+                ))}
+            </div>
+        )}
+
+        {pricesCheckedOn && (
+            <p class="brand-text-muted mt-3 text-xs">
+                {t('tickets.compare.pricesUpdated')}{' '}<time datetime={parsed.pricesCheckedAt}>{pricesCheckedOn}</time>
+            </p>
+        )}
+    </section>
+)}
