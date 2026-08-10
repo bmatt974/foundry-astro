@@ -99,6 +99,22 @@ const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as '
     </p>
 )}
 
+{/* The language ladder (§5). One sentence, composed API-side: which
+    tier applies is an editorial decision about products, so the front
+    only chooses how loud to be. Tier 1 is good news and stays quiet;
+    tiers 2 and 3 tell the visitor their language is missing and what
+    to do instead, which is the sentence they came for. */}
+{parsed.languageAdvice?.headline && totalCount > 0 && (
+    <p
+        class={parsed.languageAdvice.tier === 1
+            ? 'brand-text-muted my-4 text-sm'
+            : 'brand-border my-4 rounded-md border bg-gray-50 px-4 py-3 text-sm'}
+        data-language-tier={parsed.languageAdvice.tier}
+    >
+        {parsed.languageAdvice.headline}
+    </p>
+)}
+
 <TicketsQuickPicks picks={parsed.quickPicks} settings={parsed.settings} showDetailsAnchor={supportsAnchors} />
 
 {isSimple && <TicketsSimple block={block} />}

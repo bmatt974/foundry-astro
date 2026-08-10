@@ -356,6 +356,17 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                                     )}
                                 </span>
                             );
+                            {/* Rides with the seller's name for the same
+                                reason the variant does: it qualifies THIS
+                                listing. The API sends it only when every
+                                listing behind the row delivers the visitor's
+                                language, so the row never promises on behalf
+                                of a sibling that does not. */}
+                            const languageTag = provider.languageBadge ? (
+                                <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background-color: rgba(0,0,0,0.06); color: #4b5563">
+                                    {provider.languageBadge}
+                                </span>
+                            ) : null;
                             const outlierTag = provider.isPriceOutlier ? (
                                 <span
                                     class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
@@ -392,6 +403,7 @@ const showAggregationHint = ticket.providers.length >= 2 && Boolean(starlessRati
                                     <div class="flex min-w-0 flex-col gap-0.5">
                                         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                             {nameTag}
+                                            {languageTag}
                                             {outlierTag}
                                             {isBadgesFirst ? <span class="sm:hidden">{badgeTags}</span> : ratingTag}
                                         </div>

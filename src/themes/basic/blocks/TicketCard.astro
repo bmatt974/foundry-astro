@@ -81,9 +81,20 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
             </p>
         )}
 
-        {ticket.languages.length > 0 && (
-            <p class="brand-text-muted text-xs uppercase tracking-wider">
-                {ticket.languages.join(' / ')}
+        {/* Languages EVERY offer on this card speaks — printed by name,
+            never by ISO code, and never as the union it used to be. The
+            note beside it counts the rows that speak the visitor's
+            language, and the API sends it only when that count tells
+            them something the line above does not. */}
+        {ticket.languageNames.length > 0 && (
+            <p class="brand-text-muted text-xs">
+                {ticket.languageNames.map((language) => language.name).join(' · ')}
+            </p>
+        )}
+
+        {ticket.languageNote && (
+            <p class="brand-text-muted text-xs font-medium">
+                {ticket.languageNote}
             </p>
         )}
 

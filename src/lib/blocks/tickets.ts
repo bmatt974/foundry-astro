@@ -249,6 +249,54 @@ export interface TicketSource {
      *  Null when nothing distinguishes it, which is the common case for
      *  a card holding a single offer. */
     variantLabel: string | null;
+    /** THIS listing's own languages and what to say about them. Null
+     *  when the product has no guide and no audio track to speak any —
+     *  a plain admission is not silent about its languages, it has
+     *  none. Composed API-side, printed verbatim. */
+    language: TicketLanguage | null;
+}
+
+/** An ISO code next to its name in the page's language. Names come
+ *  from ICU server-side: the front never holds a language map, since
+ *  fifty locales against eight languages is the table nobody keeps
+ *  up to date. */
+export interface LanguageName {
+    code: string;
+    name: string;
+}
+
+export interface TicketLanguage {
+    /** Three states, never two. `undisclosed` is what keeps "we never
+     *  asked" from reading as "no French" — the distinction the whole
+     *  ladder rests on. */
+    state: 'match' | 'other' | 'undisclosed';
+    /** Ready-to-print row badge naming the VISITOR's language
+     *  ("Guide en français"). Null unless this row speaks it. */
+    badge: string | null;
+    live: LanguageName[];
+    audio: LanguageName[];
+}
+
+/** What this venue speaks, and what to do when it does not speak the
+ *  visitor's language. The API picks the tier; the front prints it. */
+export interface LanguageAdvice {
+    /** 1 = a guided tour in the page language, 2 = no guide but an
+     *  audio guide in it, 3 = neither. */
+    tier: 1 | 2 | 3;
+    language: string;
+    languageName: string;
+    guidedCount: number;
+    audioCount: number;
+    /** Cards this tier recommends — the tours at tier 1, the
+     *  audio-guided tickets at tier 2. */
+    ticketIds: number[];
+    /** What IS spoken here, commonest first, excluding the visitor's
+     *  own language. Populates the tier-3 sentence. */
+    spokenLanguages: Array<LanguageName & { count: number }>;
+    /** The whole advice in one composed sentence. Null when every
+     *  offer withheld its languages — claiming the venue speaks
+     *  nothing would be a statement about data we never received. */
+    headline: string | null;
 }
 
 /** One source snapshot per stamp criterion. Renderers pick the one
@@ -286,6 +334,11 @@ export interface UniqueProvider {
      *  listings that differ, because the row then speaks for all of
      *  them. Composed API-side, printed verbatim. */
     variantLabel: string | null;
+    /** "Guide en français" when EVERY listing behind this seller row
+     *  delivers the visitor's language — null otherwise, because a row
+     *  standing for three listings may only promise what all three
+     *  honour. Composed API-side, printed verbatim. */
+    languageBadge: string | null;
     /** Brand hex colour from `Supplier::brandColor()` — surfaces as
      *  a small dot prefix in front of the provider name so visitors
      *  scan the affiliate set by colour. Null when the supplier has
@@ -432,7 +485,23 @@ export interface ParsedTicket {
     isBundle: boolean;
     coveredPlaces: CoveredPlace[];
     badges: TicketBadge[];
+    /** Languages EVERY offer on this card speaks. Was the union until
+     *  the offers model landed, which let a card advertise a language
+     *  only one of its rows honoured — ten of the twenty-five cards
+     *  carrying a language line on the measured inventory. What one row
+     *  speaks now belongs to that row. */
     languages: string[];
+    /** The same set, each code beside its localised name. */
+    languageNames: LanguageName[];
+    /** How many of this card's offers speak each language — what backs
+     *  the "3 of these are guided in French" line. */
+    languageCounts: Record<string, number>;
+    /** How many rows speak the VISITOR's language. */
+    languageMatchCount: number;
+    /** Composed API-side, and only when it DISCRIMINATES: silent when
+     *  every row speaks it (the card already says so) and when none
+     *  does (the page-level advice handles it). */
+    languageNote: string | null;
     sources: TicketSource[];
     /** One entry per distinct provider behind this ticket. Many sources
      *  often share a provider (Viator alone can back 30+ sources on a
@@ -498,6 +567,10 @@ export interface ParsedTickets {
      *  ticket") — the umbrella's inventory is already merged into the
      *  buckets server-side. */
     entryIncludedIn: { placeId: number; name: string } | null;
+    /** The language ladder for this page. Null when nothing on it is
+     *  delivered in a language at all — a venue selling plain
+     *  admissions raises no language question. */
+    languageAdvice: LanguageAdvice | null;
     settings: TicketsSettings;
     /** Buckets in display order : Admission, Guided, Special access,
      *  Bundle. Editors who want bundles in a dedicated section just
@@ -567,6 +640,14 @@ interface RawSource {
     review_count?: number | null;
     image_url?: string | null;
     features?: string[];
+    /** Composed API-side; absent on payloads drafted before the
+     *  language ladder shipped. */
+    language?: {
+        state?: string;
+        badge?: string | null;
+        live?: Array<{ code?: string; name?: string }>;
+        audio?: Array<{ code?: string; name?: string }>;
+    } | null;
 }
 
 /** Phase 1 of the API-side aggregation chantier — per-provider
@@ -600,6 +681,9 @@ interface RawProvider {
     /** Composed API-side; absent on payloads drafted before the offers
      *  read path shipped. */
     variant_label?: string | null;
+    /** Composed API-side, and only when every listing behind this
+     *  seller delivers the visitor's language. */
+    language_badge?: string | null;
     aggregate_rating?: number | null;
     aggregate_review_count?: number | null;
     annotation_features?: string[];
@@ -655,6 +739,10 @@ interface RawTicket {
     covered_places?: RawCoveredPlace[];
     features?: string[];
     languages?: string[];
+    language_names?: Array<{ code?: string; name?: string }>;
+    language_counts?: Record<string, number>;
+    language_match_count?: number;
+    language_note?: string | null;
     sources?: RawSource[];
     /** Phase 1 migration : pre-aggregated provider entries. When
      *  present, the parser reads `coverImage`-per-criterion data
@@ -675,6 +763,18 @@ interface RawMeta {
     /** Umbrella place whose official ticket grants this venue's entry
      *  (`place_relations` official_combo, reverse side). */
     entry_included_in?: { place_id?: number; name?: string } | null;
+    /** The language ladder (§5). Absent on payloads drafted before it
+     *  shipped — renderers simply paint nothing. */
+    language_advice?: {
+        tier?: number;
+        language?: string;
+        language_name?: string;
+        guided_count?: number;
+        audio_count?: number;
+        ticket_ids?: number[];
+        spoken_languages?: Array<{ code?: string; name?: string; count?: number }>;
+        headline?: string | null;
+    } | null;
     settings?: {
         heading_level?: number;
         heading_text?: string | null;
@@ -938,7 +1038,79 @@ function buildSource(raw: RawSource, locale: string, linkProxyPath: string, revi
         variantLabel: typeof raw.variant_label === 'string' && raw.variant_label.trim() !== ''
             ? raw.variant_label.trim()
             : null,
+        language: parseSourceLanguage(raw.language),
     };
+}
+
+const LANGUAGE_STATES = ['match', 'other', 'undisclosed'] as const;
+
+/** An unrecognised state is dropped rather than guessed: the whole
+ *  point of three states is that none of them may stand in for
+ *  another. */
+function parseSourceLanguage(raw: RawSource['language']): TicketLanguage | null {
+    if (!raw || typeof raw !== 'object') {
+        return null;
+    }
+
+    const state = LANGUAGE_STATES.find((candidate) => candidate === raw.state);
+    if (!state) {
+        return null;
+    }
+
+    return {
+        state,
+        badge: typeof raw.badge === 'string' && raw.badge.trim() !== '' ? raw.badge.trim() : null,
+        live: parseLanguageNames(raw.live),
+        audio: parseLanguageNames(raw.audio),
+    };
+}
+
+/** A tier outside 1–3 means a payload this renderer does not
+ *  understand; painting nothing beats painting a guess about what the
+ *  visitor can buy in their language. */
+function parseLanguageAdvice(raw: RawMeta['language_advice']): LanguageAdvice | null {
+    if (!raw || typeof raw !== 'object') {
+        return null;
+    }
+
+    if (raw.tier !== 1 && raw.tier !== 2 && raw.tier !== 3) {
+        return null;
+    }
+
+    if (typeof raw.language !== 'string' || typeof raw.language_name !== 'string') {
+        return null;
+    }
+
+    return {
+        tier: raw.tier,
+        language: raw.language,
+        languageName: raw.language_name,
+        guidedCount: typeof raw.guided_count === 'number' ? raw.guided_count : 0,
+        audioCount: typeof raw.audio_count === 'number' ? raw.audio_count : 0,
+        ticketIds: Array.isArray(raw.ticket_ids)
+            ? raw.ticket_ids.filter((id): id is number => typeof id === 'number')
+            : [],
+        spokenLanguages: Array.isArray(raw.spoken_languages)
+            ? raw.spoken_languages.flatMap((entry) =>
+                entry && typeof entry.code === 'string' && typeof entry.name === 'string'
+                    ? [{ code: entry.code, name: entry.name, count: typeof entry.count === 'number' ? entry.count : 0 }]
+                    : [],
+            )
+            : [],
+        headline: typeof raw.headline === 'string' && raw.headline.trim() !== '' ? raw.headline.trim() : null,
+    };
+}
+
+function parseLanguageNames(raw: unknown): LanguageName[] {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    return raw.flatMap((entry) =>
+        entry && typeof entry.code === 'string' && typeof entry.name === 'string'
+            ? [{ code: entry.code, name: entry.name }]
+            : [],
+    );
 }
 
 function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, settings: TicketsSettings, t: T): ParsedTicket | null {
@@ -1181,6 +1353,10 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
                     && rawProvidersBySlug.get(slug)!.variant_label!.trim() !== ''
                     ? rawProvidersBySlug.get(slug)!.variant_label!.trim()
                     : null,
+                languageBadge: typeof rawProvidersBySlug.get(slug)?.language_badge === 'string'
+                    && rawProvidersBySlug.get(slug)!.language_badge!.trim() !== ''
+                    ? rawProvidersBySlug.get(slug)!.language_badge!.trim()
+                    : null,
                 brandColor: entry.brandColor,
                 logoPath: entry.logoPath,
                 faviconPath: entry.faviconPath,
@@ -1276,6 +1452,16 @@ function buildTicket(raw: RawTicket, locale: string, linkProxyPath: string, sett
         coveredPlaces,
         badges: buildBadges(features, settings, t, universalAnnotations, groupType),
         languages: (raw.languages ?? []).filter((l): l is string => typeof l === 'string'),
+        languageNames: parseLanguageNames(raw.language_names),
+        languageCounts: raw.language_counts && typeof raw.language_counts === 'object'
+            ? Object.fromEntries(
+                Object.entries(raw.language_counts).filter(([, count]) => typeof count === 'number'),
+            )
+            : {},
+        languageMatchCount: typeof raw.language_match_count === 'number' ? raw.language_match_count : 0,
+        languageNote: typeof raw.language_note === 'string' && raw.language_note.trim() !== ''
+            ? raw.language_note.trim()
+            : null,
         sources,
         providers,
         primaryCtaHref,
@@ -1463,6 +1649,7 @@ export function parseTicketsBlock(
             ? content.meta.prices_checked_at
             : null,
         entryIncludedIn,
+        languageAdvice: parseLanguageAdvice(content.meta?.language_advice),
         settings,
         buckets,
         totalCount: tickets.length,
