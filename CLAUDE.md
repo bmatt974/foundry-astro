@@ -1,9 +1,21 @@
 # Foundry Astro — multi-tenant static themes
 
+## Where this directory lives
+
+It is the `astro/` subtree of the Foundry repository, not a repository
+of its own. `bmatt974/foundry-astro` is a READ-ONLY mirror pushed from
+there, so commit in the monorepo and `git pull` in the mirror — never
+the reverse, which makes the next mirror push a non-fast-forward.
+
+Keep front and back changes in separate commits: the mirror is a split
+of this directory alone, and a mixed commit arrives there carrying a
+message about Laravel.
+
 ## Dumb front principle
 
-This repo renders payloads drafted by the Laravel API (foundry repo).
-It must stay a DUMB renderer — no editorial logic at render time:
+This directory renders payloads drafted by the Laravel API (the rest of
+the same repository). It must stay a DUMB renderer — no editorial logic
+at render time:
 
 - NEVER compose, rewrite, rank or filter product content (ticket
   titles, ordering, verdicts, honesty notes) in the front. If a
