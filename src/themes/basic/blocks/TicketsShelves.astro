@@ -24,6 +24,7 @@ import {
 } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { formatDate } from '../../../lib/format';
+import { serializeJsonLd } from '../../../lib/seo';
 import type { PageBlock } from '../../../lib/foundry';
 import TicketShelfRow from './TicketShelfRow.astro';
 import TicketShelfCard from './TicketShelfCard.astro';
@@ -78,6 +79,29 @@ const pricesCheckedOn = parsed.pricesCheckedAt !== null
     ? formatDate(parsed.pricesCheckedAt, locale)
     : null;
 
+/* schema.org ItemList — the picks strip literally answers "what's the
+ * cheapest / best ticket?", the exact shape AI Overviews / Perplexity
+ * cite. Re-homed from the deleted legacy quick-picks component, same
+ * contract: gated on the per-site `jsonld_level` experiment axis (list
+ * markup is beyond article-only postures), URLs are self-referential
+ * page anchors, NEVER the affiliate links — structured data must not
+ * leak the monetisation layer. */
+const jsonldLevel = Astro.locals.tenant?.experiments?.jsonld_level ?? 'none';
+const emitSchema = picks.length > 0 && jsonldLevel !== 'none' && jsonldLevel !== 'article_only';
+const itemListJson = emitSchema
+    ? serializeJsonLd({
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: t('tickets.quickPicks.title'),
+        itemListElement: picks.map((pick, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: `${pick.slots.map((slot) => pickSlotLabel(slot)).join(' · ')} : ${pick.offer.title}`,
+            url: `${Astro.url.origin}${Astro.url.pathname}#offer-${pick.offer.id}`,
+        })),
+    })
+    : null;
+
 /** The cheapest priced offer's formatted price — the section summary's
  *  "À partir de" value. Null when nothing is priced. */
 function fromPriceText(section: ParsedShelfSection): string | null {
@@ -95,6 +119,7 @@ function showMoreLabel(count: number): string {
 
 {parsed.totalCount > 0 && (
     <section class="tickets-shelves my-8">
+        {itemListJson && <script type="application/ld+json" is:inline set:html={itemListJson} />}
         <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
             {parsed.heading}
         </BlockHeading>
