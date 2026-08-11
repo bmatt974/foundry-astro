@@ -218,13 +218,12 @@ const LOCALES = [
 ] as const;
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'CHF', 'AUD', 'JPY', 'SGD', 'HKD', 'NZD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'TRY', 'MXN', 'INR', 'THB', 'CNY', 'BRL'] as const;
 
-/* `rich` triggers the default branch of `Tickets.astro` (any
-   variant slug not matching simple/table/compare) — the editorial
-   4-bucket card grid with bucket sub-sections (group_type /
-   experience_type / bundle_subtype). Exposed in the dev gallery so
-   editors can preview the layout that production pages will use by
-   default when no specific variant is set on the block. */
-const VARIANTS = ['simple', 'table', 'compare', 'rich'] as const;
+/* Since the §2bis pivot the payload SHAPE picks the renderer FAMILY
+   and the variant picks the DISPOSITION within it: `simple` renders
+   the compact rows, `cards` the grid, `table` the comparison table,
+   `rich` the detailed sheets (`Tickets.astro` also maps the legacy
+   `compare` → table so old blocks keep a sensible dressing). */
+const VARIANTS = ['simple', 'cards', 'table', 'rich'] as const;
 const FORMAT_SLUGS = ['access', 'guided', 'special_access', 'bundle'] as const;
 const GROUP_SLUGS = ['standard', 'small_group', 'private'] as const;
 const EXPERIENCE_SLUGS = ['classic', 'photo', 'family', 'food', 'night', 'vr', 'workshop', 'adventure', 'wellness'] as const;

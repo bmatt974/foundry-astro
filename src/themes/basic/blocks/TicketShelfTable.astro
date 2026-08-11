@@ -1,0 +1,120 @@
+---
+/**
+ * One shelf SECTION as a comparison TABLE — the `table` disposition of
+ * the shelves family. Dense by design: every offer of the section on
+ * one screen, columns for the facts a buyer scans (duration, rating,
+ * price). No row cap — hiding rows behind a fold would defeat it.
+ *
+ * The table scrolls inside its own container on narrow screens; the
+ * page never scrolls sideways. The highlight chip is the API's verdict,
+ * carried by the row.
+ */
+import type { ParsedShelf, ShelfSettings } from '../../../lib/blocks/ticket-shelves';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    shelf: ParsedShelf;
+    settings: ShelfSettings;
+    /** Zones the section header already states — not repeated per row. */
+    omitZones?: string[];
+}
+
+const { shelf, settings, omitZones = [] } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
+
+const ctaLabel = settings.ctaLabel ?? t('tickets.card.book');
+const arrow = settings.showProviderArrow ? ' →' : '';
+---
+
+<div class="brand-border overflow-x-auto rounded-lg border bg-white">
+    <table class="w-full min-w-[640px] border-collapse text-sm">
+        <thead>
+            <tr class="brand-text-muted border-b text-left text-xs uppercase tracking-wider">
+                <th scope="col" class="px-3 py-2 font-semibold">{t('tickets.table.offer')}</th>
+                <th scope="col" class="px-3 py-2 font-semibold">{t('tickets.compare.colSupplier')}</th>
+                <th scope="col" class="px-3 py-2 font-semibold">{t('tickets.table.duration')}</th>
+                <th scope="col" class="px-3 py-2 font-semibold">{t('tickets.table.rating')}</th>
+                <th scope="col" class="px-3 py-2 text-right font-semibold">{t('tickets.compare.colPrice')}</th>
+                <th scope="col" class="px-3 py-2"><span class="sr-only">{t('tickets.compare.colAction')}</span></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y">
+            {shelf.offers.map((offer) => {
+                const highlightLabel = offer.highlight === 'best_price'
+                    ? t('tickets.card.bestPrice')
+                    : offer.highlight === 'best_rated' ? t('tickets.card.bestRated') : null;
+                const zones = offer.zones.filter((zone) => !omitZones.includes(zone));
+                return (
+                    <tr id={`offer-${offer.id}`}>
+                        <td class="max-w-96 px-3 py-2">
+                            <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span class="font-medium leading-snug" style="color: #1f2937">{offer.title}</span>
+                                {highlightLabel && (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                        style="background-color: color-mix(in srgb, var(--brand-accent-rating) 15%, transparent); color: var(--brand-accent-rating)"
+                                    >
+                                        {highlightLabel}
+                                    </span>
+                                )}
+                                {offer.language?.badge && (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                        style="background-color: rgba(0,0,0,0.06); color: #4b5563"
+                                    >
+                                        {offer.language.badge}
+                                    </span>
+                                )}
+                                {zones.map((zone) => (
+                                    <span
+                                        class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                        style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
+                                    >
+                                        {zone}
+                                    </span>
+                                ))}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-2">
+                            <span class="brand-text-muted inline-flex items-center gap-1.5 text-xs">
+                                {settings.providerIndicator === 'favicon' && offer.providerFaviconPath && (
+                                    <img src={offer.providerFaviconPath} alt="" loading="lazy" class="h-3.5 w-3.5 rounded-sm" />
+                                )}
+                                {settings.providerIndicator === 'dot' && (
+                                    <span
+                                        class="inline-block h-2 w-2 rounded-full"
+                                        style={`background-color: ${offer.providerBrandColor ?? '#9ca3af'}`}
+                                        aria-hidden="true"
+                                    ></span>
+                                )}
+                                {settings.providerIndicator === 'logo' && offer.providerLogoPath
+                                    ? <img src={offer.providerLogoPath} alt={offer.providerLabel} loading="lazy" class="h-3.5 max-w-16 object-contain" />
+                                    : <span>{offer.providerLabel}</span>}
+                            </span>
+                        </td>
+                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.durationText ?? '—'}</td>
+                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.ratingText ?? '—'}</td>
+                        <td class="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums" style="color: #111827">
+                            {offer.priceText ?? '—'}
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-2 text-right">
+                            {offer.href && (
+                                <a
+                                    href={offer.href}
+                                    target="_blank"
+                                    rel={outboundRel}
+                                    class="brand-bg-primary inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                                >
+                                    {ctaLabel}{arrow}
+                                </a>
+                            )}
+                        </td>
+                    </tr>
+                );
+            })}
+        </tbody>
+    </table>
+</div>

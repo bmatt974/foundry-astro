@@ -46,6 +46,17 @@ const en: Dictionary = {
             photo: 'Photo session',
             immersive: 'Immersive experience',
         },
+        shelf: {
+            entry: 'Entry tickets',
+            audio_guided: 'Entry + audio guide',
+            guided: 'Guided tours',
+            small_group: 'Small-group tours',
+            private: 'Private tours',
+            pass_combo: 'Passes & Combos',
+        },
+        shelfSection: {
+            classic: 'Classic visit',
+        },
         groupType: {
             standard: 'Standard',
             small_group: 'Small group',
@@ -115,6 +126,7 @@ const en: Dictionary = {
         },
         table: {
             priceFrom: 'From',
+            offer: 'Offer',
             duration: 'Duration',
             rating: 'Rating',
             groupType: 'Group type',

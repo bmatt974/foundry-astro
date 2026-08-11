@@ -1,0 +1,183 @@
+---
+/**
+ * One shelf offer as a TRIVAGO-style sheet — the `rich` disposition of
+ * the shelves family, after `docs/strategy/tickets/inspiration/`.
+ *
+ * The anatomy is the meta-search classic: photo left, facts in the
+ * middle (title, the rating as a coloured badge + review volume,
+ * badges), and a PRICE PANEL on the right — highlight tag on top, the
+ * seller, the price in large type with the provider's own strike price
+ * when a promotion ships, and the CTA.
+ *
+ * Trivago's panel stacks SELLER rows under one hotel; an offer IS one
+ * listing from one seller, so the panel is single — that collapse is
+ * the §2bis pivot, not a styling choice. The one discount a single
+ * listing can claim honestly is its provider's own strike price.
+ */
+import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    offer: ShelfOffer;
+    shelf: TicketShelfSlug;
+    settings: ShelfSettings;
+    /** Zones the section header already states — not repeated per row. */
+    omitZones?: string[];
+}
+
+const { offer, shelf, settings, omitZones = [] } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
+
+const badges = shelfBadgeLabels(offer, shelf, t, omitZones);
+const coveredNames = offer.coveredPlaces.map((place) => place.name).slice(0, 3);
+
+/* The chip is an API verdict carried by the row — the front dresses it. */
+const highlightLabel = offer.highlight === 'best_price'
+    ? t('tickets.card.bestPrice')
+    : offer.highlight === 'best_rated' ? t('tickets.card.bestRated') : null;
+
+const ctaLabel = settings.ctaLabel ?? t('tickets.card.book');
+const arrow = settings.showProviderArrow ? ' →' : '';
+const showPhoto = settings.showPhotos && offer.imageUrl !== null;
+
+/** Trivago prints the score in a coloured square with the review volume
+ *  beside it. The volume is lifted from the composed ratingText — the
+ *  "(1,8 k)" part — so the two dressings can never disagree. */
+const ratingBadge = offer.rating !== null
+    ? new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(offer.rating)
+    : null;
+const reviewVolume = offer.ratingText?.match(/\(([^)]+)\)/)?.[1] ?? null;
+
+/* Whether the promotion is worth saying is the API's verdict. */
+const savingsPct = offer.savingsPercent;
+const showSavings = savingsPct !== null;
+---
+
+<li id={`offer-${offer.id}`} class="brand-border overflow-hidden rounded-lg border bg-white">
+    <div class="flex flex-col sm:flex-row">
+        {showPhoto && (
+            <img
+                src={offer.imageUrl}
+                alt=""
+                loading="lazy"
+                class="h-44 w-full shrink-0 object-cover sm:h-auto sm:w-48"
+            />
+        )}
+
+        <div class="flex min-w-0 grow flex-col gap-1.5 p-4">
+            <p class="text-base font-bold leading-snug" style="color: #1f2937">{offer.title}</p>
+
+            {ratingBadge && (
+                <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                    <span
+                        class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-bold text-white"
+                        style="background-color: var(--brand-accent-success)"
+                    >
+                        {ratingBadge}
+                    </span>
+                    {reviewVolume && <span class="brand-text-muted">({reviewVolume})</span>}
+                    {offer.durationText && <span class="brand-text-muted">· {offer.durationText}</span>}
+                </span>
+            )}
+            {!ratingBadge && offer.durationText && (
+                <span class="brand-text-muted text-sm">{offer.durationText}</span>
+            )}
+
+            {badges.length > 0 && (
+                <span class="flex flex-wrap items-center gap-1.5">
+                    {badges.map((badge) => (
+                        <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style="background-color: color-mix(in srgb, var(--brand-accent-success) 12%, transparent); color: var(--brand-accent-success)"
+                        >
+                            {badge}
+                        </span>
+                    ))}
+                </span>
+            )}
+
+            {coveredNames.length > 0 && (
+                <span class="brand-text-muted text-xs">+ {coveredNames.join(' · ')}</span>
+            )}
+        </div>
+
+        <div class="shrink-0 p-3 sm:w-60">
+            <div
+                class="flex h-full flex-col gap-2 rounded-lg p-3"
+                style={offer.highlight !== null
+                    ? 'background-color: color-mix(in srgb, var(--brand-accent-success) 10%, transparent)'
+                    : 'background-color: rgba(0,0,0,0.03)'}
+            >
+                {highlightLabel && (
+                    <span
+                        class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
+                        style="background-color: var(--brand-accent-success)"
+                    >
+                        {highlightLabel}
+                    </span>
+                )}
+
+                <span class="flex flex-wrap items-center gap-1.5 text-sm">
+                    {settings.providerIndicator === 'favicon' && offer.providerFaviconPath && (
+                        <img src={offer.providerFaviconPath} alt="" loading="lazy" class="h-4 w-4 rounded-sm" />
+                    )}
+                    {settings.providerIndicator === 'logo' && offer.providerLogoPath && (
+                        <img src={offer.providerLogoPath} alt={offer.providerLabel} loading="lazy" class="h-4 max-w-20 object-contain" />
+                    )}
+                    {settings.providerIndicator === 'dot' && (
+                        <span
+                            class="inline-block h-2 w-2 rounded-full"
+                            style={`background-color: ${offer.providerBrandColor ?? '#9ca3af'}`}
+                            aria-hidden="true"
+                        ></span>
+                    )}
+                    {settings.providerIndicator !== 'logo' && (
+                        <span class="font-medium" style="color: #1f2937">{offer.providerLabel}</span>
+                    )}
+                </span>
+
+                {offer.language?.badge && (
+                    <span
+                        class="inline-flex w-fit items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                        style="background-color: rgba(0,0,0,0.06); color: #4b5563"
+                    >
+                        {offer.language.badge}
+                    </span>
+                )}
+
+                <span class="mt-auto flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    {showSavings && offer.originalPriceText && (
+                        <span class="brand-text-muted text-sm line-through">{offer.originalPriceText}</span>
+                    )}
+                    {!settings.priceAsButton && offer.priceText && (
+                        <span class="text-xl font-bold tabular-nums" style="color: #111827">{offer.priceText}</span>
+                    )}
+                    {showSavings && (
+                        <span
+                            class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+                            style="border: 1px solid var(--brand-accent-success); color: var(--brand-accent-success)"
+                        >
+                            {t('tickets.card.saveAmount', { pct: String(savingsPct) })}
+                        </span>
+                    )}
+                </span>
+
+                {offer.href && (
+                    <a
+                        href={offer.href}
+                        target="_blank"
+                        rel={outboundRel}
+                        class="brand-bg-primary inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                    >
+                        {settings.priceAsButton && offer.priceText
+                            ? <span class="tabular-nums">{offer.priceText}{arrow}</span>
+                            : <span>{ctaLabel}{arrow}</span>}
+                    </a>
+                )}
+            </div>
+        </div>
+    </div>
+</li>

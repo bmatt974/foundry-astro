@@ -2,29 +2,23 @@
 /**
  * Tickets — basic theme dispatcher.
  *
- * Reads `block.variant` and delegates to the matching layout
- * component. Each variant is a SEPARATE `.astro` file in this
- * directory so the visual surface can A/B-test layouts on the same
- * data without forking classification (which lives in
- * `lib/blocks/tickets.ts`).
+ * TWO renderer families, picked by the payload's SHAPE (§2bis of
+ * refactor-offers-groups.md):
  *
- * Variants :
- *   - `'simple'`              → TicketsSimple   (stripped-down rows)
- *   - `'table'`               → TicketsTable    (features × tickets
- *                                                comparison matrix)
- *   - `'compare'`             → TicketsCompare  (one row per format
- *                                                bucket, features as
- *                                                columns — 4-row
- *                                                meta-search layout)
- *   - default / null / other  → TicketsRich     (full 4-bucket card
- *                                                grid + chips +
- *                                                threshold sub-sections)
+ *   shelves  `{meta, quick_picks, shelves}` — every re-drafted page.
+ *            `block.variant` picks the DISPOSITION inside
+ *            TicketsShelves: rows (simple/default), cards, table
+ *            (also `compare`), detailed (also `rich`).
  *
- * Source of truth for the data model :
- *   /docs/strategy/tickets/data-model.md (foundry)
+ *   legacy   `{meta, quick_picks, tickets}` — pages not yet re-drafted
+ *            since the pivot. `block.variant` picks the old layouts:
+ *            simple / table / compare / offers / rich card grid. This
+ *            whole family dies with the dynamic-block chantier once
+ *            every page is re-drafted.
  */
 import type { PageBlock } from '../../../lib/foundry';
 import { parseTicketsBlock, type ParsedBucket } from '../../../lib/blocks/tickets';
+import { isShelvesPayload } from '../../../lib/blocks/ticket-shelves';
 import { groupBundleTickets } from '../../../lib/tickets/bundle-subgroups';
 import { groupAccessTickets } from '../../../lib/tickets/access-subgroups';
 import { useTranslations } from '../../../lib/i18n/index';
@@ -33,6 +27,7 @@ import TicketsSimple from './TicketsSimple.astro';
 import TicketsTable from './TicketsTable.astro';
 import TicketsCompare from './TicketsCompare.astro';
 import TicketsOffers from './TicketsOffers.astro';
+import TicketsShelves from './TicketsShelves.astro';
 import TicketsQuickPicks from './TicketsQuickPicks.astro';
 
 interface Props {
@@ -40,12 +35,31 @@ interface Props {
 }
 
 const { block } = Astro.props;
-const isSimple = block.variant === 'simple';
-const isTable = block.variant === 'table';
-const isCompare = block.variant === 'compare';
+
+/* §2bis — the payload SHAPE picks the renderer FAMILY, and the stored
+   variant picks the DISPOSITION within it: `table`/`compare` → the
+   comparison table, `cards` → the card grid, `rich`/`detailed` → the
+   detailed sheets, everything else → compact rows. A re-drafted page
+   ships `shelves` whatever variant its block carries, and the legacy
+   machinery below cannot parse it (it sees no `tickets` key, so its
+   own chrome self-suppresses on zero inventory). Everything the
+   shelves page needs — heading, notes, advice, quick picks — is
+   painted by TicketsShelves itself. */
+const isShelves = isShelvesPayload(block.content);
+const shelfLayout = block.variant === 'table' || block.variant === 'compare'
+    ? 'table' as const
+    : block.variant === 'cards'
+        ? 'cards' as const
+        : block.variant === 'rich' || block.variant === 'detailed'
+            ? 'detailed' as const
+            : 'rows' as const;
+
+const isSimple = !isShelves && block.variant === 'simple';
+const isTable = !isShelves && block.variant === 'table';
+const isCompare = !isShelves && block.variant === 'compare';
 /* Phase 6 — a row is a listing, not a seller. Ships beside `simple`
    rather than replacing it so both can be read on the same inventory. */
-const isOffers = block.variant === 'offers';
+const isOffers = !isShelves && block.variant === 'offers';
 const isCustomVariant = isSimple || isTable || isCompare || isOffers;
 
 const locale = Astro.locals.locale ?? 'en';
@@ -121,6 +135,7 @@ const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as '
 
 <TicketsQuickPicks picks={parsed.quickPicks} settings={parsed.settings} showDetailsAnchor={supportsAnchors} />
 
+{isShelves && <TicketsShelves block={block} layout={shelfLayout} />}
 {isSimple && <TicketsSimple block={block} />}
 {isTable && <TicketsTable block={block} />}
 {isCompare && <TicketsCompare block={block} />}

@@ -106,6 +106,23 @@ export interface Dictionary {
             photo: string;
             immersive: string;
         };
+        /** The 6 fixed shelves of the §2bis pivot — card headers.
+         *  Stable slugs shipped by the payload; every tourist activity
+         *  fits one of them. */
+        shelf: {
+            entry: string;
+            audio_guided: string;
+            guided: string;
+            small_group: string;
+            private: string;
+            pass_combo: string;
+        };
+        /** Shelf section chrome — the declination sub-headers. Zone
+         *  sections print the API's zone names verbatim; this labels
+         *  the section with nothing to add. */
+        shelfSection: {
+            classic: string;
+        };
         /** 3 group types — Axis 2. Card badge + filter chip + sub-section. */
         groupType: {
             standard: string;
@@ -246,6 +263,8 @@ export interface Dictionary {
         table: {
             /** "From" — row label for the price-from-cheapest value. */
             priceFrom: string;
+            /** "Offer" — first column header of the shelves table layout. */
+            offer: string;
             /** "Duration" — row label for `durationText`. */
             duration: string;
             /** "Rating" — row label for the aggregate rating. */

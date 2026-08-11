@@ -1,0 +1,309 @@
+---
+/**
+ * Tickets — the SHELVES payload (§2bis of refactor-offers-groups.md).
+ *
+ * Six fixed categories, each split into SECTIONS — the declinations a
+ * buyer genuinely compares within (proven zone access, bundle subtype).
+ * A section header states the shared claim once ("Arène du Colisée · 4
+ * offres · À partir de 53 €") and its rows compare inside it — the
+ * Trivago reading, at exactly the claim level the evidence supports.
+ *
+ * The DISPOSITION is the surviving variant axis: same payload, four
+ * dressings — `rows`, `cards`, `table`, and `detailed` (rich), where a
+ * section renders its HERO sheet and folds the alternatives beneath it.
+ *
+ * Density: every disposition folds its tail behind a native <details>
+ * except the table — dense IS its job.
+ */
+import {
+    parseShelvesBlock,
+    sectionLabel,
+    type ParsedShelf,
+    type ParsedShelfSection,
+    type ShelfOffer,
+} from '../../../lib/blocks/ticket-shelves';
+import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
+import { formatDate } from '../../../lib/format';
+import type { PageBlock } from '../../../lib/foundry';
+import TicketShelfRow from './TicketShelfRow.astro';
+import TicketShelfCard from './TicketShelfCard.astro';
+import TicketShelfTable from './TicketShelfTable.astro';
+import TicketShelfDetailed from './TicketShelfDetailed.astro';
+
+interface Props {
+    block: PageBlock;
+    layout?: 'rows' | 'cards' | 'table' | 'detailed';
+}
+
+const { block, layout = 'rows' } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+const t = useTranslations(locale, wording);
+
+const parsed = parseShelvesBlock(block, locale, wording);
+
+/** Rows a section shows before the tail collapses; the detailed hero
+ *  keeps only a couple of visible alternatives under it. */
+const SECTION_ROW_CAP = 6;
+const DETAILED_ALTERNATIVES_VISIBLE = 2;
+
+const BlockHeading = `h${parsed.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
+const ShelfHeading = `h${Math.min(parsed.headingLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
+const SectionHeading = `h${Math.min(parsed.headingLevel + 2, 6)}` as 'h4' | 'h5' | 'h6';
+
+/** Quick picks resolved against the rows they point at; a pick whose
+ *  offer fell out of the page renders nothing. */
+const rowById = new Map<number, ShelfOffer>(
+    parsed.shelves.flatMap((shelf: ParsedShelf) => shelf.offers.map((offer) => [offer.id, offer])),
+);
+const picks = parsed.quickPicks
+    .flatMap((pick) => {
+        const offer = rowById.get(pick.offerId);
+        return offer && pick.slots.length > 0 ? [{ ...pick, offer }] : [];
+    });
+
+/** Slots the dictionaries know; an API-added slot degrades to its bare
+ *  slug instead of leaking a raw translation key path. */
+const KNOWN_PICK_SLOTS = ['recommended', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
+function pickSlotLabel(slot: string): string {
+    return KNOWN_PICK_SLOTS.includes(slot)
+        ? t(`tickets.quickPicks.${slot}` as TranslationKey)
+        : slot;
+}
+
+const pricesCheckedOn = parsed.pricesCheckedAt !== null
+    ? formatDate(parsed.pricesCheckedAt, locale)
+    : null;
+
+/** The cheapest priced offer's formatted price — the section summary's
+ *  "À partir de" value. Null when nothing is priced. */
+function fromPriceText(section: ParsedShelfSection): string | null {
+    const priced = section.offers.filter((offer) => offer.priceEur !== null);
+    if (priced.length === 0) return null;
+    return priced.reduce((a, b) => ((b.priceEur as number) < (a.priceEur as number) ? b : a)).priceText;
+}
+
+function showMoreLabel(count: number): string {
+    return count === 1
+        ? t('tickets.bucket.showMoreOne')
+        : t('tickets.bucket.showMore', { count: String(count) });
+}
+---
+
+{parsed.totalCount > 0 && (
+    <section class="tickets-shelves my-8">
+        <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
+            {parsed.heading}
+        </BlockHeading>
+
+        {parsed.entryIncludedIn && (
+            <p class="my-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                {t('tickets.entryIncludedIn', { name: parsed.entryIncludedIn.name })}
+            </p>
+        )}
+
+        {/* The language ladder (§5): one sentence, composed API-side.
+            Tier 1 is good news and stays quiet; tiers 2 and 3 tell the
+            visitor their language is missing and what to do instead. */}
+        {parsed.languageAdvice?.headline && (
+            <p
+                class={parsed.languageAdvice.tier === 1
+                    ? 'brand-text-muted my-4 text-sm'
+                    : 'brand-border my-4 rounded-md border bg-gray-50 px-4 py-3 text-sm'}
+                data-language-tier={parsed.languageAdvice.tier}
+            >
+                {parsed.languageAdvice.headline}
+            </p>
+        )}
+
+        {picks.length > 0 && (
+            <aside aria-label={t('tickets.quickPicks.title')} class="brand-border my-5 rounded-lg border bg-gray-50 p-4">
+                <p class="brand-text-muted mb-2 text-xs font-semibold uppercase tracking-wider">
+                    {t('tickets.quickPicks.title')}
+                </p>
+                <ul class="space-y-1.5">
+                    {picks.map((pick) => (
+                        <li class="flex flex-wrap items-baseline gap-x-2 text-sm">
+                            <span class="font-semibold" style="color: #1f2937">
+                                {pick.slots.map((slot) => pickSlotLabel(slot)).join(' · ')}
+                            </span>
+                            <a href={`#offer-${pick.offer.id}`} class="brand-text-muted underline decoration-dotted">
+                                {pick.offer.title}
+                            </a>
+                            {pick.offer.priceText && (
+                                <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </aside>
+        )}
+
+        <div class="space-y-10">
+            {parsed.shelves.map((shelf: ParsedShelf) => {
+                const showSectionHeaders = shelf.sections.length > 1;
+                return (
+                    <article aria-labelledby={`tickets-shelf-${shelf.shelf}`}>
+                        <ShelfHeading
+                            id={`tickets-shelf-${shelf.shelf}`}
+                            class="brand-text-primary mb-3 text-lg font-semibold tracking-tight"
+                        >
+                            {t(`tickets.shelf.${shelf.shelf}` as TranslationKey)}
+                            <span class="brand-text-muted ml-1 text-sm font-normal">({shelf.offers.length})</span>
+                        </ShelfHeading>
+
+                        <div class="space-y-6">
+                            {shelf.sections.map((section: ParsedShelfSection) => {
+                                const label = sectionLabel(section, shelf.shelf, t);
+                                const fromPrice = fromPriceText(section);
+                                /* A row only sheds its zone badges when the
+                                   section HEADER states them — a lone
+                                   zoned section renders headerless, and
+                                   stripping the badges there would erase
+                                   the access claim from the page. */
+                                const omitZones = showSectionHeaders ? section.zones : [];
+                                const hero = section.offers[0];
+                                const alternatives = section.offers.slice(1);
+                                const visibleAlternatives = alternatives.slice(0, DETAILED_ALTERNATIVES_VISIBLE);
+                                const foldedAlternatives = alternatives.slice(DETAILED_ALTERNATIVES_VISIBLE);
+                                const visible = section.offers.slice(0, SECTION_ROW_CAP);
+                                const overflow = section.offers.slice(SECTION_ROW_CAP);
+                                return (
+                                    <section>
+                                        {showSectionHeaders && (
+                                            <SectionHeading class="brand-text-primary mb-2 flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
+                                                {label}
+                                                <span class="brand-text-muted font-normal">({section.offers.length})</span>
+                                                {fromPrice && (
+                                                    <span class="brand-text-muted text-xs font-normal">
+                                                        · {t('tickets.card.priceFrom', { price: fromPrice })}
+                                                    </span>
+                                                )}
+                                            </SectionHeading>
+                                        )}
+
+                                        {layout === 'table' ? (
+                                            <TicketShelfTable
+                                                shelf={{ ...shelf, offers: section.offers }}
+                                                settings={parsed.settings}
+                                                omitZones={omitZones}
+                                            />
+                                        ) : layout === 'detailed' ? (
+                                            <>
+                                                <ul>
+                                                    <TicketShelfDetailed
+                                                        offer={hero}
+                                                        shelf={shelf.shelf}
+                                                        settings={parsed.settings}
+                                                        omitZones={omitZones}
+                                                    />
+                                                </ul>
+                                                {alternatives.length > 0 && (
+                                                    <div class="brand-border mt-2 rounded-lg border bg-white">
+                                                        <ul class="divide-y">
+                                                            {visibleAlternatives.map((offer) => (
+                                                                <TicketShelfRow
+                                                                    offer={offer}
+                                                                    shelf={shelf.shelf}
+                                                                    settings={parsed.settings}
+                                                                    omitZones={omitZones}
+                                                                />
+                                                            ))}
+                                                        </ul>
+                                                        {foldedAlternatives.length > 0 && (
+                                                            <details>
+                                                                <summary class="brand-text-muted cursor-pointer list-none border-t px-3 py-2 text-sm underline [&::-webkit-details-marker]:hidden">
+                                                                    {showMoreLabel(foldedAlternatives.length)} ›
+                                                                </summary>
+                                                                <ul class="divide-y border-t">
+                                                                    {foldedAlternatives.map((offer) => (
+                                                                        <TicketShelfRow
+                                                                            offer={offer}
+                                                                            shelf={shelf.shelf}
+                                                                            settings={parsed.settings}
+                                                                            omitZones={omitZones}
+                                                                        />
+                                                                    ))}
+                                                                </ul>
+                                                            </details>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : layout === 'cards' ? (
+                                            <>
+                                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                                    {visible.map((offer) => (
+                                                        <TicketShelfCard
+                                                            offer={offer}
+                                                            shelf={shelf.shelf}
+                                                            settings={parsed.settings}
+                                                            omitZones={omitZones}
+                                                        />
+                                                    ))}
+                                                </ul>
+                                                {overflow.length > 0 && (
+                                                    <details class="mt-3">
+                                                        <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
+                                                            {showMoreLabel(overflow.length)} ›
+                                                        </summary>
+                                                        <ul class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                                            {overflow.map((offer) => (
+                                                                <TicketShelfCard
+                                                                    offer={offer}
+                                                                    shelf={shelf.shelf}
+                                                                    settings={parsed.settings}
+                                                                    omitZones={omitZones}
+                                                                />
+                                                            ))}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ul class="brand-border divide-y rounded-lg border bg-white">
+                                                    {visible.map((offer) => (
+                                                        <TicketShelfRow
+                                                            offer={offer}
+                                                            shelf={shelf.shelf}
+                                                            settings={parsed.settings}
+                                                            omitZones={omitZones}
+                                                        />
+                                                    ))}
+                                                </ul>
+                                                {overflow.length > 0 && (
+                                                    <details class="mt-2">
+                                                        <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
+                                                            {showMoreLabel(overflow.length)} ›
+                                                        </summary>
+                                                        <ul class="brand-border mt-2 divide-y rounded-lg border bg-white">
+                                                            {overflow.map((offer) => (
+                                                                <TicketShelfRow
+                                                                    offer={offer}
+                                                                    shelf={shelf.shelf}
+                                                                    settings={parsed.settings}
+                                                                    omitZones={omitZones}
+                                                                />
+                                                            ))}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </>
+                                        )}
+                                    </section>
+                                );
+                            })}
+                        </div>
+                    </article>
+                );
+            })}
+        </div>
+
+        {pricesCheckedOn && (
+            <p class="brand-text-muted mt-3 text-xs">
+                {t('tickets.compare.pricesUpdated')}{' '}<time datetime={parsed.pricesCheckedAt}>{pricesCheckedOn}</time>
+            </p>
+        )}
+    </section>
+)}

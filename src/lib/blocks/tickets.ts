@@ -777,6 +777,8 @@ interface RawMeta {
         guided_count?: number;
         audio_count?: number;
         ticket_ids?: number[];
+        /** §2bis shelves payload: the advice points at OFFERS. */
+        offer_ids?: number[];
         spoken_languages?: Array<{ code?: string; name?: string; count?: number }>;
         headline?: string | null;
     } | null;
@@ -1052,8 +1054,9 @@ const LANGUAGE_STATES = ['match', 'other', 'undisclosed'] as const;
 
 /** An unrecognised state is dropped rather than guessed: the whole
  *  point of three states is that none of them may stand in for
- *  another. */
-function parseSourceLanguage(raw: RawSource['language']): TicketLanguage | null {
+ *  another. Exported for the shelves parser (`ticket-shelves.ts`),
+ *  which reads the same per-row language block. */
+export function parseSourceLanguage(raw: RawSource['language']): TicketLanguage | null {
     if (!raw || typeof raw !== 'object') {
         return null;
     }
@@ -1073,8 +1076,8 @@ function parseSourceLanguage(raw: RawSource['language']): TicketLanguage | null 
 
 /** A tier outside 1–3 means a payload this renderer does not
  *  understand; painting nothing beats painting a guess about what the
- *  visitor can buy in their language. */
-function parseLanguageAdvice(raw: RawMeta['language_advice']): LanguageAdvice | null {
+ *  visitor can buy in their language. Exported for the shelves parser. */
+export function parseLanguageAdvice(raw: RawMeta['language_advice']): LanguageAdvice | null {
     if (!raw || typeof raw !== 'object') {
         return null;
     }
@@ -1093,9 +1096,16 @@ function parseLanguageAdvice(raw: RawMeta['language_advice']): LanguageAdvice | 
         languageName: raw.language_name,
         guidedCount: typeof raw.guided_count === 'number' ? raw.guided_count : 0,
         audioCount: typeof raw.audio_count === 'number' ? raw.audio_count : 0,
-        ticketIds: Array.isArray(raw.ticket_ids)
-            ? raw.ticket_ids.filter((id): id is number => typeof id === 'number')
-            : [],
+        // The shelves payload (§2bis) points at OFFERS; the two older
+        // shapes pointed at cards. One field, either key — and a
+        // malformed value degrades to empty, never to a build crash.
+        ticketIds: (() => {
+            const ids = raw.offer_ids ?? raw.ticket_ids;
+
+            return Array.isArray(ids)
+                ? ids.filter((id: unknown): id is number => typeof id === 'number')
+                : [];
+        })(),
         spokenLanguages: Array.isArray(raw.spoken_languages)
             ? raw.spoken_languages.flatMap((entry) =>
                 entry && typeof entry.code === 'string' && typeof entry.name === 'string'
