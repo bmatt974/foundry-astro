@@ -221,6 +221,34 @@ test('the highlight and savings verdicts are read off the row, never derived', (
     assert.equal(plain.highlight, null);
 });
 
+test('an unknown language state is dropped, never guessed into another', () => {
+    const parsed = parseShelvesBlock(block([
+        {
+            shelf: 'guided',
+            offers: [
+                offer({ id: 1, language: { state: 'match', badge: 'Guide in English', live: [{ code: 'en', name: 'anglais' }], audio: [] } }),
+                offer({ id: 2, language: { state: 'fluent', badge: 'x' } }),
+                offer({ id: 3, language: 'not-an-object' }),
+            ],
+        },
+    ]), 'fr');
+
+    const [known, unknown, malformed] = parsed.shelves[0].offers;
+    assert.equal(known.language?.state, 'match');
+    assert.equal(known.language?.badge, 'Guide in English');
+    assert.equal(unknown.language, null, 'Three states, and none may stand in for another.');
+    assert.equal(malformed.language, null);
+});
+
+test('a language advice with an unknown tier paints nothing', () => {
+    const parsed = parseShelvesBlock(block(
+        [{ shelf: 'guided', offers: [offer()] }],
+        { language_advice: { tier: 9, language: 'fr', language_name: 'français', headline: 'never shown' } },
+    ), 'fr');
+
+    assert.equal(parsed.languageAdvice, null);
+});
+
 test('the language advice reads offer_ids on the shelves payload', () => {
     const parsed = parseShelvesBlock(block(
         [{ shelf: 'guided', offers: [offer()] }],

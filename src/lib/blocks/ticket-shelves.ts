@@ -3,26 +3,135 @@
  * refactor-offers-groups.md (foundry).
  *
  * A card is one of six fixed categories, its rows are offers already
- * sorted by price server-side. This module is deliberately small where
- * `tickets.ts` is not: there is no bucket machinery, no client-side
- * grouping, no sub-section thresholds. The API decided everything about
- * products; what remains here is defensive parsing and number
+ * sorted by price server-side. There is no bucket machinery, no
+ * client-side grouping, no sub-section thresholds — the API decided
+ * everything about products (ranking, sections, highlight and savings
+ * verdicts); what remains here is defensive parsing and number
  * formatting (prices, ratings, durations — chrome, not content).
  *
- * The legacy parser stays untouched beside this one: pages drafted
- * before the pivot still serve the older shapes until their next
- * re-draft, and the dispatcher picks the parser by payload shape.
+ * This is the ONLY tickets parser: since the dynamic-block chantier the
+ * API composes the shelves payload at serve time for every page, so no
+ * older shape can reach the front any more and the legacy family
+ * (parser + seven variant components) is deleted.
  */
 import type { PageBlock } from '../foundry.ts';
 import { formatDuration, formatPrice, formatRating } from '../format.ts';
-import {
-    parseLanguageAdvice,
-    parseSourceLanguage,
-    type LanguageAdvice,
-    type TicketLanguage,
-    type CoveredPlace,
-} from './tickets.ts';
 import { useTranslations, type TranslationKey } from '../i18n/index.ts';
+
+export interface LanguageName {
+    code: string;
+    name: string;
+}
+
+export interface TicketLanguage {
+    /** The row's state against the page language — one of three, never
+     *  two: collapsing `other` and `undisclosed` is how a page ends up
+     *  claiming "no French tour" on inventory nobody ever asked about. */
+    state: 'match' | 'other' | 'undisclosed';
+    /** API-composed badge ("Guide in English"), printed verbatim. */
+    badge: string | null;
+    live: LanguageName[];
+    audio: LanguageName[];
+}
+
+export interface LanguageAdvice {
+    /** 1 = a guided tour in the page language, 2 = no guide but an
+     *  audio guide in it, 3 = neither. */
+    tier: 1 | 2 | 3;
+    language: string;
+    languageName: string;
+    guidedCount: number;
+    audioCount: number;
+    /** Rows this tier recommends — the tours at tier 1, the
+     *  audio-guided tickets at tier 2. */
+    ticketIds: number[];
+    /** What IS spoken here, commonest first, excluding the visitor's
+     *  own language. Populates the tier-3 sentence. */
+    spokenLanguages: Array<{ code: string; name: string; count: number }>;
+    /** The one API-composed sentence the block prints. */
+    headline: string | null;
+}
+
+export interface CoveredPlace {
+    id: number;
+    name: string;
+    isPrimary: boolean;
+}
+
+const LANGUAGE_STATES = ['match', 'other', 'undisclosed'] as const;
+
+function parseLanguageNames(raw: unknown): LanguageName[] {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    return raw.flatMap((entry) =>
+        entry && typeof entry.code === 'string' && typeof entry.name === 'string'
+            ? [{ code: entry.code, name: entry.name }]
+            : [],
+    );
+}
+
+/** An unrecognised state is dropped rather than guessed: the whole
+ *  point of three states is that none of them may stand in for
+ *  another. */
+export function parseSourceLanguage(raw: unknown): TicketLanguage | null {
+    if (!raw || typeof raw !== 'object') {
+        return null;
+    }
+
+    const entry = raw as Record<string, unknown>;
+    const state = LANGUAGE_STATES.find((candidate) => candidate === entry.state);
+    if (!state) {
+        return null;
+    }
+
+    return {
+        state,
+        badge: typeof entry.badge === 'string' && entry.badge.trim() !== '' ? entry.badge.trim() : null,
+        live: parseLanguageNames(entry.live),
+        audio: parseLanguageNames(entry.audio),
+    };
+}
+
+/** A tier outside 1–3 means a payload this renderer does not
+ *  understand; painting nothing beats painting a guess about what the
+ *  visitor can buy in their language. */
+export function parseLanguageAdvice(raw: unknown): LanguageAdvice | null {
+    if (!raw || typeof raw !== 'object') {
+        return null;
+    }
+
+    const entry = raw as Record<string, unknown>;
+    if (entry.tier !== 1 && entry.tier !== 2 && entry.tier !== 3) {
+        return null;
+    }
+
+    if (typeof entry.language !== 'string' || typeof entry.language_name !== 'string') {
+        return null;
+    }
+
+    const ids = entry.offer_ids ?? entry.ticket_ids;
+
+    return {
+        tier: entry.tier,
+        language: entry.language,
+        languageName: entry.language_name,
+        guidedCount: typeof entry.guided_count === 'number' ? entry.guided_count : 0,
+        audioCount: typeof entry.audio_count === 'number' ? entry.audio_count : 0,
+        ticketIds: Array.isArray(ids)
+            ? ids.filter((id: unknown): id is number => typeof id === 'number')
+            : [],
+        spokenLanguages: Array.isArray(entry.spoken_languages)
+            ? entry.spoken_languages.flatMap((spoken) =>
+                spoken && typeof spoken.code === 'string' && typeof spoken.name === 'string'
+                    ? [{ code: spoken.code, name: spoken.name, count: typeof spoken.count === 'number' ? spoken.count : 0 }]
+                    : [],
+            )
+            : [],
+        headline: typeof entry.headline === 'string' && entry.headline.trim() !== '' ? entry.headline.trim() : null,
+    };
+}
 
 export const SHELF_ORDER = [
     'entry',
@@ -283,7 +392,7 @@ export function parseShelvesBlock(
         quickPicks,
         totalCount,
         entryIncludedIn,
-        languageAdvice: parseLanguageAdvice(meta.language_advice as Parameters<typeof parseLanguageAdvice>[0]),
+        languageAdvice: parseLanguageAdvice(meta.language_advice),
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
     };
 }
@@ -339,7 +448,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         ),
         imageUrl: typeof entry.image_url === 'string' ? entry.image_url : null,
         durationText: floor !== null && ceiling !== null ? `${floor} – ${ceiling}` : floor,
-        language: parseSourceLanguage(entry.language as Parameters<typeof parseSourceLanguage>[0]),
+        language: parseSourceLanguage(entry.language),
         features: Array.isArray(entry.features)
             ? entry.features.filter((f): f is string => typeof f === 'string')
             : [],

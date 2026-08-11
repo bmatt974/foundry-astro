@@ -2,33 +2,18 @@
 /**
  * Tickets — basic theme dispatcher.
  *
- * TWO renderer families, picked by the payload's SHAPE (§2bis of
- * refactor-offers-groups.md):
+ * Since the dynamic-block chantier the API composes the `{meta,
+ * quick_picks, shelves}` payload at SERVE time for every venue page, so
+ * this dispatcher only knows the shelves family. `block.variant` picks
+ * the DISPOSITION inside TicketsShelves: rows (simple/default), cards,
+ * table (also the legacy `compare`), detailed (also the legacy `rich`).
  *
- *   shelves  `{meta, quick_picks, shelves}` — every re-drafted page.
- *            `block.variant` picks the DISPOSITION inside
- *            TicketsShelves: rows (simple/default), cards, table
- *            (also `compare`), detailed (also `rich`).
- *
- *   legacy   `{meta, quick_picks, tickets}` — pages not yet re-drafted
- *            since the pivot. `block.variant` picks the old layouts:
- *            simple / table / compare / offers / rich card grid. This
- *            whole family dies with the dynamic-block chantier once
- *            every page is re-drafted.
+ * A payload without a `shelves` key — a destination page's empty block,
+ * or malformed content — renders nothing rather than a guess.
  */
 import type { PageBlock } from '../../../lib/foundry';
-import { parseTicketsBlock, type ParsedBucket } from '../../../lib/blocks/tickets';
 import { isShelvesPayload } from '../../../lib/blocks/ticket-shelves';
-import { groupBundleTickets } from '../../../lib/tickets/bundle-subgroups';
-import { groupAccessTickets } from '../../../lib/tickets/access-subgroups';
-import { useTranslations } from '../../../lib/i18n/index';
-import TicketCard from './TicketCard.astro';
-import TicketsSimple from './TicketsSimple.astro';
-import TicketsTable from './TicketsTable.astro';
-import TicketsCompare from './TicketsCompare.astro';
-import TicketsOffers from './TicketsOffers.astro';
 import TicketsShelves from './TicketsShelves.astro';
-import TicketsQuickPicks from './TicketsQuickPicks.astro';
 
 interface Props {
     block: PageBlock;
@@ -36,15 +21,6 @@ interface Props {
 
 const { block } = Astro.props;
 
-/* §2bis — the payload SHAPE picks the renderer FAMILY, and the stored
-   variant picks the DISPOSITION within it: `table`/`compare` → the
-   comparison table, `cards` → the card grid, `rich`/`detailed` → the
-   detailed sheets, everything else → compact rows. A re-drafted page
-   ships `shelves` whatever variant its block carries, and the legacy
-   machinery below cannot parse it (it sees no `tickets` key, so its
-   own chrome self-suppresses on zero inventory). Everything the
-   shelves page needs — heading, notes, advice, quick picks — is
-   painted by TicketsShelves itself. */
 const isShelves = isShelvesPayload(block.content);
 const shelfLayout = block.variant === 'table' || block.variant === 'compare'
     ? 'table' as const
@@ -53,246 +29,6 @@ const shelfLayout = block.variant === 'table' || block.variant === 'compare'
         : block.variant === 'rich' || block.variant === 'detailed'
             ? 'detailed' as const
             : 'rows' as const;
-
-const isSimple = !isShelves && block.variant === 'simple';
-const isTable = !isShelves && block.variant === 'table';
-const isCompare = !isShelves && block.variant === 'compare';
-/* Phase 6 — a row is a listing, not a seller. Ships beside `simple`
-   rather than replacing it so both can be read on the same inventory. */
-const isOffers = !isShelves && block.variant === 'offers';
-const isCustomVariant = isSimple || isTable || isCompare || isOffers;
-
-const locale = Astro.locals.locale ?? 'en';
-const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
-const wording = Astro.locals.wording ?? null;
-const t = useTranslations(locale, wording);
-
-// Parsed unconditionally : the rich layout consumes the buckets, and
-// EVERY variant (simple / table / compare included) needs
-// `parsed.quickPicks` for the verdict strip above the comparator.
-// Child variants re-parse internally — pure CPU, acceptable at SSG /
-// dev time.
-const parsed = parseTicketsBlock(block, locale, linkProxyPath, wording);
-const buckets = parsed.buckets;
-const totalCount = parsed.totalCount;
-
-// The "details ↓" anchor targets `id="ticket-{id}"` on each row —
-// shipped by TicketSimpleRow (simple) and TicketCard (rich). Table /
-// compare don't carry per-ticket anchors yet, so their strip stays
-// CTA-only rather than shipping dead links.
-const supportsAnchors = isSimple || isOffers || !isCustomVariant;
-
-/** Drop buckets with zero tickets — keeps the page tight on small
- *  Places where (e.g.) Special access carries nothing yet. */
-const visibleBuckets = buckets.filter((b) => b.tickets.length > 0);
-
-const groupHeaderLabel = t('tickets.filter.groupHeader');
-const experienceHeaderLabel = t('tickets.filter.experienceHeader');
-
-/** Max tickets a bundle sub-group shows before the tail collapses
- *  behind a "Show N more offers" disclosure. */
-const BUNDLE_GROUP_CAP = 6;
-
-/* Block heading — rendered ONCE here (above the entry note and the
- * quick-picks strip) for every variant. The parser always ships a
- * heading when inventory exists : editor `heading_text`, the single
- * narrowed bucket's label, or the i18n default ("Quel billet
- * choisir ?"). Variants no longer paint their own top heading. */
-const BlockHeading = `h${parsed.settings.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
-/* Rich-layout bucket + sub-group headers nest under the block
- * heading : H_(N+1) / H_(N+2). */
-const BucketHeading = `h${Math.min(parsed.settings.headingLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
-const SubGroupHeading = `h${Math.min(parsed.settings.headingLevel + 2, 6)}` as 'h4' | 'h5' | 'h6';
 ---
 
-{parsed.heading !== '' && totalCount > 0 && (
-    <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
-        {parsed.heading}
-    </BlockHeading>
-)}
-
-{parsed.entryIncludedIn && totalCount > 0 && (
-    <p class="my-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        {t('tickets.entryIncludedIn', { name: parsed.entryIncludedIn.name })}
-    </p>
-)}
-
-{/* The language ladder (§5). One sentence, composed API-side: which
-    tier applies is an editorial decision about products, so the front
-    only chooses how loud to be. Tier 1 is good news and stays quiet;
-    tiers 2 and 3 tell the visitor their language is missing and what
-    to do instead, which is the sentence they came for. */}
-{parsed.languageAdvice?.headline && totalCount > 0 && (
-    <p
-        class={parsed.languageAdvice.tier === 1
-            ? 'brand-text-muted my-4 text-sm'
-            : 'brand-border my-4 rounded-md border bg-gray-50 px-4 py-3 text-sm'}
-        data-language-tier={parsed.languageAdvice.tier}
-    >
-        {parsed.languageAdvice.headline}
-    </p>
-)}
-
-<TicketsQuickPicks picks={parsed.quickPicks} settings={parsed.settings} showDetailsAnchor={supportsAnchors} />
-
 {isShelves && <TicketsShelves block={block} layout={shelfLayout} />}
-{isSimple && <TicketsSimple block={block} />}
-{isTable && <TicketsTable block={block} />}
-{isCompare && <TicketsCompare block={block} />}
-{isOffers && <TicketsOffers block={block} />}
-
-{!isCustomVariant && totalCount > 0 && (
-    <section class="my-10 space-y-12">
-        {visibleBuckets.map((bucket: ParsedBucket) => {
-            /* Bundle bucket gets its own sub-axis : the aggregator
-               classifies each ticket as city `card`, `day_trip`,
-               `bus`, `cruise` or `combo`. When the bucket carries ≥ 2
-               sub-types we surface sub-headers ("Pass & cartes",
-               "Bus touristique"...) so a 15-item Passes & Combos
-               list reads as scannable groups instead of a wall of
-               similar-looking cards. Single-subtype buckets render
-               flat (no redundant sub-header above a flat list). */
-            const bundleGroups = bucket.format === 'bundle' ? groupBundleTickets(bucket.tickets) : [];
-            const showBundleSubsections = bundleGroups.length > 1;
-            /* Access bucket gets the same sub-axis treatment :
-               Officiel / Avec audio guide / Coupe-file. Classified
-               server-side from the ticket's feature pivot. */
-            const accessGroups = bucket.format === 'access' ? groupAccessTickets(bucket.tickets) : [];
-            const showAccessSubsections = accessGroups.length > 1;
-            return (
-            <article aria-labelledby={`tickets-bucket-${bucket.format}`}>
-                <header class="mb-5">
-                    <BucketHeading id={`tickets-bucket-${bucket.format}`} class="brand-text-primary text-2xl font-semibold tracking-tight">
-                        {bucket.header}
-                    </BucketHeading>
-                    {parsed?.settings.showFilters && (bucket.groupChips.length > 1 || bucket.experienceChips.length > 1) && (
-                        <div class="mt-3 space-y-2">
-                            {bucket.groupChips.length > 1 && (
-                                <div class="flex flex-wrap items-center gap-2 text-xs">
-                                    <span class="brand-text-muted font-semibold uppercase tracking-wider">{groupHeaderLabel}</span>
-                                    {bucket.groupChips.map((chip) => (
-                                        <span class="brand-border inline-flex items-center gap-1 rounded-full border bg-white px-2.5 py-1">
-                                            {chip.label}
-                                            <span class="brand-text-muted">·</span>
-                                            <span class="brand-text-muted">{chip.count}</span>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            {bucket.experienceChips.length > 1 && (
-                                <div class="flex flex-wrap items-center gap-2 text-xs">
-                                    <span class="brand-text-muted font-semibold uppercase tracking-wider">{experienceHeaderLabel}</span>
-                                    {bucket.experienceChips.map((chip) => (
-                                        <span class="brand-border inline-flex items-center gap-1 rounded-full border bg-white px-2.5 py-1">
-                                            {chip.label}
-                                            <span class="brand-text-muted">·</span>
-                                            <span class="brand-text-muted">{chip.count}</span>
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </header>
-
-                {bucket.format === 'bundle' ? (
-                    /* Bundle bucket sub-axis : Pass & cartes / Excursions /
-                       Bus touristique / Croisières / Combos. Groups are
-                       capped — the tail of an oversized group collapses
-                       behind a native <details> so 13 combos stop owning
-                       the page's scroll. Sub-headers only render when ≥ 2
-                       sub-types survive. */
-                    <div class="space-y-8">
-                        {bundleGroups.map((group) => {
-                            const visibleTickets = group.tickets.slice(0, BUNDLE_GROUP_CAP);
-                            const overflowTickets = group.tickets.slice(BUNDLE_GROUP_CAP);
-                            return (
-                                <section aria-labelledby={showBundleSubsections ? `tickets-sub-${bucket.format}-${group.subtype}` : undefined}>
-                                    {showBundleSubsections && (
-                                        <SubGroupHeading id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                            {t(`tickets.bundleSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                        </SubGroupHeading>
-                                    )}
-                                    <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                        {visibleTickets.map((ticket) => (
-                                            <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                        ))}
-                                    </ul>
-                                    {overflowTickets.length > 0 && (
-                                        <details class="mt-3">
-                                            <summary class="brand-text-muted cursor-pointer list-none text-sm underline [&::-webkit-details-marker]:hidden">
-                                                {overflowTickets.length === 1
-                                                    ? t('tickets.bucket.showMoreOne')
-                                                    : t('tickets.bucket.showMore', { count: String(overflowTickets.length) })} ›
-                                            </summary>
-                                            <ul class="mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                                {overflowTickets.map((ticket) => (
-                                                    <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                                ))}
-                                            </ul>
-                                        </details>
-                                    )}
-                                </section>
-                            );
-                        })}
-                    </div>
-                ) : showAccessSubsections ? (
-                    /* Access bucket sub-axis : Officiel / Avec audio
-                       guide / Coupe-file. */
-                    <div class="space-y-8">
-                        {accessGroups.map((group) => (
-                            <section aria-labelledby={`tickets-sub-${bucket.format}-${group.subtype}`}>
-                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${group.subtype}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {t(`tickets.accessSubtype.${group.subtype}`)} <span class="brand-text-muted ml-1 text-sm font-normal">({group.tickets.length})</span>
-                                </SubGroupHeading>
-                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {group.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                    ))}
-                                </ul>
-                            </section>
-                        ))}
-                    </div>
-                ) : bucket.groupSubsections.length > 0 ? (
-                    <div class="space-y-8">
-                        {bucket.groupSubsections.map((sub) => (
-                            <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
-                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
-                                </SubGroupHeading>
-                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {sub.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                    ))}
-                                </ul>
-                            </section>
-                        ))}
-                    </div>
-                ) : bucket.experienceSubsections.length > 0 ? (
-                    <div class="space-y-8">
-                        {bucket.experienceSubsections.map((sub) => (
-                            <section aria-labelledby={`tickets-sub-${bucket.format}-${sub.slug}`}>
-                                <SubGroupHeading id={`tickets-sub-${bucket.format}-${sub.slug}`} class="brand-text-primary mb-3 text-lg font-semibold">
-                                    {sub.label} <span class="brand-text-muted ml-1 text-sm font-normal">({sub.tickets.length})</span>
-                                </SubGroupHeading>
-                                <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                    {sub.tickets.map((ticket) => (
-                                        <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                                    ))}
-                                </ul>
-                            </section>
-                        ))}
-                    </div>
-                ) : (
-                    <ul class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        {bucket.tickets.map((ticket) => (
-                            <TicketCard ticket={ticket} showPhotos={parsed.settings.showPhotos} />
-                        ))}
-                    </ul>
-                )}
-            </article>
-            );
-        })}
-
-    </section>
-)}

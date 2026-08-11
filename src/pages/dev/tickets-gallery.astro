@@ -65,7 +65,6 @@ const filterFormat = collectMulti('format');
 const filterGroup = collectMulti('group');
 const filterExperience = collectMulti('experience');
 const affiliatePrograms = collectMulti('affiliate_programs');
-const sortBy = params.get('sort_by') ?? 'relevance';
 const providerIndicator = params.get('provider_indicator') ?? 'favicon';
 const quickPicksVariant = ['columns', 'card'].includes(params.get('quick_picks_variant') ?? '')
     ? params.get('quick_picks_variant') as string
@@ -87,18 +86,11 @@ const showReviews = readBoolParam('show_reviews', false);
 const showPhotos = readBoolParam('show_photos', true);
 const showQuickPicks = readBoolParam('show_quick_picks', true);
 const highlightTarget = params.get('highlight_target') ?? 'cheapest';
-const hidePriceOutliers = readBoolParam('hide_price_outliers', false);
 const minReliableReviews = (() => {
     const raw = parseInt(params.get('min_reliable_reviews') ?? '100', 10);
     return Number.isFinite(raw) && raw >= 0 ? raw : 100;
 })();
 const ctaLabel = params.get('cta_label') ?? '';
-const rowLayout = params.get('row_layout') === 'badges_first' ? 'badges_first' : 'rating_first';
-/* stamp_priority is a CSV in the URL — full set or any subset of
-   'best_price', 'best_rated', 'best_value', 'most_reviewed' in
-   editor order. The backend sanitizes against the same allowlist
-   and falls back to the canonical default when empty. */
-const stampPriority = params.get('stamp_priority') ?? '';
 // '' = auto (controller derives from locale via CLDR). Explicit
 // 3-letter codes override the locale default.
 const currency = (params.get('currency') ?? '').toUpperCase();
@@ -113,18 +105,14 @@ if (filterFormat.length) upstream.set('format', filterFormat.join(','));
 if (filterGroup.length) upstream.set('group', filterGroup.join(','));
 if (filterExperience.length) upstream.set('experience', filterExperience.join(','));
 if (affiliatePrograms.length) upstream.set('affiliate_programs', affiliatePrograms.join(','));
-if (sortBy !== 'relevance') upstream.set('sort_by', sortBy);
 if (providerIndicator !== 'favicon') upstream.set('provider_indicator', providerIndicator);
 if (!showProviderArrow) upstream.set('show_provider_arrow', '0');
 if (!showPhotos) upstream.set('show_photos', '0');
 if (priceAsButton) upstream.set('price_as_button', '1');
 if (showReviews) upstream.set('show_reviews', '1');
 if (highlightTarget !== 'cheapest') upstream.set('highlight_target', highlightTarget);
-if (hidePriceOutliers) upstream.set('hide_price_outliers', '1');
 if (minReliableReviews !== 100) upstream.set('min_reliable_reviews', String(minReliableReviews));
 if (ctaLabel.trim() !== '') upstream.set('cta_label', ctaLabel.trim());
-if (rowLayout !== 'rating_first') upstream.set('row_layout', rowLayout);
-if (stampPriority.trim() !== '') upstream.set('stamp_priority', stampPriority.trim());
 if (quickPicksVariant !== 'stacked') upstream.set('quick_picks_variant', quickPicksVariant);
 if (!showQuickPicks) upstream.set('show_quick_picks', '0');
 // Empty currency = "auto" — backend derives from locale via CLDR.
@@ -403,12 +391,6 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <select name="h">
                         {[2, 3, 4, 5].map((lvl) => <option value={String(lvl)} selected={lvl === headingLevel}>{`h${lvl}`}</option>)}
                     </select>
-                    <select name="sort_by">
-                        {['relevance', 'price', 'rating', 'reviews'].map((mode) => <option value={mode} selected={mode === sortBy}>{`sort:${mode}`}</option>)}
-                    </select>
-                    <select name="quick_picks_variant">
-                        {['stacked', 'columns', 'card'].map((mode) => <option value={mode} selected={mode === quickPicksVariant}>{`picks:${mode}`}</option>)}
-                    </select>
                     <input type="hidden" name="show_quick_picks" value="0" />
                     <label class="chip">
                         <input type="checkbox" name="show_quick_picks" value="1" checked={showQuickPicks} />
@@ -443,11 +425,6 @@ function isChecked(slug: string, picked: string[]): boolean {
                     <select name="highlight_target">
                         {['cheapest', 'best_rated', 'none'].map((mode) => <option value={mode} selected={mode === highlightTarget}>{`highlight:${mode}`}</option>)}
                     </select>
-                    <input type="hidden" name="hide_price_outliers" value="0" />
-                    <label class="chip">
-                        <input type="checkbox" name="hide_price_outliers" value="1" checked={hidePriceOutliers} />
-                        hide outliers
-                    </label>
                     <label class="inline-flex items-center gap-1 text-xs">
                         <span>min reviews</span>
                         <input
@@ -466,17 +443,6 @@ function isChecked(slug: string, picked: string[]): boolean {
                         value={ctaLabel}
                         placeholder="CTA (Voir l'offre)"
                         size="14"
-                    />
-                    <select name="row_layout">
-                        {['rating_first', 'badges_first'].map((mode) => <option value={mode} selected={mode === rowLayout}>{`row:${mode}`}</option>)}
-                    </select>
-                    <input
-                        type="text"
-                        name="stamp_priority"
-                        value={stampPriority}
-                        placeholder="stamp_priority (CSV)"
-                        size="32"
-                        title="best_price,best_value,best_rated,most_reviewed — leave empty for default. Drop a slug to disable it."
                     />
                 </div>
                 <span class="meta">
