@@ -39,8 +39,11 @@ const { block, layout = 'rows' } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
+/* Per-site anti-footprint prefix for the /go/ worker — the API ships
+   click ids, the SITE picks the path they cloak under. */
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 
-const parsed = parseShelvesBlock(block, locale, wording);
+const parsed = parseShelvesBlock(block, locale, wording, linkProxyPath);
 
 /** Rows a section shows before the tail collapses; the detailed hero
  *  keeps only a couple of visible alternatives under it. */

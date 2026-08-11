@@ -269,3 +269,19 @@ test('the language advice reads offer_ids on the shelves payload', () => {
     assert.equal(parsed.languageAdvice?.tier, 2);
     assert.deepEqual(parsed.languageAdvice?.ticketIds, [10]);
 });
+
+test('a live click id cloaks the href behind the per-site proxy path', () => {
+    const parsed = parseShelvesBlock(block([
+        {
+            shelf: 'entry',
+            offers: [
+                offer({ id: 1, click_id: 'abc123def456' }),
+                offer({ id: 2, click_id: null }),
+            ],
+        },
+    ]), 'fr', null, 'visite');
+
+    const [cloaked, naked] = parsed.shelves[0].offers;
+    assert.equal(cloaked.href, '/visite/abc123def456', 'The cloaked handle wins over the partner URL.');
+    assert.equal(naked.href, 'https://example.test/x', 'No live link: the naked partner URL is the honest fallback.');
+});

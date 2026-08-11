@@ -307,6 +307,7 @@ export function parseShelvesBlock(
     block: PageBlock,
     locale: string,
     wording: Record<string, string> | null = null,
+    linkProxyPath: string = 'go',
 ): ParsedShelves {
     const t = useTranslations(locale, wording);
     const content = (block.content ?? {}) as Record<string, unknown>;
@@ -331,7 +332,7 @@ export function parseShelvesBlock(
                 if (!entry || typeof entry !== 'object') return [];
                 const section = entry as Record<string, unknown>;
                 const offers = (Array.isArray(section.offers) ? section.offers : [])
-                    .flatMap((offer) => buildOffer(offer, locale, reviewsSuffix));
+                    .flatMap((offer) => buildOffer(offer, locale, reviewsSuffix, linkProxyPath));
 
                 return offers.length > 0
                     ? [{
@@ -397,7 +398,7 @@ export function parseShelvesBlock(
     };
 }
 
-function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined): ShelfOffer[] {
+function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {
     if (!raw || typeof raw !== 'object') return [];
     const entry = raw as Record<string, unknown>;
 
@@ -431,7 +432,13 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         providerFaviconPath: typeof entry.provider_favicon_path === 'string' ? entry.provider_favicon_path : null,
         providerLogoPath: typeof entry.provider_logo_path === 'string' ? entry.provider_logo_path : null,
         providerBrandColor: typeof entry.provider_brand_color === 'string' ? entry.provider_brand_color : null,
-        href: typeof entry.partner_url === 'string' && entry.partner_url !== '' ? entry.partner_url : null,
+        // The cloaked /{proxy}/{click_id} wins when the API shipped a
+        // live click id; the naked partner URL is the fallback, never
+        // the preference (anti-footprint: the per-site worker owns the
+        // real target).
+        href: typeof entry.click_id === 'string' && entry.click_id !== ''
+            ? `/${linkProxyPath}/${entry.click_id}`
+            : (typeof entry.partner_url === 'string' && entry.partner_url !== '' ? entry.partner_url : null),
         priceEur,
         priceText: formatPrice(priceEur, locale),
         originalPriceEur,
