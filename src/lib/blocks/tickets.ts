@@ -229,6 +229,11 @@ export interface TicketSource {
      *  null when the API didn't ship one (older payloads). */
     title: string | null;
     priceText: string | null;
+    /** The same amount as a number, in EUR. `priceText` is already
+     *  formatted and locale-dependent ("1 234,00 €"), so a renderer that
+     *  needs to ORDER rows cannot use it — and one that parses it back is
+     *  guessing at a thousands separator. */
+    priceEur: number | null;
     ratingText: string | null;
     imageUrl: string | null;
     /** Raw rating + review count straight from the source payload —
@@ -1028,6 +1033,7 @@ function buildSource(raw: RawSource, locale: string, linkProxyPath: string, revi
         href: resolveSourceHref(raw, linkProxyPath),
         title: typeof raw.raw_title === 'string' && raw.raw_title.trim() !== '' ? raw.raw_title.trim() : null,
         priceText: formatPrice(raw.price_eur ?? null, locale),
+        priceEur: typeof raw.price_eur === 'number' ? raw.price_eur : null,
         ratingText: formatRating(raw.rating ?? null, raw.review_count ?? null, locale, reviewsSuffix),
         imageUrl: raw.image_url ?? null,
         rating: typeof raw.rating === 'number' ? raw.rating : null,
