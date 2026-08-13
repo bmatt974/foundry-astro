@@ -140,6 +140,10 @@ export const SHELF_ORDER = [
     'small_group',
     'private',
     'pass_combo',
+    // The demoted coverage group — offers the API could not PROVE to
+    // include the venue's entry (bus tours, city passes, exterior
+    // walks). Always last; carries no comparative highlights.
+    'around_visit',
 ] as const;
 
 export type TicketShelfSlug = (typeof SHELF_ORDER)[number];

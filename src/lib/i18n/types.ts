@@ -108,7 +108,9 @@ export interface Dictionary {
         };
         /** The 6 fixed shelves of the §2bis pivot — card headers.
          *  Stable slugs shipped by the payload; every tourist activity
-         *  fits one of them. */
+         *  fits one of them. `around_visit` is the demoted group the
+         *  API ships for offers whose venue-entry inclusion is not
+         *  proven (bus tours, city passes, exterior walks). */
         shelf: {
             entry: string;
             audio_guided: string;
@@ -116,6 +118,7 @@ export interface Dictionary {
             small_group: string;
             private: string;
             pass_combo: string;
+            around_visit: string;
         };
         /** Shelf section chrome — the declination sub-headers. Zone
          *  sections print the API's zone names verbatim; this labels

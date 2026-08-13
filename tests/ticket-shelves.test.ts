@@ -65,6 +65,19 @@ test('an unknown shelf slug is dropped, never guessed into a category', () => {
     assert.deepEqual(parsed.shelves.map((s) => s.shelf), ['private']);
 });
 
+test('the around_visit demotion group parses like any shelf', () => {
+    // The API demotes offers whose venue-entry inclusion is unproven
+    // (bus tours, city passes) into this group — the front renders it
+    // under its own header, after the ticket shelves.
+    const parsed = parseShelvesBlock(block([
+        { shelf: 'entry', offers: [offer({ id: 1 })] },
+        { shelf: 'around_visit', offers: [offer({ id: 9, title: 'Bus turistic' })] },
+    ]), 'fr');
+
+    assert.deepEqual(parsed.shelves.map((s) => s.shelf), ['entry', 'around_visit']);
+    assert.equal(parsed.shelves[1].offers[0].title, 'Bus turistic');
+});
+
 test('a row without an id or a title is skipped rather than invented', () => {
     const parsed = parseShelvesBlock(block([
         { shelf: 'guided', offers: [offer({ id: undefined }), offer({ title: '   ' }), offer({ id: 7 })] },

@@ -53,6 +53,7 @@ const en: Dictionary = {
             small_group: 'Small-group tours',
             private: 'Private tours',
             pass_combo: 'Passes & Combos',
+            around_visit: 'Around the visit — no entry ticket',
         },
         shelfSection: {
             classic: 'Classic visit',
