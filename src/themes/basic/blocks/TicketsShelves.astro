@@ -118,7 +118,7 @@ function showMoreLabel(count: number): string {
 ---
 
 {parsed.totalCount > 0 && (
-    <section class="tickets-shelves my-8">
+    <section id="tickets" class="tickets-shelves my-8">
         {itemListJson && <script type="application/ld+json" is:inline set:html={itemListJson} />}
         <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
             {parsed.heading}
