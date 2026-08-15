@@ -331,4 +331,19 @@ export interface Dictionary {
             wheelchair_accessible: string;
         };
     };
+    /** Visitor-facing header chips on place pages — labels for the
+     *  API-composed `visitor_header` slugs (dumb-front contract: the
+     *  API decides the facts, these localize the chrome). */
+    visitorHeader: {
+        /** :from / :to are preformatted durations. */
+        duration: string;
+        reservation: string;
+        transitKind: {
+            metro_station: string;
+            train_station: string;
+            tram_stop: string;
+        };
+        directions: string;
+        mapTitle: string;
+    };
 }

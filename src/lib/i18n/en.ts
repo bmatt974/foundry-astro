@@ -167,6 +167,17 @@ const en: Dictionary = {
             wheelchair_accessible: 'Wheelchair accessible',
         },
     },
+    visitorHeader: {
+        duration: 'Plan :from – :to',
+        reservation: 'Booking ahead strongly recommended',
+        transitKind: {
+            metro_station: 'metro',
+            train_station: 'train station',
+            tram_stop: 'tram',
+        },
+        directions: 'Directions',
+        mapTitle: 'Map',
+    },
 };
 
 export default en;

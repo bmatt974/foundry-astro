@@ -20,6 +20,7 @@ import PageFooter from './components/PageFooter.astro';
 import PageHeader from './components/PageHeader.astro';
 import PageNav from './components/PageNav.astro';
 import SourceableInfo from './components/SourceableInfo.astro';
+import VisitorHeader from './components/VisitorHeader.astro';
 import Toc from './components/Toc.astro';
 import { pickLayout } from '../../lib/themes/page-sections';
 
@@ -87,7 +88,12 @@ const showBio = bioSettings.show && (
         case 'toc':
             return <Toc blocks={page.blocks} />;
         case 'sourceable_info':
-            return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
+            // Place pages with API-composed visitor chips get the
+            // visitor header (chips + click-to-load map); everything
+            // else keeps the classic infobox.
+            return page.sourceable?.type === 'place' && page.sourceable.visitor_header
+                ? <VisitorHeader sourceable={page.sourceable} locale={locale} />
+                : <SourceableInfo sourceable={page.sourceable} locale={locale} />;
         case 'page_blocks':
             return <PageBlocks blocks={page.blocks} />;
         case 'author_bio':

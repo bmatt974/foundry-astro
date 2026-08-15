@@ -98,6 +98,14 @@ export type Sourceable =
           country_code: string | null;
           website: string | null;
           cover_image: string | null;
+          /** Visitor-facing header chips, composed by the API — the
+           *  front renders slugs, never derives facts. */
+          visitor_header?: {
+              location?: { city: string | null; country: string | null };
+              transit?: { name: string; kind: string };
+              duration_minutes?: { from: number; to: number };
+              reservation?: { advice: string; yes_share: number };
+          } | null;
       }
     | {
           type: 'destination_country';

@@ -47,7 +47,9 @@ const fr: Dictionary = {
             immersive: 'Expérience immersive',
         },
         shelf: {
-            entry: 'Entrée libre',
+            // NOT « Entrée libre » — that means free admission in
+            // French, and this shelf sells paid tickets.
+            entry: 'Billet d’entrée',
             audio_guided: 'Entrée + audioguide',
             guided: 'Visite guidée',
             small_group: 'Visite en petit groupe',
@@ -166,6 +168,17 @@ const fr: Dictionary = {
             meal_included: 'Repas inclus',
             wheelchair_accessible: 'Accessible PMR',
         },
+    },
+    visitorHeader: {
+        duration: 'Prévoir :from – :to',
+        reservation: 'Réservation fortement recommandée',
+        transitKind: {
+            metro_station: 'métro',
+            train_station: 'gare',
+            tram_stop: 'tram',
+        },
+        directions: 'Itinéraire',
+        mapTitle: 'Carte',
     },
 };
 

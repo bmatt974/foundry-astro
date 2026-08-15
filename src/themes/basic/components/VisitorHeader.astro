@@ -1,0 +1,90 @@
+---
+/**
+ * Visitor-facing header strip for place pages — replaces the raw
+ * Type / Country / Coordinates infobox with the facts a visitor
+ * planning the trip actually asks for.
+ *
+ * Dumb-front contract: every fact comes composed by the API in
+ * `sourceable.visitor_header` (deterministic aggregation — city
+ * pivot, nearest transit stop by GPS, offer-duration percentiles,
+ * Google-review TTD tally). This component only localizes chrome.
+ *
+ * Icons are inline stroke SVGs (16px, currentColor) — platform emoji
+ * render inconsistently and clash with the themes.
+ */
+import type { Sourceable } from '../../../lib/foundry';
+import { formatDuration } from '../../../lib/format';
+import { useTranslations } from '../../../lib/i18n';
+import { pickVisitorIcons } from '../../../lib/themes/visitor-icons';
+
+interface Props {
+    sourceable: Extract<Sourceable, { type: 'place' }>;
+    locale: string;
+    wording?: Record<string, string>;
+}
+
+const { sourceable, locale, wording } = Astro.props;
+const t = useTranslations(locale, wording);
+
+const header = sourceable.visitor_header ?? null;
+
+// Seeded per website — identical inline SVG markup across the network
+// is a grep-able cross-site signature — with an optional CMS pin
+// (`theme_config.icon_set`) when the admin wants a specific kit.
+const website = Astro.locals.tenant.website;
+const { strokeWidth, glyphs: ICONS } = pickVisitorIcons(
+    website.slug,
+    typeof website.theme_config.icon_set === 'string' ? website.theme_config.icon_set : null,
+);
+
+const chips: { icon: string; text: string }[] = [];
+
+if (header?.location) {
+    const text = [header.location.city, header.location.country].filter(Boolean).join(', ');
+    if (text !== '') chips.push({ icon: ICONS.pin, text });
+}
+if (header?.transit) {
+    const kind = t(`visitorHeader.transitKind.${header.transit.kind}` as Parameters<typeof t>[0]);
+    // "Gare de Blois (gare)" — a name that already says what it is
+    // never gets the parenthetical.
+    const nameSaysKind = /gare|station|m[ée]tro|tram/i.test(header.transit.name);
+    const kindLabel = kind.startsWith('visitorHeader.') || nameSaysKind ? '' : ` (${kind})`;
+    chips.push({ icon: ICONS.transit, text: `${header.transit.name}${kindLabel}` });
+}
+if (header?.duration_minutes) {
+    chips.push({
+        icon: ICONS.clock,
+        text: t('visitorHeader.duration', {
+            from: formatDuration(header.duration_minutes.from, locale),
+            to: formatDuration(header.duration_minutes.to, locale),
+        }),
+    });
+}
+if (header?.reservation?.advice === 'book_ahead') {
+    chips.push({ icon: ICONS.ticket, text: t('visitorHeader.reservation') });
+}
+---
+
+{chips.length > 0 && (
+    <aside class="brand-border my-8 rounded-lg border bg-gray-50 px-5 py-4">
+        <ul class="flex flex-wrap gap-x-6 gap-y-2.5 text-sm">
+            {chips.map((chip) => (
+                <li class="flex items-center gap-2">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width={strokeWidth}
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="brand-text-muted h-4 w-4 shrink-0 text-gray-400"
+                        aria-hidden="true"
+                    >
+                        <path d={chip.icon} />
+                    </svg>
+                    <span>{chip.text}</span>
+                </li>
+            ))}
+        </ul>
+    </aside>
+)}
