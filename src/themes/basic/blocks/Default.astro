@@ -19,7 +19,10 @@ const { block } = Astro.props;
         Unsupported block type: <code>{block.block_type}</code>
         {block.cluster_block_key && <> (<code>{block.cluster_block_key}</code>)</>}
     </p>
-    <pre class="overflow-x-auto text-xs text-amber-900">{JSON.stringify(block.content, null, 2)}</pre>
+    <details>
+        <summary class="text-xs font-medium text-amber-700">Show raw payload</summary>
+        <pre class="overflow-x-auto text-xs text-amber-900">{JSON.stringify(block.content, null, 2)}</pre>
+    </details>
     {block.children.length > 0 && (
         <p class="mt-2 text-xs text-amber-700">
             …and {block.children.length} nested children
