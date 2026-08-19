@@ -8,12 +8,14 @@ interface Props {
 }
 
 const { block } = Astro.props;
-const { title, body, anchorId } = parseText(block);
+const { title, body, anchorId, bodyHeadingIds } = parseText(block);
 ---
 
-<article class="wp-block-group wp-block-group--text">
-    {title && (
-        <h2 id={anchorId} class="wp-block-heading">{title}</h2>
-    )}
-    <Markdown text={body} />
-</article>
+{(title || body) && (
+    <article class="wp-block-group wp-block-group--text">
+        {title && (
+            <h2 id={anchorId} class="wp-block-heading">{title}</h2>
+        )}
+        <Markdown text={body} headingIds={bodyHeadingIds} />
+    </article>
+)}

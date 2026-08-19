@@ -3,7 +3,7 @@ import type { PageBlock } from '../../../lib/foundry';
 import { parseComparison } from '../../../lib/blocks/comparison';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { formatDate, formatRelativeDate } from '../../../lib/format';
-import { slugify } from '../../../lib/toc';
+import { anchorIdFor } from '../../../lib/toc';
 
 interface Props {
     block: PageBlock;
@@ -25,7 +25,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
 
 {rows.length > 0 && (
     <section class="wp-block-group wp-block-group--comparison">
-        {heading && <h2 id={slugify(heading)} class="wp-block-heading">{heading}</h2>}
+        {heading && <h2 id={anchorIdFor(block, heading)} class="wp-block-heading">{heading}</h2>}
 
         <figure class="wp-block-table wp-block-comparison-table">
             <table>

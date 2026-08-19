@@ -8,12 +8,14 @@ interface Props {
 }
 
 const { block } = Astro.props;
-const { title, body, anchorId } = parseText(block);
+const { title, body, anchorId, bodyHeadingIds } = parseText(block);
 ---
 
-<section class="my-4">
-    {title && (
-        <h2 id={anchorId} class="h3 mb-3">{title}</h2>
-    )}
-    <Markdown text={body} />
-</section>
+{(title || body) && (
+    <section class="my-4">
+        {title && (
+            <h2 id={anchorId} class="h3 mb-3">{title}</h2>
+        )}
+        <Markdown text={body} headingIds={bodyHeadingIds} />
+    </section>
+)}

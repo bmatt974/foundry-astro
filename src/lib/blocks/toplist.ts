@@ -7,7 +7,7 @@
  * pattern.
  */
 import type { PageBlock } from '../foundry';
-import { slugify } from '../toc';
+import { anchorIdFor } from '../toc';
 
 export interface TopListItem {
     name: string;
@@ -64,7 +64,7 @@ export function parseTopList(block: PageBlock): TopListContent {
     return {
         heading,
         items,
-        anchorId: heading ? slugify(heading) : undefined,
+        anchorId: heading ? anchorIdFor(block, heading) : undefined,
     };
 }
 

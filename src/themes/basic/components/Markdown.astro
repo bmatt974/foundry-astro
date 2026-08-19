@@ -9,17 +9,22 @@
  * the default `prose` typography is too large.
  */
 import { basicMarked } from '../lib/markdown-renderer';
+import { applyAssignedHeadingIds } from '../../../lib/toc';
 
 interface Props {
     text: string | null | undefined;
+    /** Page-walk-assigned ids for the h2/h3 in `text`, in order.
+     *  Omitted (FAQ answers, key-facts prose): ids are stripped —
+     *  every id on the page must come from the single page walk. */
+    headingIds?: string[];
     size?: 'sm' | 'base' | 'lg';
     class?: string;
 }
 
-const { text, size = 'base', class: className = '' } = Astro.props;
+const { text, size = 'base', headingIds, class: className = '' } = Astro.props;
 
 const proseSize = size === 'base' ? '' : `prose-${size}`;
-const html = text ? (basicMarked.parse(text, { async: false }) as string) : '';
+const html = text ? applyAssignedHeadingIds(basicMarked.parse(text, { async: false }) as string, headingIds) : '';
 ---
 
 {html && (

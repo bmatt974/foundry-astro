@@ -9,17 +9,18 @@ interface Props {
 }
 
 const { block } = Astro.props;
-const { title, body, anchorId, hasChildren } = parseSection(block);
+const { title, body, anchorId, bodyHeadingIds, hasChildren } = parseSection(block);
 ---
-
-<section class="block block--type-section">
-    {title && (
-        <h2 id={anchorId} class="block__title">{title}</h2>
-    )}
-    {body && <Markdown text={body} />}
-    {hasChildren && (
-        <div class="block--type-section__children">
-            {block.children.map((child) => <Block block={child} />)}
-        </div>
-    )}
-</section>
+{(title || body || hasChildren) && (
+    <section class="block block--type-section">
+        {title && (
+            <h2 id={anchorId} class="block__title">{title}</h2>
+        )}
+        {body && <Markdown text={body} headingIds={bodyHeadingIds} />}
+        {hasChildren && (
+            <div class="block--type-section__children">
+                {block.children.map((child) => <Block block={child} />)}
+            </div>
+        )}
+    </section>
+)}

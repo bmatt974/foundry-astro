@@ -4,13 +4,15 @@
  * CMS-authentic shape.
  */
 import type { PageBlock } from '../foundry';
-import { slugify } from '../toc';
+import { anchorIdFor, headingIdsFor } from '../toc';
 
 export interface TextContent {
     title?: string;
     body?: string;
     /** Anchor id for jump-link navigation. Derived from the title. */
     anchorId?: string;
+    /** Page-walk-assigned ids for the body's own h2/h3, in order. */
+    bodyHeadingIds?: string[];
 }
 
 export function parseText(block: PageBlock): TextContent {
@@ -18,9 +20,12 @@ export function parseText(block: PageBlock): TextContent {
     const title = typeof content.title === 'string' && content.title !== '' ? content.title : undefined;
     const body = typeof content.body === 'string' && content.body !== '' ? content.body : undefined;
 
+    const assigned = headingIdsFor(block);
+
     return {
         title,
         body,
-        anchorId: title ? slugify(title) : undefined,
+        anchorId: title ? anchorIdFor(block, title) : undefined,
+        bodyHeadingIds: assigned?.bodyIds,
     };
 }

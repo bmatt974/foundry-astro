@@ -5,7 +5,7 @@
  * html5up `<details>`, etc.).
  */
 import type { PageBlock } from '../foundry';
-import { slugify } from '../toc';
+import { anchorIdFor } from '../toc';
 
 export interface FaqItem {
     question: string;
@@ -41,6 +41,6 @@ export function parseFaq(block: PageBlock): FaqContent {
     return {
         title,
         items,
-        anchorId: title ? slugify(title) : undefined,
+        anchorId: title ? anchorIdFor(block, title) : undefined,
     };
 }

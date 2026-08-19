@@ -1,9 +1,9 @@
 /**
  * Markdown renderer for the basic theme — plain `marked` output
  * (`<p>`, `<h2>`, `<ul>` …) styled by Tailwind's `prose` plugin in
- * the Markdown component, with auto-generated `id` attributes on
- * `<h2>` / `<h3>` so the page-level TOC component can anchor to
- * each heading.
+ * the Markdown component, Heading ids are stamped AFTER render by
+ * `applyAssignedHeadingIds` (Markdown.astro) from the single page
+ * walk — the renderer itself emits bare tags.
  *
  * Lives as a per-theme `Marked` instance (not the global singleton)
  * so other themes installing their own renderer overrides on their
@@ -11,7 +11,5 @@
  * `new Marked()` per request.
  */
 import { Marked } from 'marked';
-import { installHeadingIdRenderer } from '../../../lib/toc.ts';
 
 export const basicMarked = new Marked({ gfm: true, breaks: false });
-installHeadingIdRenderer(basicMarked);

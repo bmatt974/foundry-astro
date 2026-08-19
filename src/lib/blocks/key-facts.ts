@@ -5,7 +5,7 @@
  * group, html5up `.box`, etc.).
  */
 import type { PageBlock } from '../foundry';
-import { slugify } from '../toc';
+import { anchorIdFor } from '../toc';
 
 export interface KeyFact {
     label: string;
@@ -53,6 +53,6 @@ export function parseKeyFacts(block: PageBlock): KeyFactsContent {
         title,
         facts,
         freeForm,
-        anchorId: title ? slugify(title) : undefined,
+        anchorId: title ? anchorIdFor(block, title) : undefined,
     };
 }

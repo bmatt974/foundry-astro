@@ -3,12 +3,14 @@
  * no Astro markup. Each theme's `Section.astro` imports from here.
  */
 import type { PageBlock } from '../foundry';
-import { slugify } from '../toc';
+import { anchorIdFor, headingIdsFor } from '../toc';
 
 export interface SectionContent {
     title?: string;
     body?: string;
     anchorId?: string;
+    /** Page-walk-assigned ids for the body's own h2/h3, in order. */
+    bodyHeadingIds?: string[];
     hasChildren: boolean;
 }
 
@@ -20,7 +22,8 @@ export function parseSection(block: PageBlock): SectionContent {
     return {
         title,
         body,
-        anchorId: title ? slugify(title) : undefined,
+        anchorId: title ? anchorIdFor(block, title) : undefined,
+        bodyHeadingIds: headingIdsFor(block)?.bodyIds,
         hasChildren: block.children.length > 0,
     };
 }

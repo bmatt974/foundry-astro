@@ -6,16 +6,21 @@
  * WordPress block-editor class names.
  */
 import { wpMarked } from '../lib/markdown-renderer';
+import { applyAssignedHeadingIds } from '../../../lib/toc';
 
 interface Props {
     text: string | null | undefined;
+    /** Page-walk-assigned ids for the h2/h3 in `text`, in order.
+     *  Omitted (FAQ answers, key-facts prose): ids are stripped —
+     *  every id on the page must come from the single page walk. */
+    headingIds?: string[];
     /** Compat with the basic theme — ignored here, kept so the contract matches. */
     size?: 'sm' | 'base' | 'lg';
     class?: string;
 }
 
-const { text, class: className = '' } = Astro.props;
-const html = text ? (wpMarked.parse(text, { async: false }) as string) : '';
+const { text, headingIds, class: className = '' } = Astro.props;
+const html = text ? applyAssignedHeadingIds(wpMarked.parse(text, { async: false }) as string, headingIds) : '';
 ---
 
 {html && <div class:list={['wp-block-post-content', className]} set:html={html} />}

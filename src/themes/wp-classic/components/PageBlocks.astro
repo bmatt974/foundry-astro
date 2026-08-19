@@ -1,5 +1,6 @@
 ---
 import type { PageBlock } from '../../../lib/foundry';
+import { extractHeadingsFromBlocks } from '../../../lib/toc';
 import Block from './Block.astro';
 
 interface Props {
@@ -7,6 +8,11 @@ interface Props {
 }
 
 const { blocks } = Astro.props;
+
+// The page walk that assigns every heading id — page-wide unique,
+// remembered per block (`headingIdsFor`). Run HERE, not only in the
+// TOC: the TOC is absent on some layouts, the ids never are.
+extractHeadingsFromBlocks(blocks);
 ---
 
 {blocks.length > 0 ? (

@@ -10,7 +10,5 @@
  * Module-scoped instance so `new Marked()` isn't called per request.
  */
 import { Marked } from 'marked';
-import { installHeadingIdRenderer } from '../../../lib/toc.ts';
 
 export const drupalMarked = new Marked({ gfm: true });
-installHeadingIdRenderer(drupalMarked);

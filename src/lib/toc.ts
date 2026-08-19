@@ -16,7 +16,7 @@
  * Eiffel SERPs, absent from tier-3 ones. This module is the
  * implementation backing that gap.
  */
-import type { Marked } from 'marked';
+import { Lexer } from 'marked';
 
 export interface Heading {
     /** 2 for h2, 3 for h3. We don't surface h4+ in the TOC. */
@@ -48,8 +48,6 @@ export function slugify(input: string): string {
         .replace(/-+/g, '-');
 }
 
-const HEADING_RE = /^(#{2,3})\s+(.+?)\s*$/gm;
-
 /**
  * Walk a markdown string and pull out the h2 / h3 headings in order.
  * The same slug strategy is applied here as in the marked renderer,
@@ -66,28 +64,126 @@ const HEADING_RE = /^(#{2,3})\s+(.+?)\s*$/gm;
  * The marked renderer applies the same disambiguation so the
  * mapping holds.
  */
-export function extractHeadings(markdown: string): Heading[] {
+/**
+ * Raw h2/h3 scan, no slugs — slug assignment is the caller's scope.
+ *
+ * Uses marked's OWN lexer so the walk sees exactly the headings the
+ * renderer will emit — a regex on `^##` missed setext headings
+ * (`Text\n---` renders as an h2) and blockquoted ones, so the ids
+ * zipped onto the rendered HTML were one heading off.
+ */
+function scanHeadings(markdown: string): Array<{ level: 2 | 3; text: string }> {
     if (!markdown) {
         return [];
     }
 
-    const headings: Heading[] = [];
-    const slugCounts = new Map<string, number>();
+    const out: Array<{ level: 2 | 3; text: string }> = [];
+    collectHeadingTokens(Lexer.lex(markdown), out);
 
-    for (const match of markdown.matchAll(HEADING_RE)) {
-        const level = match[1].length as 2 | 3;
-        const text = match[2].replace(/\*\*|__|`/g, '').trim();
-        if (!text) {
-            continue;
+    return out;
+}
+
+/** Depth-first over block tokens — the renderer's emission order. */
+function collectHeadingTokens(
+    tokens: ReadonlyArray<Record<string, unknown>>,
+    out: Array<{ level: 2 | 3; text: string }>,
+): void {
+    for (const token of tokens) {
+        if (token.type === 'heading' && (token.depth === 2 || token.depth === 3)) {
+            const text = String(token.text ?? '').replace(/\*\*|__|`/g, '').trim();
+            if (text) {
+                out.push({ level: token.depth as 2 | 3, text });
+            }
+            continue; // a heading's own tokens are inline, never h2/h3
         }
-        const baseSlug = slugify(text);
-        const count = slugCounts.get(baseSlug) ?? 0;
-        const slug = count === 0 ? baseSlug : `${baseSlug}-${count + 1}`;
-        slugCounts.set(baseSlug, count + 1);
-        headings.push({ level, text, slug });
+        if (Array.isArray(token.tokens)) {
+            collectHeadingTokens(token.tokens, out);
+        }
+        if (Array.isArray(token.items)) {
+            for (const item of token.items) {
+                if (Array.isArray((item as Record<string, unknown>).tokens)) {
+                    collectHeadingTokens((item as Record<string, unknown>).tokens as [], out);
+                }
+            }
+        }
     }
+}
 
-    return headings;
+/**
+ * Duplicate-slug disambiguation with one scope per instance: the
+ * first "tickets" keeps the bare slug, the next becomes "tickets-2".
+ * `extractHeadings` scopes it to one markdown body; the page walk in
+ * `extractHeadingsFromBlocks` scopes it to the WHOLE page, which is
+ * what makes ids unique across blocks.
+ */
+class SlugRegistry {
+    private counts = new Map<string, number>();
+
+    claim(text: string): string {
+        const base = slugify(text);
+        const count = this.counts.get(base) ?? 0;
+        this.counts.set(base, count + 1);
+
+        return count === 0 ? base : `${base}-${count + 1}`;
+    }
+}
+
+/** Heading ids assigned to one block by the page walk, in DOM order. */
+export interface BlockHeadingIds {
+    /** id of the h2 the block component renders from `content.title`. */
+    titleId?: string;
+    /** ids of the h2/h3 inside the markdown body, in document order. */
+    bodyIds: string[];
+}
+
+/**
+ * Ids assigned by the latest page walk, keyed by block object
+ * identity. A WeakMap because block objects live for one request:
+ * the assignment must follow them, never outlive them.
+ */
+const assignedIds = new WeakMap<object, BlockHeadingIds>();
+
+/**
+ * The ids `extractHeadingsFromBlocks` assigned to this block, or
+ * undefined when no page walk has run (isolated component render).
+ * Block parse helpers fall back to bare `slugify(title)` in that
+ * case — same slug, minus the page-wide disambiguation.
+ */
+export function headingIdsFor(block: object): BlockHeadingIds | undefined {
+    return assignedIds.get(block);
+}
+
+/**
+ * The anchor a block component must stamp on its title h2: the
+ * page-walk id when one was assigned, else the bare slug (isolated
+ * renders). ONE home for the fallback policy — it was copied across
+ * nine parse helpers and components before this.
+ */
+export function anchorIdFor(block: object, title: string): string {
+    return headingIdsFor(block)?.titleId ?? slugify(title);
+}
+
+/**
+ * Re-stamp the heading ids marked rendered with the ids the page
+ * walk assigned, in document order. With no assigned list (markdown
+ * outside the TOC walk: FAQ answers, key-facts prose) the ids are
+ * STRIPPED — every id on the page must come from the single walk,
+ * or two independent stampings will eventually collide.
+ */
+export function applyAssignedHeadingIds(html: string, ids?: string[]): string {
+    let index = 0;
+
+    // Attribute-safe: matches `<h2>`, `<h2 class="wp-block-heading">`
+    // and any legacy id-carrying shape — the previous pattern assumed
+    // `id` was the FIRST attribute and silently skipped wp-classic's
+    // headings, leaving that theme with a second stamping authority.
+    return html.replace(/<h([23])\b([^>]*)>/g, (_, level: string, attrs: string) => {
+        const id = ids?.[index];
+        index += 1;
+        const rest = attrs.replace(/\s*id="[^"]*"/, '');
+
+        return id ? `<h${level}${rest} id="${id}">` : `<h${level}${rest}>`;
+    });
 }
 
 /**
@@ -117,87 +213,65 @@ const BODY_BLOCK_TYPES = new Set(['text', 'section', 'summary']);
  *  2. Headings inside the block's markdown body → rendered through
  *     marked, where the renderer hook stamps matching ids.
  *
- * No cross-block slug disambiguation: a block-level slug comes from
- * `slugify(title)` and the block component stamps the same slug as
- * its `<h2 id>`. If two blocks happen to share the same title, both
- * get the same id and the TOC link jumps to the first one — rare in
- * practice on affiliate pages.
+ * Slug disambiguation is PAGE-WIDE: one registry covers block titles
+ * and body headings together, so a body h3 restating its block title
+ * ("Le Colisée" twice on the Colosseum page) gets `-2` instead of a
+ * duplicate id. The per-block assignment is remembered (see
+ * `headingIdsFor`) so the block components and the Markdown renderer
+ * stamp exactly the ids the TOC links to.
  */
+const walkCache = new WeakMap<object, Heading[]>();
+
 export function extractHeadingsFromBlocks(
     blocks: ReadonlyArray<{ block_type: string; content: Record<string, unknown> | null }>,
 ): Heading[] {
+    // Toc.astro and PageBlocks.astro both walk the SAME page.blocks
+    // reference each request; the second walk would recompute an
+    // identical assignment. Identity-keyed on purpose: a re-mapped
+    // array is a different page state and deserves a fresh walk.
+    const cached = walkCache.get(blocks as object);
+    if (cached) {
+        return cached;
+    }
+
     const out: Heading[] = [];
+    const registry = new SlugRegistry();
 
     for (const block of blocks) {
+        const ids: BlockHeadingIds = { bodyIds: [] };
+
+        let title: unknown;
         if (TITLE_BLOCK_TYPES.has(block.block_type)) {
-            const title = block.content?.title;
-            if (typeof title === 'string' && title.trim() !== '') {
-                out.push({ level: 2, text: title.trim(), slug: slugify(title) });
-            }
+            title = block.content?.title;
         }
         // Comparison + toplist blocks read their H2 from `content.title`
-        // (Comparison.astro / TopList.astro both anchor on it). Read it
-        // here so the TOC entry matches the rendered heading. Legacy
+        // (Comparison.astro / TopList.astro both anchor on it). Legacy
         // payloads with `content.heading` are honoured as a fallback so
         // older builds keep linking correctly.
         if (block.block_type === 'comparison' || block.block_type === 'top_list') {
-            const heading = block.content?.title ?? block.content?.heading;
-            if (typeof heading === 'string' && heading.trim() !== '') {
-                out.push({ level: 2, text: heading.trim(), slug: slugify(heading) });
-            }
+            title = block.content?.title ?? block.content?.heading;
         }
+        if (typeof title === 'string' && title.trim() !== '') {
+            ids.titleId = registry.claim(title.trim());
+            out.push({ level: 2, text: title.trim(), slug: ids.titleId });
+        }
+
         if (BODY_BLOCK_TYPES.has(block.block_type)) {
             const body = block.content?.body;
             if (typeof body === 'string' && body !== '') {
-                out.push(...extractHeadings(body));
+                for (const { level, text } of scanHeadings(body)) {
+                    const slug = registry.claim(text);
+                    ids.bodyIds.push(slug);
+                    out.push({ level, text, slug });
+                }
             }
         }
+
+        assignedIds.set(block, ids);
     }
+
+    walkCache.set(blocks as object, out);
 
     return out;
 }
 
-/**
- * Marked renderer hook that stamps the same slug onto rendered
- * heading tags. Themes that want TOC anchors install this via
- * `marked.use({ renderer })`.
- *
- * The hook tracks per-instance slug counts in a module-scope map
- * keyed by the marked instance. This is necessary because marked
- * itself doesn't expose a parse-scope state hook — the closure
- * resets when `installHeadingIdRenderer` is called again.
- */
-export function installHeadingIdRenderer(marked: Marked): void {
-    const slugCounts = new Map<string, number>();
-
-    marked.use({
-        // Reset per parse() invocation via a hook on the start.
-        hooks: {
-            preprocess(markdown: string) {
-                slugCounts.clear();
-                return markdown;
-            },
-        },
-        renderer: {
-            heading({ tokens, depth }) {
-                const text = this.parser.parseInline(tokens);
-                // Only h2/h3 surface in the TOC — leave h1 and h4+
-                // alone to avoid clashing with the page-level h1 and
-                // to keep marked output minimal where it doesn't
-                // matter for navigation.
-                if (depth !== 2 && depth !== 3) {
-                    return `<h${depth}>${text}</h${depth}>\n`;
-                }
-                // Strip HTML tags from the rendered inline before
-                // slugging so a heading like "**Bold**" produces a
-                // clean 'bold' slug.
-                const plain = text.replace(/<[^>]+>/g, '').trim();
-                const baseSlug = slugify(plain);
-                const count = slugCounts.get(baseSlug) ?? 0;
-                const slug = count === 0 ? baseSlug : `${baseSlug}-${count + 1}`;
-                slugCounts.set(baseSlug, count + 1);
-                return `<h${depth} id="${slug}">${text}</h${depth}>\n`;
-            },
-        },
-    });
-}

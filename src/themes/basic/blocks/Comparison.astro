@@ -16,7 +16,7 @@ import { parseComparison } from '../../../lib/blocks/comparison';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { formatDate, formatRelativeDate } from '../../../lib/format';
 import { imageSrcset, imageUrl } from '../../../lib/image';
-import { slugify } from '../../../lib/toc';
+import { anchorIdFor } from '../../../lib/toc';
 
 interface Props {
     block: PageBlock;
@@ -39,7 +39,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
 {rows.length > 0 && (
     <section class="my-10">
         {heading && (
-            <h2 id={slugify(heading)} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
+            <h2 id={anchorIdFor(block, heading)} class="brand-text-primary mb-5 text-2xl font-semibold tracking-tight">
                 {heading}
             </h2>
         )}

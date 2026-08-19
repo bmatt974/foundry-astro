@@ -10,15 +10,20 @@
  * and basic.
  */
 import { drupalMarked } from '../lib/markdown-renderer';
+import { applyAssignedHeadingIds } from '../../../lib/toc';
 
 interface Props {
     text: string | null | undefined;
+    /** Page-walk-assigned ids for the h2/h3 in `text`, in order.
+     *  Omitted (FAQ answers, key-facts prose): ids are stripped —
+     *  every id on the page must come from the single page walk. */
+    headingIds?: string[];
     size?: 'sm' | 'base' | 'lg';
     class?: string;
 }
 
-const { text, class: className = '' } = Astro.props;
-const html = text ? (drupalMarked.parse(text, { async: false }) as string) : '';
+const { text, headingIds, class: className = '' } = Astro.props;
+const html = text ? applyAssignedHeadingIds(drupalMarked.parse(text, { async: false }) as string, headingIds) : '';
 ---
 
 {html && <div class:list={['text-formatted', className]} set:html={html} />}
