@@ -1,0 +1,37 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import { parseGallery } from '../../../lib/blocks/image';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const images = parseGallery(block);
+---
+
+{images.length > 0 && (
+    <div class="block block--type-gallery field field--type-image field--multiple">
+        {images.map((image) => (
+            <div class="field__item">
+                <img
+                    src={image.src}
+                    srcset={image.srcset ?? undefined}
+                    sizes="(max-width: 768px) 50vw, 360px"
+                    alt={image.alt}
+                    width={image.width ?? undefined}
+                    height={image.height ?? undefined}
+                    loading="lazy"
+                    decoding="async"
+                    typeof="foaf:Image"
+                />
+                {(image.caption || image.credit) && (
+                    <div class="field__caption">
+                        {image.caption}
+                        {image.credit && <span class="field__credit"> ({image.credit})</span>}
+                    </div>
+                )}
+            </div>
+        ))}
+    </div>
+)}

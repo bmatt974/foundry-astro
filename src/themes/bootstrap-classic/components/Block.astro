@@ -17,6 +17,8 @@ import Cta from '../blocks/Cta.astro';
 import Comparison from '../blocks/Comparison.astro';
 import Section from '../blocks/Section.astro';
 import TopList from '../blocks/TopList.astro';
+import Image from '../blocks/Image.astro';
+import Gallery from '../blocks/Gallery.astro';
 import Default from '../blocks/Default.astro';
 
 interface Props {
@@ -34,6 +36,8 @@ const blockComponents: Partial<Record<string, any>> = {
     section: Section,
     top_list: TopList,
     comparison: Comparison,
+    image: Image,
+    gallery: Gallery,
 };
 
 const Component = blockComponents[block.block_type] ?? Default;

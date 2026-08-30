@@ -1,0 +1,36 @@
+---
+import type { PageBlock } from '../../../lib/foundry';
+import { parseGallery } from '../../../lib/blocks/image';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const images = parseGallery(block);
+---
+
+{images.length > 0 && (
+    <figure class="wp-block-gallery has-nested-images columns-3 is-cropped">
+        {images.map((image) => (
+            <figure class="wp-block-image size-medium">
+                <img
+                    src={image.src}
+                    srcset={image.srcset ?? undefined}
+                    sizes="(max-width: 780px) 50vw, 250px"
+                    alt={image.alt}
+                    width={image.width ?? undefined}
+                    height={image.height ?? undefined}
+                    loading="lazy"
+                    decoding="async"
+                />
+                {(image.caption || image.credit) && (
+                    <figcaption class="wp-element-caption">
+                        {image.caption}
+                        {image.credit && <em> — {image.credit}</em>}
+                    </figcaption>
+                )}
+            </figure>
+        ))}
+    </figure>
+)}

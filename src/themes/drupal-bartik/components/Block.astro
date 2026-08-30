@@ -7,6 +7,8 @@
 import type { PageBlock } from '../../../lib/foundry';
 import Comparison from '../blocks/Comparison.astro';
 import Cta from '../blocks/Cta.astro';
+import Image from '../blocks/Image.astro';
+import Gallery from '../blocks/Gallery.astro';
 import Default from '../blocks/Default.astro';
 import Faq from '../blocks/Faq.astro';
 import KeyFacts from '../blocks/KeyFacts.astro';
@@ -29,6 +31,8 @@ const blockComponents: Partial<Record<string, any>> = {
     section: Section,
     top_list: TopList,
     comparison: Comparison,
+    image: Image,
+    gallery: Gallery,
 };
 
 const Component = blockComponents[block.block_type] ?? Default;
