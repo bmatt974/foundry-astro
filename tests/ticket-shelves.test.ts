@@ -283,18 +283,37 @@ test('the language advice reads offer_ids on the shelves payload', () => {
     assert.deepEqual(parsed.languageAdvice?.ticketIds, [10]);
 });
 
-test('a live click id cloaks the href behind the per-site proxy path', () => {
+test('a live link code cloaks the href behind the per-site proxy path', () => {
     const parsed = parseShelvesBlock(block([
         {
             shelf: 'entry',
             offers: [
-                offer({ id: 1, click_id: 'abc123def456' }),
-                offer({ id: 2, click_id: null }),
+                offer({ id: 1, code: 'abc123def456' }),
+                offer({ id: 2, code: null }),
             ],
         },
     ]), 'fr', null, 'visite');
 
     const [cloaked, naked] = parsed.shelves[0].offers;
-    assert.equal(cloaked.href, '/visite/abc123def456', 'The cloaked handle wins over the partner URL.');
+    assert.equal(cloaked.href, '/visite/abc123def456?p=ticket_shelf', 'The cloaked handle wins over the partner URL.');
     assert.equal(naked.href, 'https://example.test/x', 'No live link: the naked partner URL is the honest fallback.');
+});
+
+test('frozen translations still shipping click_id keep their cloaked href', () => {
+    // Published payloads drafted before the `code` rename carry the
+    // same value under the old key until their next re-draft — the
+    // renderer honours both, `code` winning when a payload has both.
+    const parsed = parseShelvesBlock(block([
+        {
+            shelf: 'entry',
+            offers: [
+                offer({ id: 1, click_id: 'abc123def456' }),
+                offer({ id: 2, code: 'newcode00001', click_id: 'oldcode00001' }),
+            ],
+        },
+    ]), 'fr', null, 'visite');
+
+    const [legacy, both] = parsed.shelves[0].offers;
+    assert.equal(legacy.href, '/visite/abc123def456?p=ticket_shelf');
+    assert.equal(both.href, '/visite/newcode00001?p=ticket_shelf', 'code wins over click_id');
 });

@@ -1,125 +1,154 @@
 /**
  * Affiliate-click redirector. Dispatched from `src/middleware.ts`
  * when the incoming URL matches an allow-listed prefix (see
- * `AFFILIATE_PROXY_PREFIXES` below). The middleware-only routing
- * keeps the affiliate dispatch in one place — no per-prefix page
- * route file needed — and means adding a localised prefix later
- * (`voir`, `infos`, `visite`, …) is a one-line change to the
- * allow-list.
+ * `lib/affiliate-prefixes.ts` — shared with `astro.config.mjs` so the
+ * Cloudflare `_routes.json` can never drift from this matcher). The
+ * middleware-only routing keeps the affiliate dispatch in one place —
+ * no per-prefix page route file needed.
  *
- * The function reads the per-site `links.json` shipped at
- * `public/_data/links.json`, looks up the click_id, applies geo-
- * routing based on the visitor's country (from whichever header
- * the current Astro adapter exposes), 302s to the resolved
- * partner URL, and fires a fire-and-forget beacon to the Foundry
- * collector before returning.
+ * Flow per click: load the per-site `links.json` (stale-while-error,
+ * see `loadLinkMap`) → look up the immutable public `code` → resolve
+ * the visitor's country (CDN headers first, local GeoIP db as the
+ * self-hosted fallback) → pick the geo target → mint the click ULID →
+ * inject it as the partner `{subid}` → fire the collector beacon →
+ * 302. The `?p=` placement param feeds the beacon only — it is NEVER
+ * forwarded to the partner, whose Location is built solely from the
+ * link map's URL.
  *
  * `Referrer-Policy: origin` on the 302 ensures the partner only
- * sees the site's origin in `Referer`, not the `/{prefix}/{id}`
+ * sees the site's origin in `Referer`, not the `/{prefix}/{code}`
  * path. `Cache-Control: no-store` keeps the 302 from being cached
- * along the way — every click goes through the worker, not a
- * cached redirect.
+ * along the way — every click goes through the worker (each must
+ * mint its own subid), not a cached redirect.
  */
 import {
+    generateClickUlid,
     getVisitorCountry,
+    injectSubId,
     loadLinkMap,
+    parsePlacement,
     parseRefererHost,
+    parseRefererPath,
     parseUaFamily,
     pickTarget,
     sendClickEvent,
 } from './affiliate.ts';
+import { isAffiliateProxyPrefix } from './affiliate-prefixes.ts';
+import { lookupCountry, parseClientIp } from './geoip.ts';
 
 /**
- * Path segments that route to the affiliate redirector. Each is
- * one of the values `LinkProxyPath` in the CMS picks per website
- * — the middleware accepts any so a single site's HTML uses one
- * of them, but the worker can resolve clicks for any prefix
- * (useful when an editor changes the website's `link_proxy_path`
- * mid-deploy: in-flight cached pages with the old prefix still
- * work).
- *
- * Add localised variants here (`voir`, `infos`, `visite`,
- * `sortir`, `aller` for French; `ver`, `detalles`, `enlace` for
- * Spanish; …) when the CMS enum gains them.
- */
-export const AFFILIATE_PROXY_PREFIXES = new Set([
-    'view',
-    'details',
-    'info',
-    'visit',
-    'out',
-    'go',
-] as const);
-
-/**
- * Extract `(prefix, id)` from a URL pathname when it matches the
+ * Extract `(prefix, code)` from a URL pathname when it matches the
  * affiliate redirect shape — exactly two path segments, the first
  * being an allow-listed prefix.
  *
  * Returns null on every other URL shape so the middleware can fall
  * through to the normal page routing.
  */
-export function matchAffiliateClickPath(pathname: string): { prefix: string; id: string } | null {
+export function matchAffiliateClickPath(pathname: string): { prefix: string; code: string } | null {
     const segments = pathname.split('/').filter(Boolean);
     if (segments.length !== 2) {
         return null;
     }
-    const [prefix, id] = segments;
-    if (!AFFILIATE_PROXY_PREFIXES.has(prefix as never)) {
+    const [prefix, code] = segments;
+    if (!isAffiliateProxyPrefix(prefix)) {
         return null;
     }
-    if (!id || id.length === 0) {
+    if (!code || code.length === 0) {
         return null;
     }
-    return { prefix, id };
+    return { prefix, code };
 }
 
 /**
  * Resolve a single click and produce the redirect Response.
  * Caller (middleware) has already matched the URL shape via
- * `matchAffiliateClickPath` and knows it has a valid `id`.
+ * `matchAffiliateClickPath` and knows it has a valid `code`.
+ *
+ * `clientAddress` feeds the GeoIP fallback on self-hosted Node
+ * (adapters may throw on access, so the middleware passes it
+ * pre-caught). `waitUntil` is Cloudflare's `ctx.waitUntil` — REQUIRED
+ * there: without it the runtime may cancel the beacon fetch the
+ * moment the 302 returns, silently dropping the click row.
  */
 export async function redirectClick(args: {
-    id: string;
+    code: string;
     request: Request;
     origin: string;
+    clientAddress?: string | null;
+    waitUntil?: ((promise: Promise<unknown>) => void) | null;
 }): Promise<Response> {
-    const { id, request, origin } = args;
+    const { code, request, origin, clientAddress, waitUntil } = args;
 
     const linkMap = await loadLinkMap(origin);
     if (!linkMap) {
         return new Response('Link map unavailable', { status: 503 });
     }
 
-    const entry = linkMap.links[id];
+    const entry = linkMap.links[code];
     if (!entry) {
         return new Response('Not found', { status: 404 });
     }
 
-    const country = getVisitorCountry(request.headers);
+    let country = getVisitorCountry(request.headers);
+    if (!country) {
+        country = await lookupCountry(parseClientIp(request.headers, clientAddress));
+    }
     const target = pickTarget(entry, country);
 
-    const collectorUrl = import.meta.env.FOUNDRY_API_URL
-        ? `${import.meta.env.FOUNDRY_API_URL}/events/clicks`
-        : null;
+    // One ULID per click — the subid the partner echoes back at
+    // conversion time IS the click's PK in Foundry, so the value in
+    // the Location header and the one in the beacon must be the same
+    // string, minted exactly once.
+    const clickId = generateClickUlid();
+    const location = injectSubId(target.url, clickId);
+
+    const collectorUrl = resolveCollectorUrl();
     if (collectorUrl) {
-        sendClickEvent(collectorUrl, {
-            click_id: id,
+        const beacon = sendClickEvent(collectorUrl, {
+            code,
+            click_id: clickId,
             website_id: linkMap.site.id,
-            platform_id: target.platform_id,
+            account_id: target.account_id ?? null,
+            placement: parsePlacement(safeSearchParam(request.url, 'p')),
             country,
             ua_family: parseUaFamily(request.headers.get('user-agent')),
             referer_host: parseRefererHost(request.headers.get('referer')),
+            referer_path: parseRefererPath(request.headers.get('referer')),
             geo_rule_idx: target.geo_rule_idx,
         }).catch(() => { /* fire-and-forget */ });
+        if (waitUntil) {
+            waitUntil(beacon);
+        }
     }
 
     return new Response(null, {
         status: 302,
         headers: {
-            Location: target.url,
+            Location: location,
             'Referrer-Policy': 'origin',
             'Cache-Control': 'no-store',
         },
     });
+}
+
+/**
+ * `import.meta.env` is Vite's channel (populated in builds and dev);
+ * `process.env` is the fallback for plain-Node contexts (node:test
+ * runs these modules with types stripped, no Vite involved). The
+ * optional chain keeps the module loadable in both.
+ */
+function resolveCollectorUrl(): string | null {
+    const apiBase = import.meta.env?.FOUNDRY_API_URL
+        ?? (typeof process !== 'undefined' ? process.env.FOUNDRY_API_URL : undefined);
+    return apiBase ? `${apiBase}/events/clicks` : null;
+}
+
+/** Read one query param off a request URL without ever throwing —
+ *  adapters occasionally hand over surprising `request.url` values. */
+function safeSearchParam(url: string, name: string): string | null {
+    try {
+        return new URL(url).searchParams.get(name);
+    } catch {
+        return null;
+    }
 }

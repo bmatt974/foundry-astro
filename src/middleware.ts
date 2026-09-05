@@ -47,15 +47,38 @@ async function resolveHost(host: string): Promise<TenantResolution | null> {
 export const onRequest = defineMiddleware(async (context, next) => {
     // Affiliate click dispatcher — short-circuits before any tenant
     // resolution so a click never pays for a CMS round-trip. Matches
-    // `/{prefix}/{id}` where prefix is in the allow-list (see
-    // `AFFILIATE_PROXY_PREFIXES` in lib/affiliate-redirect.ts).
-    // Anything else falls through to the normal page routing.
+    // `/{prefix}/{code}` where prefix is in the allow-list (see
+    // lib/affiliate-prefixes.ts). Anything else falls through to the
+    // normal page routing.
     const affiliateMatch = matchAffiliateClickPath(context.url.pathname);
     if (affiliateMatch) {
+        // `clientAddress` feeds the GeoIP fallback on self-hosted
+        // Node; some adapters throw when the socket address is
+        // unavailable (prerender contexts, exotic runtimes), and a
+        // click must never 500 over analytics enrichment.
+        let clientAddress: string | null = null;
+        try {
+            clientAddress = context.clientAddress;
+        } catch {
+            // Adapter can't provide it — geo falls back to headers only.
+        }
+
+        // Cloudflare's `ctx.waitUntil` keeps the collector beacon
+        // alive after the 302 returns — without it the runtime may
+        // cancel the in-flight fetch. Absent everywhere else
+        // (Node keeps the event loop alive on its own).
+        const runtime = (context.locals as {
+            runtime?: { ctx?: { waitUntil?: (promise: Promise<unknown>) => void } };
+        }).runtime;
+        const cfCtx = runtime?.ctx;
+        const waitUntil = cfCtx?.waitUntil ? cfCtx.waitUntil.bind(cfCtx) : null;
+
         return redirectClick({
-            id: affiliateMatch.id,
+            code: affiliateMatch.code,
             request: context.request,
             origin: context.url.origin,
+            clientAddress,
+            waitUntil,
         });
     }
 

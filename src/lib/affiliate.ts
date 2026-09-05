@@ -1,12 +1,13 @@
 /**
- * Affiliate-link resolver helpers used by `src/pages/go/[id].ts`.
+ * Affiliate-link resolver helpers used by `lib/affiliate-redirect.ts`.
  *
  * The `links.json` file is produced per-site by Foundry's
- * `affiliate:export-link-map {slug}` artisan command (see CMS-side
- * LinkMapBuilder) and deployed alongside the static bundle at
- * `public/_data/links.json`. The /go endpoint reads it same-origin,
- * matches the `click_id` segment, applies geo routing if present,
- * and 302s to the resolved partner URL.
+ * `affiliate:push-link-maps` artisan command (see CMS-side
+ * LinkMapBuilder / LinkMapPublisher) and served same-origin at
+ * `/_data/links.json`. The redirect endpoint reads it, matches the
+ * public `code` segment, applies geo routing if present, mints the
+ * click ULID, injects it as the partner subid, and 302s to the
+ * resolved partner URL.
  *
  * Same-origin storage is what keeps the affiliate stack adapter-
  * agnostic: any provider that serves static files plus a thin SSR
@@ -15,11 +16,14 @@
  */
 
 export interface LinkTarget {
-    /** Foundry platform id used to resolve this URL — surfaced to the
-     *  collector so the dashboard can pivot by program/platform. */
-    platform_id: number | null;
-    /** Fully resolved deep link (template placeholders already filled
-     *  per-site at LinkMapBuilder time). */
+    /** Foundry affiliate account id used to resolve this URL —
+     *  surfaced to the collector so the dashboard can pivot by
+     *  program/account. Optional: v1 maps carried `platform_id`
+     *  instead, which this consumer deliberately ignores. */
+    account_id?: number | null;
+    /** Fully resolved deep link, template placeholders already filled
+     *  per-site at LinkMapBuilder time — except `{subid}`, which the
+     *  redirector fills per click (see `injectSubId`). */
     url: string;
 }
 
@@ -34,44 +38,144 @@ export interface LinkEntry {
 }
 
 export interface LinkMap {
-    generated_at: string;
+    /** 2 for maps keyed by `code` with `account_id` targets. Absent on
+     *  legacy v1 maps — tolerated, the shared fields still resolve. */
+    version?: number;
+    generated_at?: string;
     site: { slug: string; id: number };
     links: Record<string, LinkEntry>;
 }
 
 /**
- * Module-scope cache so a hot click path doesn't re-fetch the JSON
- * on every request. 60s TTL — enough to absorb traffic spikes after
- * a fresh deploy without going stale longer than one cron cycle.
+ * Stale-while-error cache. One map per Node worker; the file is small
+ * and the CDN cache absorbs the load, so N independent caches in a
+ * multi-worker deploy are fine.
  *
- * Stored per Node worker, so a multi-worker deploy keeps N
- * independent caches — fine, the file is small and the underlying
- * CDN cache absorbs the load anyway.
+ *   - fresh (< 60s): served without a network round-trip;
+ *   - expired: one refresh attempt — on failure the LAST VALID map
+ *     keeps being served and refreshes pause for 15s (a broken deploy
+ *     or a CDN hiccup must not turn every click into a 503);
+ *   - cold start with no valid map: null → caller answers 503, retry
+ *     also throttled to one attempt per 15s.
  */
-let cachedMap: { data: LinkMap; expiresAt: number } | null = null;
+let cached: { data: LinkMap; freshUntil: number } | null = null;
+let retryAt = 0;
+
 const CACHE_TTL_MS = 60_000;
+const RETRY_AFTER_ERROR_MS = 15_000;
 
 export async function loadLinkMap(origin: string): Promise<LinkMap | null> {
-    if (cachedMap && cachedMap.expiresAt > Date.now()) {
-        return cachedMap.data;
+    const now = Date.now();
+    if (cached && cached.freshUntil > now) {
+        return cached.data;
+    }
+    if (retryAt > now) {
+        return cached?.data ?? null;
     }
 
     try {
         const r = await fetch(`${origin}/_data/links.json`, { cache: 'no-store' });
         if (!r.ok) {
-            return null;
+            throw new Error(`links.json returned ${r.status}`);
         }
-        const data = (await r.json()) as LinkMap;
-        cachedMap = { data, expiresAt: Date.now() + CACHE_TTL_MS };
+        const data = parseLinkMap(await r.json());
+        cached = { data, freshUntil: now + CACHE_TTL_MS };
+        retryAt = 0;
         return data;
     } catch {
-        return null;
+        retryAt = now + RETRY_AFTER_ERROR_MS;
+        return cached?.data ?? null;
     }
+}
+
+/**
+ * Minimal shape validation — a response that is not a plausible link
+ * map (error page cached by a proxy, truncated JSON, …) must never
+ * clobber the last valid map, so it throws into the stale-while-error
+ * path above. Unknown extra fields pass through untouched: the map is
+ * produced by a newer backend more often than this worker redeploys.
+ */
+function parseLinkMap(raw: unknown): LinkMap {
+    if (!raw || typeof raw !== 'object') {
+        throw new Error('link map: not an object');
+    }
+    const map = raw as Record<string, unknown>;
+    const site = map.site as { id?: unknown } | undefined;
+    if (!site || typeof site !== 'object' || typeof site.id !== 'number') {
+        throw new Error('link map: missing site.id');
+    }
+    if (Array.isArray(map.links)) {
+        // Legacy exports spelled an empty links set `[]` (PHP array
+        // json_encode). Zero links is a VALID map — every code answers
+        // 404, not 503 — so accept it as the empty object.
+        if (map.links.length > 0) {
+            throw new Error('link map: links must be an object');
+        }
+        map.links = {};
+    }
+    if (!map.links || typeof map.links !== 'object') {
+        throw new Error('link map: missing links object');
+    }
+    for (const [code, entry] of Object.entries(map.links as Record<string, unknown>)) {
+        assertLinkEntry(code, entry);
+    }
+    return raw as LinkMap;
+}
+
+/**
+ * Entry-shape guard for `parseLinkMap`: only what the redirector
+ * consumes is checked (`default.url`; per geo_rule, `match` + `url`),
+ * unknown fields pass untouched. One malformed entry rejects the WHOLE
+ * payload — a half-written links.json must fail the refresh (the
+ * stale-while-error cache keeps the last good map) rather than replace
+ * it and start throwing inside `injectSubId` at click time.
+ */
+function assertLinkEntry(code: string, entry: unknown): void {
+    if (!entry || typeof entry !== 'object') {
+        throw new Error(`link map: entry ${code} is not an object`);
+    }
+    const { default: fallback, geo_rules: geoRules } = entry as {
+        default?: unknown;
+        geo_rules?: unknown;
+    };
+    if (!isLinkTarget(fallback)) {
+        throw new Error(`link map: entry ${code} lacks a default.url`);
+    }
+    if (geoRules == null) {
+        return;
+    }
+    if (!Array.isArray(geoRules)) {
+        throw new Error(`link map: entry ${code} geo_rules is not an array`);
+    }
+    for (const rule of geoRules) {
+        if (!isLinkTarget(rule) || !Array.isArray((rule as { match?: unknown }).match)) {
+            throw new Error(`link map: entry ${code} has a malformed geo_rule`);
+        }
+    }
+}
+
+/** A target is usable iff it carries a non-empty string `url`. */
+function isLinkTarget(target: unknown): boolean {
+    if (!target || typeof target !== 'object') {
+        return false;
+    }
+    const url = (target as { url?: unknown }).url;
+    return typeof url === 'string' && url.length > 0;
 }
 
 /** Test-only — drops the in-memory cache so each test starts clean. */
 export function __resetLinkMapCache(): void {
-    cachedMap = null;
+    cached = null;
+    retryAt = 0;
+}
+
+/** Test-only — expires the cached map (keeps its data) so the next
+ *  call attempts a refresh, exercising the stale-while-error path. */
+export function __expireLinkMapCache(): void {
+    if (cached) {
+        cached.freshUntil = 0;
+    }
+    retryAt = 0;
 }
 
 /**
@@ -85,7 +189,8 @@ export function __resetLinkMapCache(): void {
  *   AWS CloudFront / Lambda@Edge: cloudfront-viewer-country
  *
  * Returns the uppercase ISO 3166-1 alpha-2 code, or null when the
- * platform exposes nothing (dev, self-hosted, weird proxy stack).
+ * platform exposes nothing (dev, self-hosted, weird proxy stack) —
+ * the caller may then fall back to the local GeoIP db (lib/geoip.ts).
  */
 export function getVisitorCountry(headers: Headers): string | null {
     const candidates = [
@@ -126,6 +231,105 @@ export function pickTarget(entry: LinkEntry, country: string | null): ResolvedTa
         }
     }
     return { ...entry.default, geo_rule_idx: -1 };
+}
+
+const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/**
+ * Mint the click id — a spec-compliant ULID (48-bit millisecond
+ * timestamp + 80 bits of CSPRNG randomness, Crockford base32, 26
+ * uppercase chars). This exact string is the click's PK in Foundry
+ * AND the subid the partner echoes back at conversion time, which is
+ * what lets Phase 3 join conversions to clicks with zero mapping
+ * tables. Must satisfy Laravel's `Str::isUlid()`:
+ * `/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i`.
+ *
+ * `globalThis.crypto` is available on Node ≥ 19 and every edge
+ * runtime — no import needed, so this file stays dependency-free.
+ */
+export function generateClickUlid(): string {
+    let time = Date.now();
+    const chars = new Array<string>(26);
+    for (let i = 9; i >= 0; i--) {
+        chars[i] = CROCKFORD_ALPHABET[time % 32];
+        time = Math.floor(time / 32);
+    }
+
+    const bytes = new Uint8Array(10);
+    globalThis.crypto.getRandomValues(bytes);
+    let acc = 0;
+    let accBits = 0;
+    let pos = 10;
+    for (const byte of bytes) {
+        acc = (acc << 8) | byte;
+        accBits += 8;
+        while (accBits >= 5) {
+            chars[pos++] = CROCKFORD_ALPHABET[(acc >>> (accBits - 5)) & 31];
+            accBits -= 5;
+        }
+    }
+    return chars.join('');
+}
+
+/**
+ * Replace every `{subid}` token in a partner URL with the click id.
+ * Handles the literal form and the percent-encoded one (`%7Bsubid%7D`)
+ * in any casing — LinkMapBuilder templates the URL, and depending on
+ * where the placeholder sits (path vs query) PHP's urlencode may have
+ * encoded the braces. Multi-occurrence by design: some networks want
+ * the subid in two params.
+ *
+ * A URL without the token passes through untouched (network without
+ * subid support — surfaced by the CMS Config-issues widget, not an
+ * error here). Any OTHER `{placeholder}` is left alone: an unresolved
+ * template is a backend bug the click must not paper over.
+ */
+export function injectSubId(url: string, subid: string): string {
+    return url.replace(/(\{|%7B)subid(\}|%7D)/gi, subid);
+}
+
+/**
+ * Pull just the path from a Referer header value — which content page
+ * hosted the click, without the visitor's query strings. Combined
+ * with `website_id`, Foundry resolves it to a `page_id` best-effort.
+ * Null on missing / malformed referer — never throws.
+ */
+export function parseRefererPath(referer: string | null): string | null {
+    if (!referer) {
+        return null;
+    }
+    try {
+        return new URL(referer).pathname || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Placement slugs the click may carry (`?p=` on the shortlink) —
+ * mirrors the backend `App\Enums\Affiliate\Placement` exactly. The
+ * emitting block parsers know where they are on the page; six months
+ * from now "does GYG convert better in the comparator than in an
+ * editorial CTA?" is a query, not a rebuild.
+ *
+ * Anything outside the allow-list collapses to null: the param is
+ * attacker-reachable (it's a public URL), so it is validated here AND
+ * revalidated server-side by the collector.
+ */
+const PLACEMENTS = [
+    'comparison_table',
+    'ticket_shelf',
+    'cta',
+    'inline_link',
+    'sidebar',
+    'deal',
+    'article',
+] as const;
+
+export type Placement = (typeof PLACEMENTS)[number];
+
+export function parsePlacement(raw: string | null): Placement | null {
+    return PLACEMENTS.find((placement) => placement === raw) ?? null;
 }
 
 /**
@@ -178,12 +382,17 @@ export function parseRefererHost(referer: string | null): string | null {
 }
 
 export interface ClickEventPayload {
+    /** The link's immutable public code (the `/go/{code}` segment). */
+    code: string;
+    /** The minted ULID — Foundry's click PK AND the partner subid. */
     click_id: string;
     website_id?: number | null;
-    platform_id?: number | null;
+    account_id?: number | null;
+    placement?: Placement | null;
     country?: string | null;
     ua_family?: string | null;
     referer_host?: string | null;
+    referer_path?: string | null;
     geo_rule_idx?: number | null;
 }
 
@@ -192,10 +401,12 @@ export interface ClickEventPayload {
  * `keepalive: true` so the request survives the 302 navigation the
  * worker is about to issue — even if the browser tears the page
  * down right after the click. The promise is intentionally not
- * awaited; the redirect must not wait on analytics.
+ * awaited; the redirect must not wait on analytics. On Cloudflare the
+ * caller MUST hand it to `ctx.waitUntil` or the runtime may cancel
+ * the fetch when the Response returns.
  *
- * Returns the in-flight promise only so tests can verify the call
- * shape — callers in production drop the return value with `void`.
+ * Returns the in-flight promise so the redirector can pass it to
+ * `waitUntil` and tests can verify the call shape.
  */
 export function sendClickEvent(
     collectorUrl: string,

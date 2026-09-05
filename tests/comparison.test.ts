@@ -3,9 +3,12 @@
  * CMS-side row payload into the shape themes render. Most assertions
  * here pin the `ctaHref` resolution since that's the affiliate-router
  * entry point: every click on a Comparison row should go through
- * `/go/{click_id}` when an AffiliateLink has been minted, and fall
- * back to the raw partner URL only when the CMS hasn't onboarded the
- * link yet.
+ * `/go/{code}?p=comparison_table` when an AffiliateLink has been
+ * minted (the `?p=` names this block's placement for the click
+ * beacon), and fall back to the raw partner URL only when the CMS
+ * hasn't onboarded the link yet. Frozen translations drafted before
+ * the code rename still ship `click_id` — same value, older key —
+ * and must stay clickable until re-draft.
  *
  * Run: `npm test`.
  */
@@ -13,7 +16,7 @@ import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { parseComparison } from '../src/lib/blocks/comparison.ts';
 
-test('ctaHref: routes through /go/{click_id} by default (no proxy path)', () => {
+test('ctaHref: routes through /go/{code}?p=comparison_table by default', () => {
     const out = parseComparison(
         {
             groups: [
@@ -22,13 +25,48 @@ test('ctaHref: routes through /go/{click_id} by default (no proxy path)', () => 
                     label: 'Standard',
                     title: 'Colosseum skip-the-line',
                     partner_url: 'https://viator.com/...',
+                    code: 'edf0bf830883',
+                },
+            ],
+        },
+        'fr',
+    );
+    assert.equal(out.rows[0].ctaHref, '/go/edf0bf830883?p=comparison_table');
+});
+
+test('ctaHref: frozen content still shipping click_id keeps working', () => {
+    const out = parseComparison(
+        {
+            groups: [
+                {
+                    key: 'standard',
+                    label: 'Standard',
+                    title: 'Colosseum skip-the-line',
                     click_id: 'edf0bf830883',
                 },
             ],
         },
         'fr',
     );
-    assert.equal(out.rows[0].ctaHref, '/go/edf0bf830883');
+    assert.equal(out.rows[0].ctaHref, '/go/edf0bf830883?p=comparison_table');
+});
+
+test('ctaHref: code wins over click_id when a payload carries both', () => {
+    const out = parseComparison(
+        {
+            groups: [
+                {
+                    key: 'standard',
+                    label: 'Standard',
+                    title: 'Colosseum',
+                    code: 'newcode00001',
+                    click_id: 'oldcode00001',
+                },
+            ],
+        },
+        'fr',
+    );
+    assert.equal(out.rows[0].ctaHref, '/go/newcode00001?p=comparison_table');
 });
 
 test('ctaHref: honours tenant link_proxy_path override', () => {
@@ -39,26 +77,26 @@ test('ctaHref: honours tenant link_proxy_path override', () => {
                     key: 'standard',
                     label: 'Standard',
                     title: 'Colosseum',
-                    click_id: 'edf0bf830883',
+                    code: 'edf0bf830883',
                 },
             ],
         },
         'fr',
         'visit',
     );
-    assert.equal(out.rows[0].ctaHref, '/visit/edf0bf830883');
+    assert.equal(out.rows[0].ctaHref, '/visit/edf0bf830883?p=comparison_table');
 });
 
 test('ctaHref: any of the six allowed prefix values plug in', () => {
     const cases: Array<['view' | 'details' | 'info' | 'visit' | 'out' | 'go', string]> = [
-        ['details', '/details/abc'],
-        ['info', '/info/abc'],
-        ['view', '/view/abc'],
-        ['out', '/out/abc'],
+        ['details', '/details/abc?p=comparison_table'],
+        ['info', '/info/abc?p=comparison_table'],
+        ['view', '/view/abc?p=comparison_table'],
+        ['out', '/out/abc?p=comparison_table'],
     ];
     for (const [prefix, expected] of cases) {
         const out = parseComparison(
-            { groups: [{ key: 'k', label: 'l', title: 't', click_id: 'abc' }] },
+            { groups: [{ key: 'k', label: 'l', title: 't', code: 'abc' }] },
             'fr',
             prefix,
         );
@@ -66,7 +104,7 @@ test('ctaHref: any of the six allowed prefix values plug in', () => {
     }
 });
 
-test('ctaHref: falls back to partner_url when click_id is absent (legacy content)', () => {
+test('ctaHref: falls back to partner_url when no code was minted (legacy content)', () => {
     const out = parseComparison(
         {
             groups: [
@@ -83,7 +121,7 @@ test('ctaHref: falls back to partner_url when click_id is absent (legacy content
     assert.equal(out.rows[0].ctaHref, 'https://viator.com/legacy');
 });
 
-test('ctaHref: null when both click_id and partner_url are missing', () => {
+test('ctaHref: null when both code and partner_url are missing', () => {
     const out = parseComparison(
         {
             groups: [{ key: 'standard', label: 'Standard', title: 'Sans CTA' }],
@@ -93,7 +131,7 @@ test('ctaHref: null when both click_id and partner_url are missing', () => {
     assert.equal(out.rows[0].ctaHref, null);
 });
 
-test('ctaHref: prefers click_id over partner_url when both present', () => {
+test('ctaHref: prefers code over partner_url when both present', () => {
     const out = parseComparison(
         {
             groups: [
@@ -102,13 +140,13 @@ test('ctaHref: prefers click_id over partner_url when both present', () => {
                     label: 'Standard',
                     title: 'Both',
                     partner_url: 'https://viator.com/direct',
-                    click_id: 'abc123def456',
+                    code: 'abc123def456',
                 },
             ],
         },
         'fr',
     );
-    assert.equal(out.rows[0].ctaHref, '/go/abc123def456');
+    assert.equal(out.rows[0].ctaHref, '/go/abc123def456?p=comparison_table');
     assert.equal(
         out.rows[0].ctaHref?.startsWith('/go/'),
         true,
@@ -198,7 +236,7 @@ test('a legacy frozen payload without buckets keeps its ready-made labels', () =
     assert.equal(parsed.rows[0].extras, 1);
 });
 
-test('a minted click id cloaks the CTA under the site proxy path', () => {
+test('a minted link code cloaks the CTA under the site proxy path', () => {
     const parsed = parseComparison(
         {
             groups: [
@@ -206,7 +244,7 @@ test('a minted click id cloaks the CTA under the site proxy path', () => {
                     bucket: 'entry',
                     title: 'Colosseum Entry Ticket',
                     partner_url: 'https://supplier.example/product',
-                    click_id: 'abc123def456',
+                    code: 'abc123def456',
                 },
             ],
         },
@@ -215,7 +253,7 @@ test('a minted click id cloaks the CTA under the site proxy path', () => {
         dictionary,
     );
 
-    assert.equal(parsed.rows[0].ctaHref, '/visit/abc123def456');
+    assert.equal(parsed.rows[0].ctaHref, '/visit/abc123def456?p=comparison_table');
 });
 
 test('groups with neither label nor title nor bucket are dropped', () => {

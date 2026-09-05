@@ -2,6 +2,7 @@
 import { defineConfig, passthroughImageService } from 'astro/config';
 import node from '@astrojs/node';
 import tailwindcss from '@tailwindcss/vite';
+import { affiliateRouteIncludes } from './src/lib/affiliate-prefixes.ts';
 
 // `astro.config.mjs` runs in raw Node before Vite, so `import.meta.env`
 // isn't populated yet. Load `.env` into `process.env` so the config can
@@ -32,19 +33,14 @@ try {
 // redirect prefixes; everything else (content pages) is served as
 // pure static from the edge, bypassing the worker entirely.
 //
-// The prefix list MUST match `AFFILIATE_PROXY_PREFIXES` in
-// `src/lib/affiliate-redirect.ts`. Astro's Cloudflare adapter takes
-// the include / exclude config and emits the file at build time.
+// The include patterns are DERIVED from `src/lib/affiliate-prefixes.ts`
+// — the same module the middleware dispatcher matches against — so the
+// CDN routing table can never drift from the router. Astro's Cloudflare
+// adapter takes the include / exclude config and emits the file at
+// build time.
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET ?? 'node';
 
-const AFFILIATE_PREFIX_INCLUDES = [
-    '/view/*',
-    '/details/*',
-    '/info/*',
-    '/visit/*',
-    '/out/*',
-    '/go/*',
-];
+const AFFILIATE_PREFIX_INCLUDES = affiliateRouteIncludes();
 
 async function resolveAdapter() {
     if (DEPLOY_TARGET === 'cloudflare') {
@@ -271,6 +267,12 @@ export default defineConfig({
     },
     vite: {
         plugins: [tailwindcss()],
+        // `maxmind` (GeoLite2 reader, lib/geoip.ts) is a Node-only
+        // dependency reached behind runtime guards. On Cloudflare the
+        // guards already keep it from ever being called (`cf-ipcountry`
+        // answers first), but the dynamic import must ALSO stay out of
+        // the worker bundle — Workers can't load its fs-based code.
+        ...(DEPLOY_TARGET === 'cloudflare' ? { ssr: { external: ['maxmind'] } } : {}),
         // Inline `WEBSITE_BUILD_TEMPLATE` as a literal so the theme
         // registry's `if/else` branches collapse via Rollup DCE in
         // production builds — no `import.meta.env` lookup at runtime,
