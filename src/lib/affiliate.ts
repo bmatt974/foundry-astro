@@ -343,6 +343,7 @@ const PLACEMENTS = [
     'sidebar',
     'deal',
     'article',
+    'meta_search',
 ] as const;
 
 export type Placement = (typeof PLACEMENTS)[number];
