@@ -124,6 +124,34 @@ test("route('author'): wording with slashes sanitises to single segment", () => 
     assert.equal(route('author', { slug: 'jane' }), '/team-members/jane');
 });
 
+// ─── route('search') ────────────────────────────────────────────
+
+test("route('search'): EN root-mounted picks 'search' from the dictionary", () => {
+    const route = useRoutes(localeRow({ locale: 'en', path_prefix: null }));
+    assert.equal(route('search', {}), '/search');
+    assert.equal(route.path('search', {}), 'search');
+});
+
+test("route('search'): FR prefixed picks 'recherche' from the dictionary", () => {
+    const route = useRoutes(localeRow({ locale: 'fr', path_prefix: '/fr' }));
+    assert.equal(route('search', {}), '/fr/recherche');
+    assert.equal(route.path('search', {}), 'recherche');
+});
+
+test("route('search'): wording override replaces the dictionary segment", () => {
+    const route = useRoutes(localeRow({
+        locale: 'en',
+        path_prefix: null,
+        wording: { 'routes.searchSlug': 'compare' },
+    }));
+    assert.equal(route('search', {}), '/compare');
+});
+
+test("route('search'): unknown locale falls back to the EN segment", () => {
+    const route = useRoutes(localeRow({ locale: 'zz', path_prefix: null }));
+    assert.equal(route('search', {}), '/search');
+});
+
 // ─── factory edge cases ─────────────────────────────────────────
 
 test('useRoutes(null) still produces sane URLs (defensive default)', () => {

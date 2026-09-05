@@ -28,6 +28,7 @@ const fr: Dictionary = {
     },
     routes: {
         authorsPrefix: 'auteurs',
+        searchSlug: 'recherche',
     },
     notFound: {
         title: 'Page introuvable',
@@ -167,6 +168,25 @@ const fr: Dictionary = {
             transport_included: 'Transport inclus',
             meal_included: 'Repas inclus',
             wheelchair_accessible: 'Accessible PMR',
+        },
+    },
+    metaSearch: {
+        defaultHeading: 'Où partez-vous ?',
+        destinationLabel: 'Destination',
+        destinationPlaceholder: 'Ville, région ou monument',
+        originLabel: 'Ville de départ',
+        checkinLabel: 'Arrivée',
+        checkoutLabel: 'Départ',
+        adultsLabel: 'Adultes',
+        childrenToggle: 'Avec des enfants ?',
+        childAgeLabel: "Âge de l'enfant :n",
+        roomsLabel: 'Chambres',
+        cabinLabel: 'Classe de cabine',
+        searchOn: 'Rechercher sur :partner',
+        vertical: {
+            hotels: 'Hôtels',
+            flights: 'Vols',
+            activities: 'Activités',
         },
     },
     visitorHeader: {

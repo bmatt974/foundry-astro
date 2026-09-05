@@ -67,6 +67,12 @@ export interface Dictionary {
          *  getStaticPaths reads this to drive
          *  `/{locale}/{authorsPrefix}/{slug}` route matching. */
         authorsPrefix: string;
+        /** URL segment for the dedicated meta-search page
+         *  ("search" in EN, "recherche" in FR …). Mirrors
+         *  `LocalisedSegments::searchSlug` on the PHP side — the two
+         *  must ship the same defaults so the scaffolded page and the
+         *  front's named route agree. */
+        searchSlug: string;
     };
     notFound: {
         /** Big heading on the 404 page. */
@@ -329,6 +335,51 @@ export interface Dictionary {
             transport_included: string;
             meal_included: string;
             wheelchair_accessible: string;
+        };
+    };
+    /**
+     * Travel meta-search block — form-control chrome around the
+     * API-composed `meta_search` payload (dumb-front contract: the
+     * API decides partners, ordering and prefill; these label the
+     * form's UI controls). Input NAMES stay the canonical params
+     * (`d`, `ci`, `co`, …) — only the visible labels localize.
+     */
+    metaSearch: {
+        /** Block heading when the editor set none ("Where are you
+         *  going?"). Per-site wording overrides give the network
+         *  label variety. */
+        defaultHeading: string;
+        /** Label of the destination input (`d`). */
+        destinationLabel: string;
+        /** Placeholder of the destination input ("City, region or
+         *  landmark…"). */
+        destinationPlaceholder: string;
+        /** Label of the flight-origin input (`o`). */
+        originLabel: string;
+        /** Label of the check-in / departure date input (`ci`). */
+        checkinLabel: string;
+        /** Label of the check-out / return date input (`co`). */
+        checkoutLabel: string;
+        /** Label of the adult-count input (`a`). */
+        adultsLabel: string;
+        /** `<details>` summary revealing the child-age selects. */
+        childrenToggle: string;
+        /** Label of one child-age select — ":n" is the 1-based
+         *  child index ("Age of child 2"). */
+        childAgeLabel: string;
+        /** Label of the room-count input (`r`, hotels). */
+        roomsLabel: string;
+        /** Label of the cabin-class select (`cc`, flights). */
+        cabinLabel: string;
+        /** Accessible label of a partner's logo button — ":partner"
+         *  is the partner name ("Search on Booking.com"). */
+        searchOn: string;
+        /** Tab labels for the 3 verticals — stable slugs shipped by
+         *  the payload, mapped here at presentation time. */
+        vertical: {
+            hotels: string;
+            flights: string;
+            activities: string;
         };
     };
     /** Visitor-facing header chips on place pages — labels for the

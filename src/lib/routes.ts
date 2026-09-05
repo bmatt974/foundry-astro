@@ -107,6 +107,12 @@ const ROUTES = {
                 : `${ctx.prefix}/${segment}/${params.slug}`,
         };
     },
+    search: (ctx: RouteContext, _params: Record<string, never>) => {
+        const segment = segmentForKey('routes.searchSlug', ctx.locale, ctx.wording);
+        return {
+            url: ctx.prefix === '' ? `/${segment}` : `${ctx.prefix}/${segment}`,
+        };
+    },
 } as const;
 
 export type RouteName = keyof typeof ROUTES;

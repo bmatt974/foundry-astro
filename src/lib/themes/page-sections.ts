@@ -61,6 +61,7 @@ const UTILITY_TYPES = new Set([
     'cookies',
     'disclosure',
     'terms',
+    'search',
 ]);
 
 const COMPACT_TYPES = new Set([
