@@ -28,6 +28,7 @@ const en: Dictionary = {
     },
     routes: {
         authorsPrefix: 'authors',
+        searchSlug: 'search',
     },
     notFound: {
         title: 'Page not found',
@@ -165,6 +166,25 @@ const en: Dictionary = {
             transport_included: 'Transport included',
             meal_included: 'Meal included',
             wheelchair_accessible: 'Wheelchair accessible',
+        },
+    },
+    metaSearch: {
+        defaultHeading: 'Where are you going?',
+        destinationLabel: 'Destination',
+        destinationPlaceholder: 'City, region or landmark',
+        originLabel: 'Departing from',
+        checkinLabel: 'Check-in',
+        checkoutLabel: 'Check-out',
+        adultsLabel: 'Adults',
+        childrenToggle: 'Traveling with children?',
+        childAgeLabel: 'Age of child :n',
+        roomsLabel: 'Rooms',
+        cabinLabel: 'Cabin class',
+        searchOn: 'Search on :partner',
+        vertical: {
+            hotels: 'Hotels',
+            flights: 'Flights',
+            activities: 'Activities',
         },
     },
     visitorHeader: {

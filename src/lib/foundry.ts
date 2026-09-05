@@ -32,6 +32,7 @@ export type BlockType =
     | 'top_list'
     | 'product_card'
     | 'tickets'
+    | 'meta_search'
     | 'section'
     | 'divider';
 

@@ -162,6 +162,53 @@ test('every registered dictionary has the required keys', () => {
     }
 });
 
+test('the metaSearch family resolves in both dictionaries', () => {
+    // The block parser resolves every leaf of the family through t();
+    // an empty string would render an unlabeled form control.
+    for (const dict of [en, fr]) {
+        for (const [key, value] of Object.entries(dict.metaSearch)) {
+            if (key === 'vertical') {
+                continue;
+            }
+            assert.ok(
+                typeof value === 'string' && value.length > 0,
+                `metaSearch.${key} must be a non-empty string`,
+            );
+        }
+        for (const slug of ['hotels', 'flights', 'activities'] as const) {
+            assert.ok(
+                dict.metaSearch.vertical[slug].length > 0,
+                `metaSearch.vertical.${slug} must be a non-empty string`,
+            );
+        }
+        assert.ok(
+            dict.metaSearch.childAgeLabel.includes(':n'),
+            'childAgeLabel must carry the :n placeholder',
+        );
+        assert.ok(
+            dict.metaSearch.searchOn.includes(':partner'),
+            'searchOn must carry the :partner placeholder',
+        );
+    }
+});
+
+test('metaSearch keys resolve per locale and accept wording overrides', () => {
+    assert.equal(__('metaSearch.vertical.hotels', 'en'), 'Hotels');
+    assert.equal(__('metaSearch.vertical.hotels', 'fr'), 'Hôtels');
+    assert.equal(
+        __('metaSearch.searchOn', 'fr', { partner: 'Booking.com' }),
+        'Rechercher sur Booking.com',
+    );
+
+    const t = useTranslations('fr', { 'metaSearch.defaultHeading': 'Envie d\'ailleurs ?' });
+    assert.equal(t('metaSearch.defaultHeading'), 'Envie d\'ailleurs ?');
+});
+
+test('routes.searchSlug ships a localized segment in both dictionaries', () => {
+    assert.equal(__('routes.searchSlug', 'en'), 'search');
+    assert.equal(__('routes.searchSlug', 'fr'), 'recherche');
+});
+
 test('notFound translation resolves per locale', () => {
     assert.equal(__('notFound.title', 'fr'), 'Page introuvable');
     assert.equal(__('notFound.title', 'en'), 'Page not found');
