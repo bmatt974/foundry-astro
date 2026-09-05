@@ -11,6 +11,8 @@
  * `slug` as an argument; there is no single-tenant fallback.
  */
 
+import type { AffiliateProxyPrefix } from './affiliate-prefixes.ts';
+
 // ──────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────
@@ -252,7 +254,10 @@ export interface Website {
  */
 export type Posture = 'whitehat' | 'greyhat' | 'blackhat';
 export type JsonLdLevel = 'none' | 'article_only' | 'cms_standard' | 'wp_blog_full' | 'tourist_entity';
-export type LinkProxyPath = 'view' | 'details' | 'info' | 'visit' | 'out' | 'go';
+/** The allowed proxy prefixes are owned by `affiliate-prefixes.ts` —
+ *  aliased here so the tenant payload type can't drift from the
+ *  redirector's allow-list. */
+export type LinkProxyPath = AffiliateProxyPrefix;
 
 /**
  * Per-website experimental axes resolved server-side by Foundry's

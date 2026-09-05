@@ -38,7 +38,18 @@ interface MakeTicketOptions {
     reviews?: number;
     features?: string[];
     languages?: string[];
-    providers?: Array<{ slug: string; label: string; price?: number; clickId?: string; image?: string }>;
+    providers?: Array<{
+        slug: string;
+        label: string;
+        price?: number;
+        /** Affiliate link code — the prod payload field (`code`). */
+        code?: string;
+        /** Legacy spelling of `code` (`click_id`) — used by exactly ONE
+         *  fixture entry so the gallery visualises the frozen-translation
+         *  tolerance of `affiliateHref`. */
+        legacyClickId?: string;
+        image?: string;
+    }>;
     coveredPlaces?: Array<{ id: number; name: string; isPrimary?: boolean }>;
     multiAttractionPass?: boolean;
 }
@@ -71,8 +82,9 @@ function makeTicket(opts: MakeTicketOptions) {
             provider: p.slug,
             provider_label: p.label,
             provider_logo_path: null,
-            partner_url: p.clickId ? null : `https://example.com/${p.slug}/${nextId}`,
-            click_id: p.clickId ?? null,
+            partner_url: p.code || p.legacyClickId ? null : `https://example.com/${p.slug}/${nextId}`,
+            code: p.code ?? null,
+            click_id: p.legacyClickId ?? null,
             price_eur: p.price ?? opts.price ?? null,
             rating: opts.rating ?? null,
             review_count: opts.reviews ?? null,
@@ -141,8 +153,19 @@ export function ticketScenarios(): Scenario[] {
         caption: 'Smallest case. One bucket, 2 tickets, no group / experience split. Card baseline.',
         block: makeBlock(
             [
-                makeTicket({ title: 'Skip-the-line entry', features: ['skip_the_line', 'free_cancellation', 'mobile_ticket'], price: 22 }),
-                makeTicket({ title: 'Audio-guided visit', features: ['skip_the_line', 'audio_app', 'mobile_ticket'], price: 28 }),
+                makeTicket({
+                    title: 'Skip-the-line entry',
+                    features: ['skip_the_line', 'free_cancellation', 'mobile_ticket'],
+                    price: 22,
+                    providers: [{ slug: 'viator', label: 'Viator', price: 22, code: 'devcode00001' }],
+                }),
+                makeTicket({
+                    title: 'Audio-guided visit',
+                    features: ['skip_the_line', 'audio_app', 'mobile_ticket'],
+                    price: 28,
+                    // The one legacy entry — still shipping `click_id`.
+                    providers: [{ slug: 'tiqets', label: 'Tiqets', price: 28, legacyClickId: 'devlegacy001' }],
+                }),
             ],
             {},
             10,

@@ -27,10 +27,10 @@ import {
     injectSubId,
     loadLinkMap,
     parsePlacement,
-    parseRefererHost,
-    parseRefererPath,
+    parseReferer,
     parseUaFamily,
     pickTarget,
+    PLACEMENT_PARAM,
     sendClickEvent,
 } from './affiliate.ts';
 import { isAffiliateProxyPrefix } from './affiliate-prefixes.ts';
@@ -53,7 +53,7 @@ export function matchAffiliateClickPath(pathname: string): { prefix: string; cod
     if (!isAffiliateProxyPrefix(prefix)) {
         return null;
     }
-    if (!code || code.length === 0) {
+    if (!code) {
         return null;
     }
     return { prefix, code };
@@ -64,22 +64,25 @@ export function matchAffiliateClickPath(pathname: string): { prefix: string; cod
  * Caller (middleware) has already matched the URL shape via
  * `matchAffiliateClickPath` and knows it has a valid `code`.
  *
- * `clientAddress` feeds the GeoIP fallback on self-hosted Node
- * (adapters may throw on access, so the middleware passes it
- * pre-caught). `waitUntil` is Cloudflare's `ctx.waitUntil` — REQUIRED
- * there: without it the runtime may cancel the beacon fetch the
- * moment the 302 returns, silently dropping the click row.
+ * `url` is the request URL the middleware already parsed
+ * (`context.url`) — passed as the object so the hot path never pays
+ * for a redundant `new URL(request.url)` per click. `clientAddress`
+ * feeds the GeoIP fallback on self-hosted Node (adapters may throw on
+ * access, so the middleware passes it pre-caught). `waitUntil` is
+ * Cloudflare's `ctx.waitUntil` — REQUIRED there: without it the
+ * runtime may cancel the beacon fetch the moment the 302 returns,
+ * silently dropping the click row.
  */
 export async function redirectClick(args: {
     code: string;
     request: Request;
-    origin: string;
+    url: URL;
     clientAddress?: string | null;
     waitUntil?: ((promise: Promise<unknown>) => void) | null;
 }): Promise<Response> {
-    const { code, request, origin, clientAddress, waitUntil } = args;
+    const { code, request, url, clientAddress, waitUntil } = args;
 
-    const linkMap = await loadLinkMap(origin);
+    const linkMap = await loadLinkMap(url.origin);
     if (!linkMap) {
         return new Response('Link map unavailable', { status: 503 });
     }
@@ -104,16 +107,17 @@ export async function redirectClick(args: {
 
     const collectorUrl = resolveCollectorUrl();
     if (collectorUrl) {
+        const referer = parseReferer(request.headers.get('referer'));
         const beacon = sendClickEvent(collectorUrl, {
             code,
             click_id: clickId,
             website_id: linkMap.site.id,
             account_id: target.account_id ?? null,
-            placement: parsePlacement(safeSearchParam(request.url, 'p')),
+            placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)),
             country,
             ua_family: parseUaFamily(request.headers.get('user-agent')),
-            referer_host: parseRefererHost(request.headers.get('referer')),
-            referer_path: parseRefererPath(request.headers.get('referer')),
+            referer_host: referer?.host ?? null,
+            referer_path: referer?.path ?? null,
             geo_rule_idx: target.geo_rule_idx,
         }).catch(() => { /* fire-and-forget */ });
         if (waitUntil) {
@@ -141,14 +145,4 @@ function resolveCollectorUrl(): string | null {
     const apiBase = import.meta.env?.FOUNDRY_API_URL
         ?? (typeof process !== 'undefined' ? process.env.FOUNDRY_API_URL : undefined);
     return apiBase ? `${apiBase}/events/clicks` : null;
-}
-
-/** Read one query param off a request URL without ever throwing —
- *  adapters occasionally hand over surprising `request.url` values. */
-function safeSearchParam(url: string, name: string): string | null {
-    try {
-        return new URL(url).searchParams.get(name);
-    } catch {
-        return null;
-    }
 }

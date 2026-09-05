@@ -96,6 +96,12 @@ declare global {
         readonly FOUNDRY_API_URL: string;
         readonly FOUNDRY_PREVIEW_TOKEN?: string;
         /**
+         * Absolute path to a MaxMind GeoLite2 Country .mmdb — the
+         * affiliate redirector's geo fallback when no CDN header
+         * answered (self-hosted Node deploys only, see .env.example).
+         */
+        readonly GEOIP_DB_PATH?: string;
+        /**
          * Build-time tenant pin. Only consumed by `getStaticPaths` and
          * the middleware's build-time fallback — at runtime the Host
          * header drives tenant resolution. Pass any hostname registered

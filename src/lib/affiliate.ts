@@ -179,33 +179,46 @@ export function __expireLinkMapCache(): void {
 }
 
 /**
- * Resolve a visitor's country from whichever header the current
- * platform exposes. Order matters only as a tie-break — in practice
- * exactly one of these is set per provider.
+ * CDN geo headers, one per platform. Order matters only as a
+ * tie-break — in practice exactly one of these is set per provider.
  *
  *   Cloudflare Pages / Workers : cf-ipcountry
  *   Vercel Edge Functions      : x-vercel-ip-country
  *   Netlify Edge Functions     : x-nf-country
  *   AWS CloudFront / Lambda@Edge: cloudfront-viewer-country
- *
- * Returns the uppercase ISO 3166-1 alpha-2 code, or null when the
- * platform exposes nothing (dev, self-hosted, weird proxy stack) —
- * the caller may then fall back to the local GeoIP db (lib/geoip.ts).
+ */
+const COUNTRY_HEADERS = [
+    'cf-ipcountry',
+    'x-vercel-ip-country',
+    'x-nf-country',
+    'cloudfront-viewer-country',
+] as const;
+
+/**
+ * Normalise a raw country claim (CDN header, GeoIP db field) to an
+ * uppercase ISO 3166-1 alpha-2 code, or null when it doesn't look
+ * like one — the single validation both geo channels go through.
+ */
+export function normaliseCountry(raw: string | null | undefined): string | null {
+    if (!raw) {
+        return null;
+    }
+    const cc = raw.trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(cc) ? cc : null;
+}
+
+/**
+ * Resolve a visitor's country from whichever CDN geo header the
+ * current platform exposes. Returns the uppercase ISO 3166-1 alpha-2
+ * code, or null when the platform exposes nothing (dev, self-hosted,
+ * weird proxy stack) — the caller may then fall back to the local
+ * GeoIP db (lib/geoip.ts).
  */
 export function getVisitorCountry(headers: Headers): string | null {
-    const candidates = [
-        'cf-ipcountry',
-        'x-vercel-ip-country',
-        'x-nf-country',
-        'cloudfront-viewer-country',
-    ];
-    for (const name of candidates) {
-        const raw = headers.get(name);
-        if (raw) {
-            const cc = raw.trim().toUpperCase();
-            if (/^[A-Z]{2}$/.test(cc)) {
-                return cc;
-            }
+    for (const name of COUNTRY_HEADERS) {
+        const country = normaliseCountry(headers.get(name));
+        if (country) {
+            return country;
         }
     }
     return null;
@@ -289,17 +302,23 @@ export function injectSubId(url: string, subid: string): string {
 }
 
 /**
- * Pull just the path from a Referer header value — which content page
- * hosted the click, without the visitor's query strings. Combined
- * with `website_id`, Foundry resolves it to a `page_id` best-effort.
- * Null on missing / malformed referer — never throws.
+ * Pull the host and path out of a Referer header value, dropping the
+ * visitor's query strings and fragments. The host feeds "which sites
+ * send us traffic" dashboards without leaking the visitor's full
+ * browsing context; the path names the content page that hosted the
+ * click — combined with `website_id`, Foundry resolves it to a
+ * `page_id` best-effort. Null on missing / malformed referer — never
+ * throws.
  */
-export function parseRefererPath(referer: string | null): string | null {
+export function parseReferer(
+    referer: string | null,
+): { host: string | null; path: string | null } | null {
     if (!referer) {
         return null;
     }
     try {
-        return new URL(referer).pathname || null;
+        const url = new URL(referer);
+        return { host: url.host || null, path: url.pathname || null };
     } catch {
         return null;
     }
@@ -332,6 +351,44 @@ export function parsePlacement(raw: string | null): Placement | null {
     return PLACEMENTS.find((placement) => placement === raw) ?? null;
 }
 
+/** Query-param key carrying the placement slug on a shortlink —
+ *  written by `affiliateHref`, read back by the redirector. */
+export const PLACEMENT_PARAM = 'p';
+
+/**
+ * The CTA href a block parser should render for a payload entry —
+ * `/{proxy}/{code}?p={placement}` when the AffiliateLinkGenerator has
+ * minted a tracked link, the raw `partner_url` otherwise (legacy
+ * content / external links not yet onboarded), null when neither
+ * exists. The proxy prefix varies per website (`view` / `details` /
+ * `info` / `visit` / `out` / `go`) — set by the CMS
+ * `ExperimentsResolver`, read from `tenant.experiments.link_proxy_path`
+ * by the calling theme. The same-origin path stays out of the
+ * partner's Referer header (paired with `referrerpolicy="origin"` on
+ * the link tag), keeping the tracker invisible to crawlers.
+ *
+ * `?p=` names the placement the calling parser KNOWS it renders — the
+ * redirector reads it for the click beacon and strips it before the
+ * partner 302. `code ?? click_id`: translations frozen before the
+ * rename still ship `click_id` and stay clickable until re-draft —
+ * that tolerance lives HERE and nowhere else.
+ */
+export function affiliateHref(
+    entry: { code?: unknown; click_id?: unknown; partner_url?: unknown },
+    proxy: string,
+    placement: Placement,
+): string | null {
+    const code = nonEmptyString(entry.code) ?? nonEmptyString(entry.click_id);
+    if (code) {
+        return `/${proxy}/${code}?${PLACEMENT_PARAM}=${placement}`;
+    }
+    return nonEmptyString(entry.partner_url);
+}
+
+function nonEmptyString(value: unknown): string | null {
+    return typeof value === 'string' && value !== '' ? value : null;
+}
+
 /**
  * Best-effort UA family extraction. Avoids pulling a 500KB UA-parser
  * dep into every worker — a handful of regex covers ~95% of real
@@ -362,23 +419,6 @@ export function parseUaFamily(ua: string | null): string | null {
         return 'Bot';
     }
     return 'Other';
-}
-
-/**
- * Pull just the host from a Referer header value, dropping path /
- * query. Returns null on missing / malformed referer — never throws.
- * Stored alongside the click for "which sites send us traffic"
- * dashboards without leaking the visitor's full browsing context.
- */
-export function parseRefererHost(referer: string | null): string | null {
-    if (!referer) {
-        return null;
-    }
-    try {
-        return new URL(referer).host || null;
-    } catch {
-        return null;
-    }
 }
 
 export interface ClickEventPayload {

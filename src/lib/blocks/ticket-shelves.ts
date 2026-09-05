@@ -15,6 +15,7 @@
  * (parser + seven variant components) is deleted.
  */
 import type { PageBlock } from '../foundry.ts';
+import { affiliateHref } from '../affiliate.ts';
 import { formatDuration, formatPrice, formatRating } from '../format.ts';
 import { useTranslations, type TranslationKey } from '../i18n/index.ts';
 
@@ -402,16 +403,6 @@ export function parseShelvesBlock(
     };
 }
 
-function buildAffiliateHref(entry: Record<string, unknown>, linkProxyPath: string): string | null {
-    const code = typeof entry.code === 'string' && entry.code !== ''
-        ? entry.code
-        : (typeof entry.click_id === 'string' && entry.click_id !== '' ? entry.click_id : null);
-    if (code) {
-        return `/${linkProxyPath}/${code}?p=ticket_shelf`;
-    }
-    return typeof entry.partner_url === 'string' && entry.partner_url !== '' ? entry.partner_url : null;
-}
-
 function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {
     if (!raw || typeof raw !== 'object') return [];
     const entry = raw as Record<string, unknown>;
@@ -449,12 +440,8 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         // The cloaked /{proxy}/{code}?p=ticket_shelf wins when the API
         // shipped a live link code; the naked partner URL is the
         // fallback, never the preference (anti-footprint: the per-site
-        // worker owns the real target). `code ?? click_id`: frozen
-        // translations pre-rename still ship `click_id` and stay
-        // clickable until their next re-draft. `?p=` names the
-        // placement this parser renders — beacon data, stripped by the
-        // redirector before the partner 302.
-        href: buildAffiliateHref(entry, linkProxyPath),
+        // worker owns the real target) — see `affiliateHref`.
+        href: affiliateHref(entry, linkProxyPath, 'ticket_shelf'),
         priceEur,
         priceText: formatPrice(priceEur, locale),
         originalPriceEur,

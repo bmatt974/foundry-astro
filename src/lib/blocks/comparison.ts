@@ -13,6 +13,7 @@
  * indirection that doesn't pay off — see docs/websites/cms/themes.md.
  */
 
+import { affiliateHref } from '../affiliate.ts';
 import { formatPrice, formatRating } from '../format.ts';
 
 interface RawDisplayFeatures {
@@ -186,33 +187,9 @@ function buildRow(
         priceText: formatPrice(group.price_eur, locale),
         ratingText: formatRating(group.rating, group.review_count, locale),
         providerLabel: group.provider_label?.trim() || null,
-        ctaHref: pickCtaHref(group, linkProxyPath),
+        ctaHref: affiliateHref(group, linkProxyPath, 'comparison_table'),
         imageUrl: group.image_url || null,
     };
-}
-
-/**
- * `/${linkProxyPath}/{code}?p=comparison_table` if the
- * AffiliateLinkGenerator has minted a tracked link, the raw
- * partner_url otherwise. The prefix varies per website (`view` /
- * `details` / `info` / `visit` / `out` / `go`) — set by the CMS
- * `ExperimentsResolver` and read from
- * `tenant.experiments.link_proxy_path` by the calling theme.
- * Same-origin path stays out of the partner's Referer header
- * (paired with `referrerpolicy="origin"` on the link tag), keeping
- * the tracker invisible to crawlers.
- *
- * `?p=` names the placement this parser KNOWS it renders — the
- * redirector reads it for the click beacon and strips it before the
- * partner 302. `code ?? click_id`: translations frozen before the
- * rename still ship `click_id` and stay clickable until re-draft.
- */
-function pickCtaHref(group: RawGroup, linkProxyPath: string): string | null {
-    const code = group.code ?? group.click_id;
-    if (code) {
-        return `/${linkProxyPath}/${code}?p=comparison_table`;
-    }
-    return group.partner_url || null;
 }
 
 /**

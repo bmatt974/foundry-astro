@@ -31,7 +31,7 @@ export const AFFILIATE_PROXY_PREFIXES = [
 
 export type AffiliateProxyPrefix = (typeof AFFILIATE_PROXY_PREFIXES)[number];
 
-export function isAffiliateProxyPrefix(segment: string): segment is AffiliateProxyPrefix {
+export function isAffiliateProxyPrefix(segment: string): boolean {
     return (AFFILIATE_PROXY_PREFIXES as readonly string[]).includes(segment);
 }
 

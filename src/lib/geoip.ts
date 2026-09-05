@@ -20,6 +20,8 @@
  * hammering the filesystem on every click.
  */
 
+import { normaliseCountry } from './affiliate.ts';
+
 interface CountryReader {
     get(ip: string): { country?: { iso_code?: string } } | null;
 }
@@ -65,7 +67,11 @@ export async function lookupCountry(ip: string | null): Promise<string | null> {
     if (!isNodeRuntime()) {
         return null;
     }
-    const dbPath = process.env.GEOIP_DB_PATH;
+    // Dual-channel read: `import.meta.env` is how a var set in
+    // `astro/.env` (the channel .env.example documents) reaches Vite
+    // builds; `process.env` covers real deploy environments and
+    // node:test runs where Vite is absent.
+    const dbPath = import.meta.env?.GEOIP_DB_PATH ?? process.env.GEOIP_DB_PATH;
     if (!dbPath) {
         return null;
     }
@@ -75,12 +81,7 @@ export async function lookupCountry(ip: string | null): Promise<string | null> {
         return null;
     }
     try {
-        const raw = reader.get(ip)?.country?.iso_code;
-        if (!raw) {
-            return null;
-        }
-        const cc = raw.trim().toUpperCase();
-        return /^[A-Z]{2}$/.test(cc) ? cc : null;
+        return normaliseCountry(reader.get(ip)?.country?.iso_code);
     } catch {
         return null;
     }

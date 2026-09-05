@@ -17,8 +17,7 @@ import {
     injectSubId,
     loadLinkMap,
     parsePlacement,
-    parseRefererHost,
-    parseRefererPath,
+    parseReferer,
     parseUaFamily,
     pickTarget,
     sendClickEvent,
@@ -29,6 +28,29 @@ import { AFFILIATE_PROXY_PREFIXES, affiliateRouteIncludes } from '../src/lib/aff
 
 /** Laravel's Str::isUlid() shape — the collector validates against it. */
 const ULID_REGEX = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+
+/** Swaps `globalThis.fetch` for `handler` around `fn`, restoring the
+ *  real fetch even when an assertion throws — the save/restore shape
+ *  every fetch-mocking test used to hand-roll. */
+async function withFakeFetch(
+    handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
+    fn: () => Promise<void>,
+): Promise<void> {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) =>
+        handler(String(url), init)) as typeof fetch;
+    try {
+        await fn();
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+}
+
+/** `redirectClick` takes the request plus its pre-parsed URL (the
+ *  middleware hands over `context.url`) — build both from one href. */
+function clickArgs(href: string, init?: RequestInit): { request: Request; url: URL } {
+    return { request: new Request(href, init), url: new URL(href) };
+}
 
 // ──────────────────────────────────────────────
 // affiliate-prefixes — shared source of truth
@@ -137,42 +159,42 @@ test('parsePlacement: rejects everything else', () => {
 });
 
 // ──────────────────────────────────────────────
-// parseRefererPath — content-page path for page_id resolution
+// parseReferer — host ("which sites send us traffic") + content-page
+// path (page_id resolution), split from one header parse
 // ──────────────────────────────────────────────
 
-test('parseRefererPath: pathname only, query dropped', () => {
-    assert.equal(parseRefererPath('https://site-a.test/fr/le-colisee?utm=x#top'), '/fr/le-colisee');
-    assert.equal(parseRefererPath('http://localhost:4321/'), '/');
+test('parseReferer: host and pathname extracted, query and fragment dropped', () => {
+    assert.deepEqual(
+        parseReferer('https://site-a.foundry-astro.test/fr/le-colisee?utm=x#top'),
+        { host: 'site-a.foundry-astro.test', path: '/fr/le-colisee' },
+    );
+    assert.deepEqual(
+        parseReferer('http://localhost:4321/'),
+        { host: 'localhost:4321', path: '/' },
+        'non-default port kept on the host',
+    );
 });
 
-test('parseRefererPath: null on missing / malformed', () => {
-    assert.equal(parseRefererPath(null), null);
-    assert.equal(parseRefererPath(''), null);
-    assert.equal(parseRefererPath('not a url'), null);
+test('parseReferer: null on missing / malformed', () => {
+    assert.equal(parseReferer(null), null);
+    assert.equal(parseReferer(''), null);
+    assert.equal(parseReferer('not a url'), null);
 });
 
 // ──────────────────────────────────────────────
 // getVisitorCountry
 // ──────────────────────────────────────────────
 
-test('getVisitorCountry: reads cf-ipcountry on Cloudflare', () => {
-    const h = new Headers({ 'cf-ipcountry': 'FR' });
-    assert.equal(getVisitorCountry(h), 'FR');
-});
-
-test('getVisitorCountry: reads x-vercel-ip-country on Vercel', () => {
-    const h = new Headers({ 'x-vercel-ip-country': 'us' });
-    assert.equal(getVisitorCountry(h), 'US');
-});
-
-test('getVisitorCountry: reads x-nf-country on Netlify', () => {
-    const h = new Headers({ 'x-nf-country': 'DE' });
-    assert.equal(getVisitorCountry(h), 'DE');
-});
-
-test('getVisitorCountry: reads cloudfront-viewer-country on CloudFront', () => {
-    const h = new Headers({ 'cloudfront-viewer-country': 'GB' });
-    assert.equal(getVisitorCountry(h), 'GB');
+test('getVisitorCountry: reads each platform CDN header, normalised to uppercase', () => {
+    const cases: Array<[header: string, raw: string, expected: string]> = [
+        ['cf-ipcountry', 'FR', 'FR'], // Cloudflare Pages / Workers
+        ['x-vercel-ip-country', 'us', 'US'], // Vercel Edge
+        ['x-nf-country', 'DE', 'DE'], // Netlify Edge
+        ['cloudfront-viewer-country', 'GB', 'GB'], // AWS CloudFront
+    ];
+    for (const [header, raw, expected] of cases) {
+        assert.equal(getVisitorCountry(new Headers({ [header]: raw })), expected, header);
+    }
 });
 
 test('getVisitorCountry: returns null when no header present', () => {
@@ -248,14 +270,11 @@ function v2Payload() {
 
 test('loadLinkMap: parses a healthy response and caches it', async () => {
     __resetLinkMapCache();
-    const originalFetch = globalThis.fetch;
     let fetchCount = 0;
-    globalThis.fetch = (async () => {
+    await withFakeFetch(() => {
         fetchCount++;
         return new Response(JSON.stringify(v2Payload()), { status: 200 });
-    }) as typeof fetch;
-
-    try {
+    }, async () => {
         const m1 = await loadLinkMap('http://example.test');
         assert.ok(m1);
         assert.equal(m1.links.abc123def456.default.url, 'https://x.com');
@@ -264,34 +283,28 @@ test('loadLinkMap: parses a healthy response and caches it', async () => {
         const m2 = await loadLinkMap('http://example.test');
         assert.equal(m2, m1, 'same reference on cache hit');
         assert.equal(fetchCount, 1);
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    });
 });
 
 test('loadLinkMap: cold start returns null on 404 / network failure', async () => {
-    const originalFetch = globalThis.fetch;
-    try {
-        __resetLinkMapCache();
-        globalThis.fetch = (async () => new Response('not found', { status: 404 })) as typeof fetch;
+    __resetLinkMapCache();
+    await withFakeFetch(() => new Response('not found', { status: 404 }), async () => {
         assert.equal(await loadLinkMap('http://example.test'), null);
+    });
 
-        __resetLinkMapCache();
-        globalThis.fetch = (async () => {
-            throw new Error('network down');
-        }) as typeof fetch;
+    __resetLinkMapCache();
+    await withFakeFetch(() => {
+        throw new Error('network down');
+    }, async () => {
         assert.equal(await loadLinkMap('http://example.test'), null);
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    });
 });
 
 test('loadLinkMap: keeps serving the last valid map when a refresh fails', async () => {
     __resetLinkMapCache();
-    const originalFetch = globalThis.fetch;
     let mode: 'ok' | 'down' | 'garbage' = 'ok';
     let fetchCount = 0;
-    globalThis.fetch = (async () => {
+    await withFakeFetch(() => {
         fetchCount++;
         if (mode === 'down') {
             throw new Error('origin down');
@@ -300,9 +313,7 @@ test('loadLinkMap: keeps serving the last valid map when a refresh fails', async
             return new Response('<html>edge error page</html>', { status: 200 });
         }
         return new Response(JSON.stringify(v2Payload()), { status: 200 });
-    }) as typeof fetch;
-
-    try {
+    }, async () => {
         const fresh = await loadLinkMap('http://example.test');
         assert.ok(fresh);
 
@@ -323,32 +334,24 @@ test('loadLinkMap: keeps serving the last valid map when a refresh fails', async
         mode = 'garbage';
         const afterGarbage = await loadLinkMap('http://example.test');
         assert.equal(afterGarbage, fresh, 'garbage response never replaces a valid map');
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    });
 });
 
 test('loadLinkMap: cold-start failures are also throttled', async () => {
     __resetLinkMapCache();
-    const originalFetch = globalThis.fetch;
     let fetchCount = 0;
-    globalThis.fetch = (async () => {
+    await withFakeFetch(() => {
         fetchCount++;
         throw new Error('down');
-    }) as typeof fetch;
-
-    try {
+    }, async () => {
         assert.equal(await loadLinkMap('http://example.test'), null);
         assert.equal(await loadLinkMap('http://example.test'), null);
         assert.equal(fetchCount, 1, 'second cold-start miss is served from the cooldown');
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    });
 });
 
 test('loadLinkMap: tolerates v1 maps (no version) and unknown fields', async () => {
     __resetLinkMapCache();
-    const originalFetch = globalThis.fetch;
     const payload = {
         // v1: no `version`, targets carry platform_id instead of
         // account_id — plus fields no consumer has ever heard of.
@@ -363,41 +366,33 @@ test('loadLinkMap: tolerates v1 maps (no version) and unknown fields', async () 
             },
         },
     };
-    globalThis.fetch = (async () => new Response(JSON.stringify(payload), { status: 200 })) as typeof fetch;
 
-    try {
+    await withFakeFetch(() => new Response(JSON.stringify(payload), { status: 200 }), async () => {
         const map = await loadLinkMap('http://example.test');
         assert.ok(map, 'v1 map loads');
         const target = pickTarget(map.links.oldcode, 'US');
         assert.equal(target.url, 'https://legacy.test/us');
         assert.equal(target.account_id ?? null, null, 'v1 platform_id is not mistaken for an account');
-    } finally {
-        globalThis.fetch = originalFetch;
-        __resetLinkMapCache();
-    }
+    });
+    __resetLinkMapCache();
 });
 
 test('loadLinkMap: tolerates a legacy empty `links: []` as an empty object', async () => {
     // PHP's json_encode used to spell an empty links set `[]`. Zero
     // links is a VALID map — every code answers 404, not 503.
     __resetLinkMapCache();
-    const originalFetch = globalThis.fetch;
     const payload = { generated_at: '2026-09-05T00:00:00Z', site: { slug: 'test', id: 1 }, links: [] };
-    globalThis.fetch = (async () => new Response(JSON.stringify(payload), { status: 200 })) as typeof fetch;
 
-    try {
+    await withFakeFetch(() => new Response(JSON.stringify(payload), { status: 200 }), async () => {
         const map = await loadLinkMap('http://example.test');
         assert.ok(map, 'an empty map is a valid map, not a load failure');
         assert.ok(!Array.isArray(map.links), 'legacy [] is normalized to an object');
         assert.deepEqual(Object.keys(map.links), []);
-    } finally {
-        globalThis.fetch = originalFetch;
-        __resetLinkMapCache();
-    }
+    });
+    __resetLinkMapCache();
 });
 
 test('loadLinkMap: rejects malformed payloads on cold start', async () => {
-    const originalFetch = globalThis.fetch;
     const malformedLinks = [
         [{ default: { url: 'https://x.test' } }], // non-empty array
         { abc: {} }, // entry without default
@@ -409,73 +404,40 @@ test('loadLinkMap: rejects malformed payloads on cold start', async () => {
         { abc: { default: { url: 'https://x.test' }, geo_rules: [{ match: ['US'] }] } }, // rule without url
     ];
 
-    try {
-        for (const links of malformedLinks) {
-            __resetLinkMapCache();
-            const payload = { site: { slug: 'test', id: 1 }, links };
-            globalThis.fetch = (async () => new Response(JSON.stringify(payload), { status: 200 })) as typeof fetch;
+    for (const links of malformedLinks) {
+        __resetLinkMapCache();
+        const payload = { site: { slug: 'test', id: 1 }, links };
+        await withFakeFetch(() => new Response(JSON.stringify(payload), { status: 200 }), async () => {
             assert.equal(
                 await loadLinkMap('http://example.test'),
                 null,
                 `rejected: ${JSON.stringify(links)}`,
             );
-        }
-    } finally {
-        globalThis.fetch = originalFetch;
-        __resetLinkMapCache();
+        });
     }
+    __resetLinkMapCache();
 });
 
 // ──────────────────────────────────────────────
 // parseUaFamily — best-effort browser bucketing for the dashboard
 // ──────────────────────────────────────────────
 
-test('parseUaFamily: Chrome on macOS', () => {
-    const ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-    assert.equal(parseUaFamily(ua), 'Chrome');
-});
-
-test('parseUaFamily: Safari (no Chrome token)', () => {
-    const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
-    assert.equal(parseUaFamily(ua), 'Safari');
-});
-
-test('parseUaFamily: Firefox', () => {
-    const ua = 'Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0';
-    assert.equal(parseUaFamily(ua), 'Firefox');
-});
-
-test('parseUaFamily: Edge wins over Chrome token', () => {
-    const ua = 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0';
-    assert.equal(parseUaFamily(ua), 'Edge');
-});
-
-test('parseUaFamily: Bot detection', () => {
-    assert.equal(parseUaFamily('Googlebot/2.1 (+http://www.google.com/bot.html)'), 'Bot');
-    assert.equal(parseUaFamily('AhrefsBot/7.0'), 'Bot');
-});
-
-test('parseUaFamily: null / unknown UA', () => {
-    assert.equal(parseUaFamily(null), null);
-    assert.equal(parseUaFamily('curl/8.7.1'), 'Other');
-});
-
-// ──────────────────────────────────────────────
-// parseRefererHost — host-only extraction for technical analytics
-// ──────────────────────────────────────────────
-
-test('parseRefererHost: extracts host from valid URL', () => {
-    assert.equal(parseRefererHost('https://site-a.foundry-astro.test/fr/le-colisee'), 'site-a.foundry-astro.test');
-});
-
-test('parseRefererHost: keeps port if non-default', () => {
-    assert.equal(parseRefererHost('http://localhost:4321/page'), 'localhost:4321');
-});
-
-test('parseRefererHost: null on missing / malformed', () => {
-    assert.equal(parseRefererHost(null), null);
-    assert.equal(parseRefererHost(''), null);
-    assert.equal(parseRefererHost('not a url'), null);
+test('parseUaFamily: buckets real-traffic UA strings into families', () => {
+    const cases: Array<[ua: string | null, family: string | null]> = [
+        ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36', 'Chrome'],
+        ['Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1', 'Safari'],
+        ['Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0', 'Firefox'],
+        // Edge ships a Chrome token — Edge must win the match order.
+        ['Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0', 'Edge'],
+        ['Googlebot/2.1 (+http://www.google.com/bot.html)', 'Bot'],
+        ['AhrefsBot/7.0', 'Bot'],
+        // The long tail rolls up into "Other"; a missing UA stays null.
+        ['curl/8.7.1', 'Other'],
+        [null, null],
+    ];
+    for (const [ua, family] of cases) {
+        assert.equal(parseUaFamily(ua), family, String(ua));
+    }
 });
 
 // ──────────────────────────────────────────────
@@ -523,14 +485,11 @@ test('matchAffiliateClickPath: null on root and empty', () => {
 // ──────────────────────────────────────────────
 
 test('sendClickEvent: POSTs JSON with keepalive', async () => {
-    const originalFetch = globalThis.fetch;
     const captured: { url: string; init: RequestInit }[] = [];
-    globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
-        captured.push({ url: String(url), init: init ?? {} });
+    await withFakeFetch((url, init) => {
+        captured.push({ url, init: init ?? {} });
         return new Response(null, { status: 204 });
-    }) as typeof fetch;
-
-    try {
+    }, async () => {
         const r = await sendClickEvent('http://cms.test/api/v1/events/clicks', {
             code: 'abc123def456',
             click_id: '01J8ZK4N2QW3E4R5T6Y7U8I9O0',
@@ -557,9 +516,7 @@ test('sendClickEvent: POSTs JSON with keepalive', async () => {
         assert.equal(body.country, 'FR');
         assert.equal(body.referer_path, '/fr/le-colisee');
         assert.equal(body.geo_rule_idx, -1);
-    } finally {
-        globalThis.fetch = originalFetch;
-    }
+    });
 });
 
 // ──────────────────────────────────────────────
@@ -637,13 +594,12 @@ test('redirectClick: 302 whose subid equals the beacon click_id, placement strip
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456?p=comparison_table', {
+            ...clickArgs('https://site-a.test/go/abc123def456?p=comparison_table', {
                 headers: {
                     'user-agent': 'Mozilla/5.0 Chrome/124.0.0.0 Safari/537.36',
                     referer: 'https://site-a.test/fr/le-colisee?utm=x',
                 },
             }),
-            origin: 'https://site-a.test',
             waitUntil: (promise) => world.waitUntilCalls.push(promise),
         });
 
@@ -685,10 +641,9 @@ test('redirectClick: geo rule wins, encoded subid injected, account attributed',
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456?p=ticket_shelf', {
+            ...clickArgs('https://site-a.test/go/abc123def456?p=ticket_shelf', {
                 headers: { 'cf-ipcountry': 'US' },
             }),
-            origin: 'https://site-a.test',
         });
 
         const location = response.headers.get('Location') ?? '';
@@ -711,8 +666,7 @@ test('redirectClick: URL without subid support redirects untouched', async () =>
     try {
         const response = await redirectClick({
             code: 'nosubid00001',
-            request: new Request('https://site-a.test/go/nosubid00001'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/nosubid00001'),
         });
         assert.equal(response.headers.get('Location'), 'https://nosubid.test/deal');
         // The click is still recorded — the subid just can't travel.
@@ -729,8 +683,7 @@ test('redirectClick: unknown ?p= collapses to null, never forwarded', async () =
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456?p=totally_bogus'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456?p=totally_bogus'),
         });
         assert.equal(response.status, 302);
         assert.ok(!(response.headers.get('Location') ?? '').includes('bogus'));
@@ -745,8 +698,7 @@ test('redirectClick: 503 when no link map has ever loaded', async () => {
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
         });
         assert.equal(response.status, 503);
         assert.equal(world.beacons.length, 0, 'no beacon without a resolvable target');
@@ -760,8 +712,7 @@ test('redirectClick: 404 on unknown code', async () => {
     try {
         const response = await redirectClick({
             code: 'doesnotexist',
-            request: new Request('https://site-a.test/go/doesnotexist'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/doesnotexist'),
         });
         assert.equal(response.status, 404);
         assert.equal(world.beacons.length, 0);
@@ -800,8 +751,7 @@ test('redirectClick: an emptied map turns a served code into a 404, never a stal
     try {
         const before = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
         });
         assert.equal(before.status, 302);
 
@@ -812,8 +762,7 @@ test('redirectClick: an emptied map turns a served code into a 404, never a stal
 
         const after = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
         });
         assert.equal(after.status, 404, 'a disabled code must 404 — not keep 302ing, not 503');
     } finally {
@@ -826,8 +775,7 @@ test('redirectClick: malformed refresh keeps redirecting from the previous map',
     try {
         const before = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
         });
         assert.equal(before.status, 302);
 
@@ -839,8 +787,7 @@ test('redirectClick: malformed refresh keeps redirecting from the previous map',
 
         const after = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
         });
         assert.equal(after.status, 302, 'the previous good map keeps serving');
         assert.ok(
@@ -863,8 +810,7 @@ test('redirectClick: v1 map entries still redirect (account_id null)', async () 
     try {
         const response = await redirectClick({
             code: 'legacycode01',
-            request: new Request('https://site-a.test/go/legacycode01'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/legacycode01'),
         });
         assert.equal(response.status, 302);
         assert.match(
@@ -883,8 +829,7 @@ test('redirectClick: no collector configured → redirect still works, no beacon
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            request: new Request('https://site-a.test/go/abc123def456'),
-            origin: 'https://site-a.test',
+            ...clickArgs('https://site-a.test/go/abc123def456'),
             waitUntil: (promise) => world.waitUntilCalls.push(promise),
         });
         assert.equal(response.status, 302);

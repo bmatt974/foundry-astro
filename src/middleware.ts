@@ -76,7 +76,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         return redirectClick({
             code: affiliateMatch.code,
             request: context.request,
-            origin: context.url.origin,
+            url: context.url,
             clientAddress,
             waitUntil,
         });
