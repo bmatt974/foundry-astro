@@ -205,6 +205,9 @@ test('metaSearch keys resolve per locale and accept wording overrides', () => {
     assert.equal(__('metaSearch.step.trip', 'fr'), 'Votre voyage');
     assert.equal(__('metaSearch.step.prepare', 'en'), 'Prepare your trip');
     assert.equal(__('metaSearch.step.prepare', 'fr'), 'Préparez votre voyage');
+    // Honesty marker on destination-only verticals (activities).
+    assert.equal(__('metaSearch.destinationOnly', 'en'), 'Opens the destination page on the partner site');
+    assert.equal(__('metaSearch.destinationOnly', 'fr'), 'Ouvre la page de la destination sur le site partenaire');
     assert.equal(
         __('metaSearch.searchOn', 'fr', { partner: 'Booking.com' }),
         'Rechercher sur Booking.com',

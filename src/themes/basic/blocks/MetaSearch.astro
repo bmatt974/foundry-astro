@@ -179,6 +179,12 @@ function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
         (field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name),
     );
 }
+
+/** Verticals whose partners land on a destination page and ignore
+ *  the trip's dates/travelers (Viator/Tiqets consume neither —
+ *  Phase 2 verdict). UI-chrome allowlist mirrored across themes;
+ *  it flags an honesty note, it never filters the payload. */
+const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
 ---
 
 {parsed !== null && labels !== null && prefill !== null && (
@@ -329,6 +335,11 @@ function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
                                         </div>
                                     )}
                                 </header>
+                                {DESTINATION_ONLY_VERTICALS.includes(vertical.vertical) && (
+                                    <p class="meta-search__vertical-note brand-text-muted mt-1 text-xs italic">
+                                        {t('metaSearch.destinationOnly')}
+                                    </p>
+                                )}
                                 <div class="meta-search__partners">
                                     {vertical.partners.map((partner) => (
                                         <button
