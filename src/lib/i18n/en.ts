@@ -190,6 +190,10 @@ const en: Dictionary = {
             flights: 'Flights',
             activities: 'Activities',
         },
+        step: {
+            trip: 'Your trip',
+            prepare: 'Prepare your trip',
+        },
     },
     visitorHeader: {
         duration: 'Plan :from – :to',

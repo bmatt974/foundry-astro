@@ -145,6 +145,18 @@ test('parseSearchQuery: children ages clamped to 0..17, junk tokens dropped', ()
     assert.equal(parseSearchQuery(new URLSearchParams('')).ca, undefined);
 });
 
+test('parseSearchQuery: repeated ca params (zero-JS form shape) flatten into the age list', () => {
+    // The theme form ships one select PER child age, each named `ca` —
+    // a native GET serializes them as repeated params, trailing empty
+    // ones included.
+    assert.equal(parseSearchQuery(new URLSearchParams('ca=4&ca=9&ca=&ca=')).ca, '4,9');
+    // An empty FIRST slot must not hide the filled ones.
+    assert.equal(parseSearchQuery(new URLSearchParams('ca=&ca=7&ca=&ca=')).ca, '7');
+    // Mixed shapes (canonical CSV + repeated) flatten too.
+    assert.equal(parseSearchQuery(new URLSearchParams('ca=4,9&ca=12')).ca, '4,9,12');
+    assert.equal(parseSearchQuery(new URLSearchParams('ca=&ca=&ca=&ca=')).ca, undefined, 'all-empty selects omitted');
+});
+
 test('parseSearchQuery: empty-string values are treated as absent', () => {
     const state = parseSearchQuery(new URLSearchParams('d=&ci=%20%20'));
     assert.equal(state.d, undefined);
