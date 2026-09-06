@@ -15,6 +15,13 @@
  * forwarded to the partner, whose Location is built solely from the
  * link map's URL.
  *
+ * A code absent from `links.json` gets a second chance against the
+ * per-site `search-map.json` (meta-search deeplinks, same 2-segment
+ * URL space): the click's query string then carries the visitor's
+ * search form, filled into the partner's tracked template by
+ * `fillSearchTemplate` (lib/meta-search.ts). A code in neither map is
+ * a 404, exactly as before meta-search existed.
+ *
  * `Referrer-Policy: origin` on the 302 ensures the partner only
  * sees the site's origin in `Referer`, not the `/{prefix}/{code}`
  * path. `Cache-Control: no-store` keeps the 302 from being cached
@@ -32,9 +39,12 @@ import {
     pickTarget,
     PLACEMENT_PARAM,
     sendClickEvent,
+    type ClickEventPayload,
 } from './affiliate.ts';
 import { isAffiliateProxyPrefix } from './affiliate-prefixes.ts';
 import { lookupCountry, parseClientIp } from './geoip.ts';
+import { fillSearchTemplate, parseSearchQuery } from './meta-search.ts';
+import { loadSearchMap } from './search-map.ts';
 
 /**
  * Extract `(prefix, code)` from a URL pathname when it matches the
@@ -89,36 +99,124 @@ export async function redirectClick(args: {
 
     const entry = linkMap.links[code];
     if (!entry) {
+        // Not a classic click — try the meta-search space. The search
+        // map is only ever loaded on this branch: the massively
+        // dominant classic click pays zero extra cost.
+        return redirectSearchClick(args);
+    }
+
+    const country = await resolveCountry(request, clientAddress);
+    const target = pickTarget(entry, country);
+
+    return clickResponse({
+        request,
+        waitUntil,
+        partnerUrl: target.url,
+        country,
+        beacon: {
+            code,
+            website_id: linkMap.site.id,
+            account_id: target.account_id ?? null,
+            placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)),
+            geo_rule_idx: target.geo_rule_idx,
+        },
+    });
+}
+
+/**
+ * Resolve a meta-search click: the code names a search profile in the
+ * per-site `search-map.json` (same 2-segment URL space as classic
+ * clicks, resolved second), the query string carries the visitor's
+ * form (`d`, `ci`, `co`, `a`, `ca`, …) which the filler projects into
+ * the partner's tracked URL template. A `required` slot the query
+ * cannot satisfy resolves to the entry's `fallback_url` — a broken
+ * query is still a monetized click toward the partner homepage, never
+ * a 400.
+ *
+ *   - code in neither map → 404 (the pre-meta-search behavior);
+ *   - search map unloadable on a cold start → 503 — but a site that
+ *     never published a search-map.json (HTTP 404) counts as an empty
+ *     map, so its unknown codes keep answering 404.
+ */
+async function redirectSearchClick(args: {
+    code: string;
+    request: Request;
+    url: URL;
+    clientAddress?: string | null;
+    waitUntil?: ((promise: Promise<unknown>) => void) | null;
+}): Promise<Response> {
+    const { code, request, url, clientAddress, waitUntil } = args;
+
+    const searchMap = await loadSearchMap(url.origin);
+    if (!searchMap) {
+        return new Response('Search map unavailable', { status: 503 });
+    }
+
+    const entry = searchMap.entries[code];
+    if (!entry) {
         return new Response('Not found', { status: 404 });
     }
 
-    let country = getVisitorCountry(request.headers);
-    if (!country) {
-        country = await lookupCountry(parseClientIp(request.headers, clientAddress));
+    const partnerUrl = fillSearchTemplate(entry, parseSearchQuery(url.searchParams));
+    if (partnerUrl === '') {
+        return new Response('Not found', { status: 404 });
     }
-    const target = pickTarget(entry, country);
 
-    // One ULID per click — the subid the partner echoes back at
-    // conversion time IS the click's PK in Foundry, so the value in
-    // the Location header and the one in the beacon must be the same
-    // string, minted exactly once.
+    const country = await resolveCountry(request, clientAddress);
+
+    return clickResponse({
+        request,
+        waitUntil,
+        partnerUrl,
+        country,
+        beacon: {
+            code,
+            website_id: searchMap.site.id,
+            account_id: entry.account_id ?? null,
+            // A search entry always carries a placement: the form's
+            // hidden `p` when present and valid, `meta_search` — the
+            // only surface these codes render on — otherwise.
+            placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)) ?? 'meta_search',
+        },
+    });
+}
+
+/** CDN geo headers first, local GeoIP db as the self-hosted fallback. */
+async function resolveCountry(request: Request, clientAddress?: string | null): Promise<string | null> {
+    return getVisitorCountry(request.headers)
+        ?? await lookupCountry(parseClientIp(request.headers, clientAddress));
+}
+
+/**
+ * The shared tail of every resolved click, classic or search: mint the
+ * ULID, inject it as the partner `{subid}`, fire the collector beacon,
+ * 302. One ULID per click — the subid the partner echoes back at
+ * conversion time IS the click's PK in Foundry, so the value in the
+ * Location header and the one in the beacon must be the same string,
+ * minted exactly once.
+ */
+function clickResponse(args: {
+    request: Request;
+    waitUntil?: ((promise: Promise<unknown>) => void) | null;
+    partnerUrl: string;
+    country: string | null;
+    beacon: Omit<ClickEventPayload, 'click_id' | 'country' | 'ua_family' | 'referer_host' | 'referer_path'>;
+}): Response {
+    const { request, waitUntil, partnerUrl, country } = args;
+
     const clickId = generateClickUlid();
-    const location = injectSubId(target.url, clickId);
+    const location = injectSubId(partnerUrl, clickId);
 
     const collectorUrl = resolveCollectorUrl();
     if (collectorUrl) {
         const referer = parseReferer(request.headers.get('referer'));
         const beacon = sendClickEvent(collectorUrl, {
-            code,
+            ...args.beacon,
             click_id: clickId,
-            website_id: linkMap.site.id,
-            account_id: target.account_id ?? null,
-            placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)),
             country,
             ua_family: parseUaFamily(request.headers.get('user-agent')),
             referer_host: referer?.host ?? null,
             referer_path: referer?.path ?? null,
-            geo_rule_idx: target.geo_rule_idx,
         }).catch(() => { /* fire-and-forget */ });
         if (waitUntil) {
             waitUntil(beacon);

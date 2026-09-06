@@ -25,6 +25,7 @@ import {
 } from '../src/lib/affiliate.ts';
 import { matchAffiliateClickPath, redirectClick } from '../src/lib/affiliate-redirect.ts';
 import { AFFILIATE_PROXY_PREFIXES, affiliateRouteIncludes } from '../src/lib/affiliate-prefixes.ts';
+import { __resetSearchMapCache } from '../src/lib/search-map.ts';
 
 /** Laravel's Str::isUlid() shape — the collector validates against it. */
 const ULID_REGEX = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
@@ -143,8 +144,8 @@ test('injectSubId: never touches other placeholders', () => {
 // parsePlacement — ?p= allow-list
 // ──────────────────────────────────────────────
 
-test('parsePlacement: accepts exactly the seven enum slugs', () => {
-    for (const slug of ['comparison_table', 'ticket_shelf', 'cta', 'inline_link', 'sidebar', 'deal', 'article']) {
+test('parsePlacement: accepts exactly the eight enum slugs', () => {
+    for (const slug of ['comparison_table', 'ticket_shelf', 'cta', 'inline_link', 'sidebar', 'deal', 'article', 'meta_search']) {
         assert.equal(parsePlacement(slug), slug);
     }
 });
@@ -534,6 +535,7 @@ interface RedirectHarness {
  *  Vite, so import.meta.env is absent and the env fallback engages). */
 function mockRedirectWorld(map: unknown): RedirectHarness {
     __resetLinkMapCache();
+    __resetSearchMapCache();
     const originalFetch = globalThis.fetch;
     const originalApiUrl = process.env.FOUNDRY_API_URL;
     process.env.FOUNDRY_API_URL = 'http://cms.test/api/v1';
@@ -549,6 +551,7 @@ function mockRedirectWorld(map: unknown): RedirectHarness {
                 process.env.FOUNDRY_API_URL = originalApiUrl;
             }
             __resetLinkMapCache();
+            __resetSearchMapCache();
         },
     };
 
@@ -559,6 +562,11 @@ function mockRedirectWorld(map: unknown): RedirectHarness {
                 throw new Error('origin down');
             }
             return new Response(JSON.stringify(map), { status: 200 });
+        }
+        if (href.endsWith('/_data/search-map.json')) {
+            // This world models a site WITHOUT meta-search: the file
+            // was never published, so unknown codes must keep 404ing.
+            return new Response('not found', { status: 404 });
         }
         if (href.includes('/events/clicks')) {
             harness.beacons.push(JSON.parse(String(init?.body)));
@@ -726,11 +734,15 @@ test('redirectClick: 404 on unknown code', async () => {
  *  driven without rebuilding the whole harness per state. */
 function mockSwappableMap(initial: unknown): { set: (map: unknown) => void; restore: () => void } {
     __resetLinkMapCache();
+    __resetSearchMapCache();
     const originalFetch = globalThis.fetch;
     let currentMap = initial;
     globalThis.fetch = (async (url: RequestInfo | URL) => {
         if (String(url).endsWith('/_data/links.json')) {
             return new Response(JSON.stringify(currentMap), { status: 200 });
+        }
+        if (String(url).endsWith('/_data/search-map.json')) {
+            return new Response('not found', { status: 404 });
         }
         return new Response(null, { status: 204 });
     }) as typeof fetch;
@@ -742,6 +754,7 @@ function mockSwappableMap(initial: unknown): { set: (map: unknown) => void; rest
         restore: () => {
             globalThis.fetch = originalFetch;
             __resetLinkMapCache();
+            __resetSearchMapCache();
         },
     };
 }
