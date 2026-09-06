@@ -188,6 +188,10 @@ const fr: Dictionary = {
             flights: 'Vols',
             activities: 'Activités',
         },
+        step: {
+            trip: 'Votre voyage',
+            prepare: 'Préparez votre voyage',
+        },
     },
     visitorHeader: {
         duration: 'Prévoir :from – :to',

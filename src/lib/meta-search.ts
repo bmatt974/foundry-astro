@@ -191,6 +191,12 @@ export function phpIntCast(value: string): number {
  * definition of this TS layer (`parseSearchQuery` has no PHP
  * counterpart); the filler below stays the byte mirror.
  *
+ * `ca` is read via `getAll`: the zero-JS theme form serializes one
+ * `ca` param PER child-age select (`ca=4&ca=9&ca=&ca=`), while
+ * hand-built URLs use the canonical CSV (`ca=4,9`) — both shapes
+ * (and any mix) flatten to the same age list, empty tokens dropping
+ * through the numeric filter.
+ *
  * The golden fixtures bypass this function by design (contract §11
  * feeds `case.form` straight to the filler): the filler itself remains
  * the byte mirror of PHP, this layer only bounds what real URLs can
@@ -215,7 +221,7 @@ export function parseSearchQuery(params: URLSearchParams): SearchFormState {
         : '2';
 
     const ages: number[] = [];
-    for (const rawToken of (params.get('ca') ?? '').split(',')) {
+    for (const rawToken of params.getAll('ca').flatMap((value) => value.split(','))) {
         const token = phpTrim(rawToken);
         if (token === '' || !phpIsNumeric(token)) {
             continue;

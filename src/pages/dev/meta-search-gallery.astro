@@ -1,0 +1,153 @@
+---
+/**
+ * Dev-only MetaSearch block gallery.
+ *
+ * Renders the 4 fixture scenarios (baseline / locked destination /
+ * flights-flavored settings / API empty flag) through the CURRENT
+ * tenant's theme, so the guided trip-preparation layout (one shared
+ * trip form + vertical rail) can be judged exactly as it will ship.
+ * This is the QA surface for the V3/V4 theme waves — no Laravel
+ * builder required, the payloads are the frozen-contract fixtures.
+ *
+ * URL params (all optional):
+ *   locale=fr-FR — dictionary override, same trick as the
+ *                  tickets gallery.
+ *
+ * 404s in production builds.
+ */
+export const prerender = false;
+
+import { getTheme } from '../../themes/registry';
+import { metaSearchScenarios } from '../../dev/fixtures/meta-search';
+
+if (import.meta.env.PROD) {
+    return new Response('Not found', { status: 404 });
+}
+
+const tenant = Astro.locals.tenant;
+if (!tenant) {
+    return new Response('Tenant not resolved — dev gallery requires a host with a registered website.', { status: 500 });
+}
+
+const params = Astro.url.searchParams;
+const locale = params.get('locale') ?? Astro.locals.locale ?? tenant.defaultLocale ?? 'en';
+/* Propagate the override so the Block component (which reads
+   `Astro.locals.locale` for its dictionaries) follows the toolbar. */
+Astro.locals.locale = locale;
+
+const theme = await getTheme(tenant.website.template);
+const { Layout, Block } = theme;
+
+/* The fixture titles/captions are part of the frozen V2 contract and
+   predate the guided-journey pivot (they still speak of "tabs") —
+   the gallery re-captions the affected scenarios instead of touching
+   the shared fixtures. */
+const CAPTIONS: Record<string, { title?: string; caption?: string }> = {
+    baseline: {
+        caption: 'Full payload: one shared trip card (destination, departure city, dates, travelers) above the 3-vertical preparation rail — every partner button submits the common form.',
+    },
+    'flights-default': {
+        title: 'C — Custom heading, flights-flavored settings',
+        caption: 'settings.default_vertical=flights with a custom heading — the guided layout has no tabs so the default-vertical hint is ignored; the origin field and hidden IATA slots still render because flights is served.',
+    },
+};
+
+const scenarios = metaSearchScenarios().map((scenario) => ({
+    ...scenario,
+    title: CAPTIONS[scenario.slug]?.title ?? scenario.title,
+    caption: CAPTIONS[scenario.slug]?.caption ?? scenario.caption,
+}));
+
+const LOCALES = ['en-US', 'en-GB', 'fr-FR', 'fr-BE'] as const;
+---
+
+<Layout title="MetaSearch gallery" description="Dev-only MetaSearch block scenario gallery" locale={locale}>
+    <style slot="head" is:inline>
+        .dev-gallery-toolbar {
+            background: rgba(255, 255, 255, 0.97);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1.5rem;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.8rem;
+        }
+        .dev-gallery-toolbar form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .dev-gallery-toolbar select, .dev-gallery-toolbar button {
+            font: inherit;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+        }
+        .dev-gallery-toolbar button {
+            background: #1f2937;
+            color: white;
+            font-weight: 600;
+            border: 0;
+            cursor: pointer;
+            padding: 0.35rem 0.85rem;
+        }
+        .dev-gallery-toolbar .meta { color: #6b7280; font-size: 0.7rem; margin-left: auto; }
+        .dev-scenario {
+            margin: 3rem 0;
+            padding-top: 1.5rem;
+            border-top: 2px dashed rgba(0, 0, 0, 0.12);
+        }
+        .dev-scenario > h2 {
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        .dev-scenario > p {
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 1rem;
+        }
+        .dev-scenario-empty {
+            padding: 1rem 1.25rem;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            background: #f9fafb;
+            color: #6b7280;
+            font-family: ui-sans-serif, system-ui, sans-serif;
+            font-size: 0.8rem;
+        }
+    </style>
+
+    <div class="dev-gallery-toolbar">
+        <form method="get" action="/dev/meta-search-gallery">
+            <label>
+                locale
+                <select name="locale">
+                    {LOCALES.map((l) => <option value={l} selected={l === locale}>{l}</option>)}
+                </select>
+            </label>
+            <button type="submit">Reload</button>
+            <span class="meta">
+                theme <code>{tenant.website.template ?? 'basic'}</code> · 4 fixture scenarios · single guided layout (trip card + rail) · buttons submit to <code>/{'{proxy}'}/{'{code}'}</code> (dev codes 404 on the worker)
+            </span>
+        </form>
+    </div>
+
+    <h1>MetaSearch gallery</h1>
+
+    {scenarios.map((scenario) => (
+        <section class="dev-scenario" id={scenario.slug}>
+            <h2>{scenario.title} <code>({scenario.slug})</code></h2>
+            <p>{scenario.caption}</p>
+            <Block block={scenario.block} />
+            {scenario.slug === 'empty' && (
+                <div class="dev-scenario-empty">
+                    Nothing rendered above — expected: <code>meta.empty=true</code> makes the theme skip the block entirely.
+                </div>
+            )}
+        </section>
+    ))}
+</Layout>

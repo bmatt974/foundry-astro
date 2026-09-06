@@ -374,12 +374,20 @@ export interface Dictionary {
         /** Accessible label of a partner's logo button — ":partner"
          *  is the partner name ("Search on Booking.com"). */
         searchOn: string;
-        /** Tab labels for the 3 verticals — stable slugs shipped by
-         *  the payload, mapped here at presentation time. */
+        /** Section labels for the 3 verticals — stable slugs shipped
+         *  by the payload, mapped here at presentation time. */
         vertical: {
             hotels: string;
             flights: string;
             activities: string;
+        };
+        /** Numbered step headers of the guided journey — the shared
+         *  who/where/when card, then the vertical preparation rail. */
+        step: {
+            /** "Your trip" — header of the shared trip card. */
+            trip: string;
+            /** "Prepare your trip" — header of the preparation rail. */
+            prepare: string;
         };
     };
     /** Visitor-facing header chips on place pages — labels for the

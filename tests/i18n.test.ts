@@ -167,7 +167,7 @@ test('the metaSearch family resolves in both dictionaries', () => {
     // an empty string would render an unlabeled form control.
     for (const dict of [en, fr]) {
         for (const [key, value] of Object.entries(dict.metaSearch)) {
-            if (key === 'vertical') {
+            if (key === 'vertical' || key === 'step') {
                 continue;
             }
             assert.ok(
@@ -179,6 +179,12 @@ test('the metaSearch family resolves in both dictionaries', () => {
             assert.ok(
                 dict.metaSearch.vertical[slug].length > 0,
                 `metaSearch.vertical.${slug} must be a non-empty string`,
+            );
+        }
+        for (const step of ['trip', 'prepare'] as const) {
+            assert.ok(
+                dict.metaSearch.step[step].length > 0,
+                `metaSearch.step.${step} must be a non-empty string`,
             );
         }
         assert.ok(
@@ -195,6 +201,10 @@ test('the metaSearch family resolves in both dictionaries', () => {
 test('metaSearch keys resolve per locale and accept wording overrides', () => {
     assert.equal(__('metaSearch.vertical.hotels', 'en'), 'Hotels');
     assert.equal(__('metaSearch.vertical.hotels', 'fr'), 'Hôtels');
+    assert.equal(__('metaSearch.step.trip', 'en'), 'Your trip');
+    assert.equal(__('metaSearch.step.trip', 'fr'), 'Votre voyage');
+    assert.equal(__('metaSearch.step.prepare', 'en'), 'Prepare your trip');
+    assert.equal(__('metaSearch.step.prepare', 'fr'), 'Préparez votre voyage');
     assert.equal(
         __('metaSearch.searchOn', 'fr', { partner: 'Booking.com' }),
         'Rechercher sur Booking.com',

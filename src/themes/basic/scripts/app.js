@@ -43,4 +43,68 @@ const initMenuDropdowns = () => {
     });
 };
 
+// ─── Meta-search enhancements ─────────────────────────────────
+// Pure enhancements over the zero-JS trip form. Date floors: the
+// dates ship WITHOUT a `min` (a prerendered page would freeze a
+// stale floor), so min=today lands here at runtime and the checkout
+// can never precede the picked checkin. Trip memory: the last
+// submitted trip restores from localStorage — only into EMPTY,
+// writable fields (a page-context prefill or an API default always
+// wins) and never with a stale date, so the floor and the restore
+// can't fight.
+
+const initTripMemory = (form, today) => {
+    const KEY = 'foundry:last-trip';
+    const NAMES = ['d', 'o', 'ci', 'co', 'a', 'ca'];
+    const fieldsOf = (name) =>
+        [...form.querySelectorAll(`[name="${name}"]`)].filter((el) => el.type !== 'hidden');
+    try {
+        const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+        for (const name of NAMES) {
+            [].concat(saved[name] ?? []).forEach((value, index) => {
+                const input = fieldsOf(name)[index];
+                if (!input || !value || input.value || input.readOnly) return;
+                if (input.type === 'date' && value < today) return;
+                input.value = value;
+                // A restored child age must stay visible — open the fold.
+                input.closest('details')?.setAttribute('open', '');
+            });
+        }
+        form.addEventListener('submit', () => {
+            const trip = {};
+            for (const name of NAMES) {
+                const values = fieldsOf(name).map((input) => input.value);
+                if (values.some(Boolean)) trip[name] = values;
+            }
+            try { localStorage.setItem(KEY, JSON.stringify(trip)); } catch { /* full/blocked */ }
+        });
+    } catch { /* localStorage unavailable — enhancement only */ }
+};
+
+const initMetaSearch = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    // Local date, not toISOString() — UTC would floor late-evening
+    // visitors west of Greenwich to tomorrow.
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    for (const form of document.querySelectorAll('.meta-search__form')) {
+        initTripMemory(form, today);
+
+        const checkin = form.querySelector('input[type="date"][name="ci"]');
+        const checkout = form.querySelector('input[type="date"][name="co"]');
+        if (checkin) checkin.min = today;
+        if (checkout) checkout.min = today;
+        if (!checkin || !checkout) continue;
+
+        checkin.addEventListener('change', () => {
+            checkout.min = checkin.value || today;
+            if (checkout.value && checkout.value < checkout.min) {
+                checkout.value = '';
+            }
+        });
+    }
+};
+
 initMenuDropdowns();
+initMetaSearch();
