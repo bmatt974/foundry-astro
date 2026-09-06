@@ -246,6 +246,207 @@ section.my-8, section.my-10, section.my-12 { margin-block: var(--section-spacing
     gap: 0.25rem;
 }
 
+/* ─── MetaSearch block ─────────────────────────────────────────── */
+/* One shared who/where/when trip card above the preparation rail
+   (one titled section per vertical + partner-logo submit grid) —
+   all inside a single GET form. Every state is element/attribute
+   driven (native <details> children fold, [readonly] prefill) — the
+   post-build PurgeCSS pass only keeps selectors whose classes exist
+   in the rendered HTML, so nothing here may depend on a class added
+   by JS at runtime. */
+
+.meta-search__heading { margin-bottom: 1rem; }
+
+.meta-search__form {
+    counter-reset: ms-step;
+    display: flex;
+    flex-direction: column;
+    gap: 1.9rem;
+}
+
+/* Numbered step headers (« Your trip » / « Prepare your trip ») —
+   the guided-journey thread, numbered by CSS counter so the markup
+   stays free of hardcoded digits. */
+.meta-search__step-title {
+    counter-increment: ms-step;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.85rem;
+    font-size: 1.1rem;
+}
+.meta-search__step-title::before {
+    content: counter(ms-step);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.meta-search__trip-card {
+    background: #fff;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-card, 8px);
+    box-shadow: var(--shadow-card, 0 1px 2px rgba(28, 20, 16, 0.05));
+    padding: 1.25rem;
+}
+
+.meta-search__fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.9rem 1rem;
+}
+.meta-search__field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.meta-search__field--wide { grid-column: 1 / -1; }
+
+.meta-search__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--brand-muted);
+}
+.meta-search__icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+.meta-search__input {
+    font: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-button, 6px);
+    background: #fff;
+    color: var(--brand-text);
+}
+.meta-search__input:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 1px;
+}
+.meta-search__input[readonly] {
+    background: color-mix(in srgb, var(--brand-border) 30%, #fff);
+}
+
+.meta-search__children { margin-top: 0.9rem; }
+.meta-search__children-toggle {
+    cursor: pointer;
+    width: max-content;
+    font-size: 0.85rem;
+    color: var(--brand-muted);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+}
+.meta-search__ages {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+/* Preparation rail — one titled card per served vertical, its inline
+   extras (rooms, …) sitting in the header row beside the title, the
+   partner grid below. */
+.meta-search__rail {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.meta-search__vertical {
+    background: #fff;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-card, 8px);
+    box-shadow: var(--shadow-card, 0 1px 2px rgba(28, 20, 16, 0.05));
+    padding: 1.1rem 1.25rem;
+}
+.meta-search__vertical-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1.25rem;
+}
+.meta-search__vertical-title {
+    margin: 0;
+    font-size: 1.05rem;
+}
+.meta-search__extras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+.meta-search__extra {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+.meta-search__input--compact { width: 5.5rem; }
+
+.meta-search__partners {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.1rem;
+    padding-top: 1.1rem;
+    border-top: 1px dashed var(--brand-border);
+}
+.meta-search__partner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3.25rem;
+    padding: 0.6rem 0.9rem;
+    font: inherit;
+    background: #fff;
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-button, 6px);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.meta-search__partner:hover {
+    border-color: var(--brand-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card, 0 1px 2px rgba(28, 20, 16, 0.08));
+}
+.meta-search__partner:focus-visible {
+    outline: 2px solid var(--brand-primary);
+    outline-offset: 2px;
+}
+.meta-search__partner-logo {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    max-height: 2rem;
+    object-fit: contain;
+}
+.meta-search__partner-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--brand-text);
+}
+
+/* Dedicated search page (page_type=search, static class set by
+   Article.astro) — the form + partner grid break out of the narrow
+   article column. The main container releases to a wide-but-capped
+   measure so ultra-wide screens keep a readable line. */
+.article--meta-search { max-width: none; }
+main.brand-container:has(.article--meta-search) { max-width: 72rem; }
+
 /* Button-as-link styling for dropdown triggers — inherits color +
    underline from the `.brand-link` class also applied on the trigger.
    We only reset the UA button-specific bits (background, border,

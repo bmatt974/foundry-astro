@@ -57,8 +57,17 @@ const showBio = bioSettings.show && (
     bioSettings.page_types === null
     || bioSettings.page_types.includes(page.page_type ?? '')
 );
+
+// The dedicated search page breaks out of the narrow article column —
+// the form + partner grid need the width. The class is STATIC (keyed
+// on page_type at build) so the container-release rule in styles.css
+// survives the post-build PurgeCSS pass; every other page type keeps
+// the wrapperless section list it always had.
+const isSearchPage = page.page_type === 'search';
+const Wrapper = isSearchPage ? 'div' : Fragment;
 ---
 
+<Wrapper {...(isSearchPage ? { class: 'article--meta-search' } : {})}>
 {sections.map((section) => {
     switch (section) {
         case 'hero':
@@ -106,3 +115,4 @@ const showBio = bioSettings.show && (
             return null;
     }
 })}
+</Wrapper>

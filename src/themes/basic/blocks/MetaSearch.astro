@@ -1,0 +1,364 @@
+---
+/**
+ * MetaSearch — the travel meta-search block laid out as a guided
+ * trip-preparation journey. Dumb renderer of the API-composed
+ * payload: partner eligibility, ordering and prefill arrive
+ * decided; this component only lays them out.
+ *
+ * Two numbered steps inside ONE native GET `<form>`:
+ *   1. « Your trip » — the shared who/where/when card (destination,
+ *      departure city, dates, travelers), filled once. The card
+ *      UNIONS the verticals' field declarations: a control shows
+ *      when any served vertical requests it, its attributes come
+ *      from the first vertical declaring it (payload order).
+ *   2. the preparation rail — one section per served vertical in
+ *      payload order: localized title, the vertical's own inline
+ *      extras (e.g. rooms), then its partner-logo grid.
+ *
+ * Every partner button is a `<button type="submit" formaction>` of
+ * the COMMON form, so any click submits the shared trip state and
+ * the edge worker fills that partner's template — fields a
+ * partner's template does not request are ignored by the DSL, so
+ * nothing needs per-vertical scoping and the whole flow works with
+ * scripting disabled (native date inputs without a baked `min`,
+ * `<details>` child-age fold, field NAMES from SEARCH_FIELD_NAMES
+ * so the wire format can never drift per theme).
+ *
+ * The former `tabs` variant is gone (tabs contradict the guided
+ * journey): every `block.variant` value renders this single layout.
+ *
+ * `parseMetaSearch` returns null on the API's empty flag (or when
+ * nothing survives defensive parsing) — the block renders nothing.
+ */
+import type { PageBlock } from '../../../lib/foundry';
+import {
+    META_SEARCH_PLACEMENT,
+    SEARCH_FIELD_NAMES,
+    parseMetaSearch,
+    type MetaSearchField,
+    type MetaSearchVertical,
+} from '../../../lib/blocks/meta-search';
+import { pickSearchIcons } from '../../../lib/themes/search-icons';
+import { useTranslations } from '../../../lib/i18n/index';
+
+interface Props {
+    block: PageBlock;
+}
+
+const { block } = Astro.props;
+const locale = Astro.locals.locale ?? 'en';
+const wording = Astro.locals.wording ?? null;
+/* Per-site anti-footprint prefix for the click worker — the API ships
+   link codes, the SITE picks the path they cloak under. */
+const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
+
+const parsed = parseMetaSearch(block.content, locale, wording, linkProxyPath);
+const t = useTranslations(locale, wording);
+
+const uid = `ms-${block.id}`;
+
+// Seeded per website — identical inline SVG markup across the network
+// is a grep-able cross-site signature — with an optional CMS pin
+// (`theme_config.icon_set`) when the admin wants a specific kit.
+const website = Astro.locals.tenant?.website;
+const icons = pickSearchIcons(
+    website?.slug ?? '',
+    typeof website?.theme_config?.icon_set === 'string' ? website.theme_config.icon_set : null,
+);
+
+const destinationsListId = parsed !== null && parsed.destinations.length > 0 ? `${uid}-destinations` : null;
+const originsListId = parsed !== null && parsed.origins.length > 0 ? `${uid}-origins` : null;
+
+const verticals = parsed?.verticals ?? [];
+const labels = parsed?.labels ?? null;
+const prefill = parsed?.prefill ?? null;
+
+/** Fixed child-age selects — the zero-JS compromise for V1 (families
+ *  of 5+ children fall back to the partner's own form). */
+const CHILD_SELECT_COUNT = 4;
+/** Matches the worker's ingress clamp (0..17). */
+const CHILD_AGES = Array.from({ length: 18 }, (_, age) => age);
+
+const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
+    [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
+    [SEARCH_FIELD_NAMES.origin]: labels.originLabel,
+    [SEARCH_FIELD_NAMES.checkin]: labels.checkinLabel,
+    [SEARCH_FIELD_NAMES.checkout]: labels.checkoutLabel,
+    [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
+    [SEARCH_FIELD_NAMES.rooms]: labels.roomsLabel,
+    [SEARCH_FIELD_NAMES.cabinClass]: labels.cabinLabel,
+};
+
+const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
+    [SEARCH_FIELD_NAMES.destination]: icons.glyphs.pin,
+    [SEARCH_FIELD_NAMES.origin]: icons.glyphs.pin,
+    [SEARCH_FIELD_NAMES.checkin]: icons.glyphs.calendar,
+    [SEARCH_FIELD_NAMES.checkout]: icons.glyphs.calendar,
+    [SEARCH_FIELD_NAMES.adults]: icons.glyphs.travelers,
+};
+
+/**
+ * Fields the visitor never types into. `hidden` is API-declared
+ * (IATA slots); `select` degrades to hidden too — the payload
+ * contract carries no option list and the dictionaries no option
+ * labels (the `cc` cabin class ships its API default and nothing
+ * more in V1).
+ */
+function isHiddenField(field: MetaSearchField): boolean {
+    return field.type === 'hidden' || field.type === 'select';
+}
+
+/**
+ * A hidden field only renders when something can fill it: the API
+ * default, or — for the destination IATA — the page-context prefill
+ * when the destination is LOCKED (an editable destination could
+ * drift from a baked `dt`, sending the visitor to the wrong city;
+ * the fallback_url is the safer miss).
+ */
+function hiddenValue(field: MetaSearchField): string {
+    if (field.name === SEARCH_FIELD_NAMES.iataTo && prefill !== null && prefill.locked && prefill.iataTo !== null) {
+        return prefill.iataTo;
+    }
+
+    return field.default !== null ? String(field.default) : '';
+}
+
+/** Trip-card controls, in display order. `o` only renders when a
+ *  served vertical (flights) declares it. */
+const TRIP_FIELD_ORDER: readonly string[] = [
+    SEARCH_FIELD_NAMES.destination,
+    SEARCH_FIELD_NAMES.origin,
+    SEARCH_FIELD_NAMES.checkin,
+    SEARCH_FIELD_NAMES.checkout,
+    SEARCH_FIELD_NAMES.adults,
+];
+const SHARED_FIELD_NAMES: readonly string[] = [...TRIP_FIELD_ORDER, SEARCH_FIELD_NAMES.childAges];
+
+const tripFields = TRIP_FIELD_ORDER
+    .map((name) => {
+        for (const vertical of verticals) {
+            const field = vertical.fields.find(
+                (candidate) => candidate.name === name && !isHiddenField(candidate),
+            );
+            if (field) {
+                return field;
+            }
+        }
+
+        return null;
+    })
+    .filter((field): field is MetaSearchField => field !== null);
+
+const hasChildAges = verticals.some(
+    (vertical) => vertical.fields.some((field) => field.name === SEARCH_FIELD_NAMES.childAges),
+);
+
+/** Hidden fields deduped ACROSS verticals — one form serializes them
+ *  once, and partners whose template ignores a param never see it. */
+const hiddenFields = (() => {
+    const byName = new Map<string, string>();
+    for (const vertical of verticals) {
+        for (const field of vertical.fields) {
+            if (!isHiddenField(field) || byName.has(field.name)) {
+                continue;
+            }
+            const value = hiddenValue(field);
+            if (value !== '') {
+                byName.set(field.name, value);
+            }
+        }
+    }
+
+    return [...byName.entries()].map(([name, value]) => ({ name, value }));
+})();
+
+/** A vertical's own visible controls (rooms, …) — everything not
+ *  already covered by the shared trip card. */
+function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
+    return vertical.fields.filter(
+        (field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name),
+    );
+}
+---
+
+{parsed !== null && labels !== null && prefill !== null && (
+    <section class="meta-search my-8">
+        <h2 class="meta-search__heading">{parsed.heading}</h2>
+
+        {destinationsListId !== null && (
+            <datalist id={destinationsListId}>
+                {parsed.destinations.map((option) => <option value={option.name} />)}
+            </datalist>
+        )}
+        {originsListId !== null && (
+            <datalist id={originsListId}>
+                {parsed.origins.map((option) => <option value={option.name} />)}
+            </datalist>
+        )}
+
+        {/* target=_blank: a partner search opens in its own tab so the
+            visitor keeps the preparation page (and its filled trip) —
+            same behaviour as every affiliate CTA. rel=noopener severs
+            window.opener on the cross-origin hop. */}
+        <form method="get" class="meta-search__form" target="_blank" rel="noopener">
+            <input type="hidden" name={SEARCH_FIELD_NAMES.placement} value={META_SEARCH_PLACEMENT} />
+            {hiddenFields.map((field) => (
+                <input type="hidden" name={field.name} value={field.value} />
+            ))}
+
+            <section class="meta-search__trip">
+                <h3 class="meta-search__step-title">{t('metaSearch.step.trip')}</h3>
+                <div class="meta-search__trip-card">
+                    <div class="meta-search__fields">
+                        {tripFields.map((field) => {
+                            const id = `${uid}-${field.name}`;
+                            const label = FIELD_LABELS[field.name] ?? field.name;
+                            const iconPath = FIELD_ICONS[field.name];
+                            const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
+                            const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
+                            return (
+                                <div class:list={['meta-search__field', (isDestination || isOrigin) && 'meta-search__field--wide']}>
+                                    <label class="meta-search__label" for={id}>
+                                        {iconPath && (
+                                            <svg
+                                                class="meta-search__icon"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width={icons.strokeWidth}
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                aria-hidden="true"
+                                            >
+                                                <path d={iconPath} />
+                                            </svg>
+                                        )}
+                                        <span>{label}</span>
+                                    </label>
+                                    {isDestination ? (
+                                        <input
+                                            type="text"
+                                            class="meta-search__input"
+                                            id={id}
+                                            name={field.name}
+                                            value={prefill.destination}
+                                            placeholder={labels.destinationPlaceholder}
+                                            readonly={prefill.locked}
+                                            list={destinationsListId}
+                                        />
+                                    ) : isOrigin ? (
+                                        <input
+                                            type="text"
+                                            class="meta-search__input"
+                                            id={id}
+                                            name={field.name}
+                                            list={originsListId}
+                                        />
+                                    ) : field.type === 'date' ? (
+                                        <input type="date" class="meta-search__input" id={id} name={field.name} />
+                                    ) : (
+                                        <input
+                                            type="number"
+                                            class="meta-search__input"
+                                            id={id}
+                                            name={field.name}
+                                            value={field.default}
+                                            min={field.min}
+                                            max={field.max}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {hasChildAges && (
+                        <details class="meta-search__children">
+                            <summary class="meta-search__children-toggle">{labels.childrenToggle}</summary>
+                            <div class="meta-search__ages">
+                                {Array.from({ length: CHILD_SELECT_COUNT }, (_, index) => {
+                                    const id = `${uid}-ca-${index + 1}`;
+                                    return (
+                                        <div class="meta-search__age-field">
+                                            <label class="meta-search__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
+                                            <select class="meta-search__input" id={id} name={SEARCH_FIELD_NAMES.childAges}>
+                                                <option value="">—</option>
+                                                {CHILD_AGES.map((age) => (
+                                                    <option value={String(age)}>{age}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </details>
+                    )}
+                </div>
+            </section>
+
+            <section class="meta-search__prepare">
+                <h3 class="meta-search__step-title">{t('metaSearch.step.prepare')}</h3>
+                <div class="meta-search__rail">
+                    {verticals.map((vertical) => {
+                        const extras = verticalExtras(vertical);
+                        return (
+                            <section class="meta-search__vertical" data-vertical={vertical.vertical}>
+                                <header class="meta-search__vertical-header">
+                                    <h4 class="meta-search__vertical-title">{vertical.label}</h4>
+                                    {extras.length > 0 && (
+                                        <div class="meta-search__extras">
+                                            {extras.map((field) => {
+                                                const id = `${uid}-${vertical.vertical}-${field.name}`;
+                                                return (
+                                                    <div class="meta-search__extra">
+                                                        <label class="meta-search__label" for={id}>
+                                                            {FIELD_LABELS[field.name] ?? field.name}
+                                                        </label>
+                                                        <input
+                                                            type={field.type === 'number' ? 'number' : 'text'}
+                                                            class="meta-search__input meta-search__input--compact"
+                                                            id={id}
+                                                            name={field.name}
+                                                            value={field.default}
+                                                            min={field.min}
+                                                            max={field.max}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </header>
+                                <div class="meta-search__partners">
+                                    {vertical.partners.map((partner) => (
+                                        <button
+                                            type="submit"
+                                            formaction={partner.formAction}
+                                            class="meta-search__partner"
+                                            data-program={partner.program}
+                                            aria-label={labels.searchOn(partner.name)}
+                                            title={labels.searchOn(partner.name)}
+                                        >
+                                            {partner.logo !== null ? (
+                                                <img
+                                                    class="meta-search__partner-logo"
+                                                    src={partner.logo}
+                                                    alt={partner.name}
+                                                    width="120"
+                                                    height="40"
+                                                    loading="lazy"
+                                                />
+                                            ) : (
+                                                <span class="meta-search__partner-name">{partner.name}</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        );
+                    })}
+                </div>
+            </section>
+        </form>
+    </section>
+)}
