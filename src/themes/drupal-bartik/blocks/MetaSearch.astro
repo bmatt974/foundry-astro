@@ -1,34 +1,29 @@
 ---
 /**
- * MetaSearch — the travel meta-search block laid out as a guided
- * trip-preparation journey. Dumb renderer of the API-composed
- * payload: partner eligibility, ordering and prefill arrive
- * decided; this component only lays them out.
+ * MetaSearch — the travel meta-search block as a guided
+ * trip-preparation journey, in drupal-bartik vocabulary. Dumb
+ * renderer of the API-composed payload: partner eligibility,
+ * ordering and prefill arrive decided; this component only lays
+ * them out.
  *
- * Two numbered steps inside ONE native GET `<form>`:
- *   1. « Your trip » — the shared who/where/when card (destination,
- *      departure city, dates, travelers), filled once. The card
- *      UNIONS the verticals' field declarations: a control shows
- *      when any served vertical requests it, its attributes come
- *      from the first vertical declaring it (payload order).
- *   2. the preparation rail — one section per served vertical in
- *      payload order: localized title, the vertical's own inline
- *      extras (e.g. rooms), then its partner-logo grid.
+ * Same structure as the basic theme's reference implementation, in
+ * Drupal idiom: two `<fieldset class="fieldset">` steps (legends
+ * numbered by CSS counter) inside ONE native GET `<form>` — the
+ * shared « Your trip » group built from Form-API atoms
+ * (`form-item`, `form-item__label`, `form-element--type-*`), then
+ * the preparation rail (one `paragraph--type-search-vertical` per
+ * served vertical, its inline extras, its partner-logo submit
+ * grid). Every partner button carries
+ * `formaction="/{proxy}/{code}"`, so any click submits the shared
+ * trip state and the edge worker fills that partner's template —
+ * fields a template does not request are ignored by the DSL. Works
+ * with scripting disabled (native date inputs without a baked
+ * `min`, `<details class="form-wrapper">` child-age fold, field
+ * NAMES from SEARCH_FIELD_NAMES); `scripts/theme.js` layers the
+ * date floors on top through `Drupal.behaviors.tripSearch`.
  *
- * Every partner button is a `<button type="submit" formaction>` of
- * the COMMON form, so any click submits the shared trip state and
- * the edge worker fills that partner's template — fields a
- * partner's template does not request are ignored by the DSL, so
- * nothing needs per-vertical scoping and the whole flow works with
- * scripting disabled (native date inputs without a baked `min`,
- * `<details>` child-age fold, field NAMES from SEARCH_FIELD_NAMES
- * so the wire format can never drift per theme).
- *
- * The former `tabs` variant is gone (tabs contradict the guided
- * journey): every `block.variant` value renders this single layout.
- *
- * `parseMetaSearch` returns null on the API's empty flag (or when
- * nothing survives defensive parsing) — the block renders nothing.
+ * `parseMetaSearch` returns null on the API's empty flag — the
+ * block renders nothing.
  */
 import type { PageBlock } from '../../../lib/foundry';
 import {
@@ -38,7 +33,6 @@ import {
     type MetaSearchField,
     type MetaSearchVertical,
 } from '../../../lib/blocks/meta-search';
-import { pickSearchIcons } from '../../../lib/themes/search-icons';
 import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
@@ -55,16 +49,8 @@ const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 const parsed = parseMetaSearch(block.content, locale, wording, linkProxyPath);
 const t = useTranslations(locale, wording);
 
-const uid = `ms-${block.id}`;
-
-// Seeded per website — identical inline SVG markup across the network
-// is a grep-able cross-site signature — with an optional CMS pin
-// (`theme_config.icon_set`) when the admin wants a specific kit.
-const website = Astro.locals.tenant?.website;
-const icons = pickSearchIcons(
-    website?.slug ?? '',
-    typeof website?.theme_config?.icon_set === 'string' ? website.theme_config.icon_set : null,
-);
+/* Drupal-flavored `edit-*` control ids, unique per block instance. */
+const uid = `edit-trip-${block.id}`;
 
 const destinationsListId = parsed !== null && parsed.destinations.length > 0 ? `${uid}-destinations` : null;
 const originsListId = parsed !== null && parsed.origins.length > 0 ? `${uid}-origins` : null;
@@ -87,14 +73,6 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
     [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
     [SEARCH_FIELD_NAMES.rooms]: labels.roomsLabel,
     [SEARCH_FIELD_NAMES.cabinClass]: labels.cabinLabel,
-};
-
-const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
-    [SEARCH_FIELD_NAMES.destination]: icons.glyphs.pin,
-    [SEARCH_FIELD_NAMES.origin]: icons.glyphs.pin,
-    [SEARCH_FIELD_NAMES.checkin]: icons.glyphs.calendar,
-    [SEARCH_FIELD_NAMES.checkout]: icons.glyphs.calendar,
-    [SEARCH_FIELD_NAMES.adults]: icons.glyphs.travelers,
 };
 
 /**
@@ -123,8 +101,8 @@ function hiddenValue(field: MetaSearchField): string {
     return field.default !== null ? String(field.default) : '';
 }
 
-/** Trip-card controls, in display order. `o` only renders when a
- *  served vertical (flights) declares it. */
+/** Trip-fieldset controls, in display order. `o` only renders when
+ *  a served vertical (flights) declares it. */
 const TRIP_FIELD_ORDER: readonly string[] = [
     SEARCH_FIELD_NAMES.destination,
     SEARCH_FIELD_NAMES.origin,
@@ -173,7 +151,7 @@ const hiddenFields = (() => {
 })();
 
 /** A vertical's own visible controls (rooms, …) — everything not
- *  already covered by the shared trip card. */
+ *  already covered by the shared trip fieldset. */
 function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
     return vertical.fields.filter(
         (field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name),
@@ -185,11 +163,17 @@ function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
  *  Phase 2 verdict). UI-chrome allowlist mirrored across themes;
  *  it flags an honesty note, it never filters the payload. */
 const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
+
+/** Form-API input class per parsed field type. */
+function formElementClass(type: string): string {
+    const kind = type === 'date' ? 'date' : type === 'number' ? 'number' : 'text';
+    return `form-element form-element--type-${kind}`;
+}
 ---
 
 {parsed !== null && labels !== null && prefill !== null && (
-    <section class="meta-search my-8">
-        <h2 class="meta-search__heading">{parsed.heading}</h2>
+    <section class="block block--type-meta-search">
+        <h2 class="block__title">{parsed.heading}</h2>
 
         {destinationsListId !== null && (
             <datalist id={destinationsListId}>
@@ -205,46 +189,32 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
         {/* target=_blank: a partner search opens in its own tab so the
             visitor keeps the preparation page (and its filled trip) —
             same behaviour as every affiliate CTA. rel=noopener severs
-            window.opener on the cross-origin hop. */}
-        <form method="get" class="meta-search__form" target="_blank" rel="noopener">
+            window.opener on the cross-origin hop (spread because
+            Astro's FormHTMLAttributes predates the form rel attr). */}
+        <form method="get" class="meta-search-form" target="_blank" {...{ rel: 'noopener' }}>
             <input type="hidden" name={SEARCH_FIELD_NAMES.placement} value={META_SEARCH_PLACEMENT} />
             {hiddenFields.map((field) => (
                 <input type="hidden" name={field.name} value={field.value} />
             ))}
 
-            <section class="meta-search__trip">
-                <h3 class="meta-search__step-title">{t('metaSearch.step.trip')}</h3>
-                <div class="meta-search__trip-card">
-                    <div class="meta-search__fields">
+            <fieldset class="fieldset">
+                <legend class="fieldset__legend">
+                    <span class="fieldset__label">{t('metaSearch.step.trip')}</span>
+                </legend>
+                <div class="fieldset__wrapper">
+                    <div class="meta-search-form__fields">
                         {tripFields.map((field) => {
                             const id = `${uid}-${field.name}`;
                             const label = FIELD_LABELS[field.name] ?? field.name;
-                            const iconPath = FIELD_ICONS[field.name];
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
                             const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
                             return (
-                                <div class:list={['meta-search__field', (isDestination || isOrigin) && 'meta-search__field--wide']}>
-                                    <label class="meta-search__label" for={id}>
-                                        {iconPath && (
-                                            <svg
-                                                class="meta-search__icon"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                stroke-width={icons.strokeWidth}
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                aria-hidden="true"
-                                            >
-                                                <path d={iconPath} />
-                                            </svg>
-                                        )}
-                                        <span>{label}</span>
-                                    </label>
+                                <div class:list={['form-item', `form-item--${field.name}`, (isDestination || isOrigin) && 'form-item--wide']}>
+                                    <label class="form-item__label" for={id}>{label}</label>
                                     {isDestination ? (
                                         <input
                                             type="text"
-                                            class="meta-search__input"
+                                            class="form-element form-element--type-text"
                                             id={id}
                                             name={field.name}
                                             value={prefill.destination}
@@ -255,17 +225,17 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                                     ) : isOrigin ? (
                                         <input
                                             type="text"
-                                            class="meta-search__input"
+                                            class="form-element form-element--type-text"
                                             id={id}
                                             name={field.name}
                                             list={originsListId}
                                         />
                                     ) : field.type === 'date' ? (
-                                        <input type="date" class="meta-search__input" id={id} name={field.name} />
+                                        <input type="date" class={formElementClass(field.type)} id={id} name={field.name} />
                                     ) : (
                                         <input
                                             type="number"
-                                            class="meta-search__input"
+                                            class={formElementClass(field.type)}
                                             id={id}
                                             name={field.name}
                                             value={field.default}
@@ -279,15 +249,15 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                     </div>
 
                     {hasChildAges && (
-                        <details class="meta-search__children">
-                            <summary class="meta-search__children-toggle">{labels.childrenToggle}</summary>
-                            <div class="meta-search__ages">
+                        <details class="form-wrapper meta-search-form__children">
+                            <summary>{labels.childrenToggle}</summary>
+                            <div class="meta-search-form__ages">
                                 {Array.from({ length: CHILD_SELECT_COUNT }, (_, index) => {
                                     const id = `${uid}-ca-${index + 1}`;
                                     return (
-                                        <div class="meta-search__age-field">
-                                            <label class="meta-search__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
-                                            <select class="meta-search__input" id={id} name={SEARCH_FIELD_NAMES.childAges}>
+                                        <div class="form-item">
+                                            <label class="form-item__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
+                                            <select class="form-element form-element--type-select" id={id} name={SEARCH_FIELD_NAMES.childAges}>
                                                 <option value="">—</option>
                                                 {CHILD_AGES.map((age) => (
                                                     <option value={String(age)}>{age}</option>
@@ -300,29 +270,31 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                         </details>
                     )}
                 </div>
-            </section>
+            </fieldset>
 
-            <section class="meta-search__prepare">
-                <h3 class="meta-search__step-title">{t('metaSearch.step.prepare')}</h3>
-                <div class="meta-search__rail">
+            <fieldset class="fieldset">
+                <legend class="fieldset__legend">
+                    <span class="fieldset__label">{t('metaSearch.step.prepare')}</span>
+                </legend>
+                <div class="fieldset__wrapper meta-search-form__rail">
                     {verticals.map((vertical) => {
                         const extras = verticalExtras(vertical);
                         return (
-                            <section class="meta-search__vertical" data-vertical={vertical.vertical}>
-                                <header class="meta-search__vertical-header">
-                                    <h4 class="meta-search__vertical-title">{vertical.label}</h4>
+                            <section class="paragraph--type-search-vertical" data-vertical={vertical.vertical}>
+                                <header class="paragraph--type-search-vertical__header">
+                                    <h3 class="paragraph--type-search-vertical__title">{vertical.label}</h3>
                                     {extras.length > 0 && (
-                                        <div class="meta-search__extras">
+                                        <div class="paragraph--type-search-vertical__extras">
                                             {extras.map((field) => {
                                                 const id = `${uid}-${vertical.vertical}-${field.name}`;
                                                 return (
-                                                    <div class="meta-search__extra">
-                                                        <label class="meta-search__label" for={id}>
+                                                    <div class="form-item form-item--inline">
+                                                        <label class="form-item__label" for={id}>
                                                             {FIELD_LABELS[field.name] ?? field.name}
                                                         </label>
                                                         <input
                                                             type={field.type === 'number' ? 'number' : 'text'}
-                                                            class="meta-search__input meta-search__input--compact"
+                                                            class={`${formElementClass(field.type)} form-element--compact`}
                                                             id={id}
                                                             name={field.name}
                                                             value={field.default}
@@ -336,23 +308,21 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                                     )}
                                 </header>
                                 {DESTINATION_ONLY_VERTICALS.includes(vertical.vertical) && (
-                                    <p class="meta-search__vertical-note brand-text-muted mt-1 text-xs italic">
-                                        {t('metaSearch.destinationOnly')}
-                                    </p>
+                                    <p class="paragraph--type-search-vertical__note">{t('metaSearch.destinationOnly')}</p>
                                 )}
-                                <div class="meta-search__partners">
+                                <div class="paragraph--type-search-vertical__partners">
                                     {vertical.partners.map((partner) => (
                                         <button
                                             type="submit"
                                             formaction={partner.formAction}
-                                            class="meta-search__partner"
+                                            class="paragraph--type-search-vertical__partner"
                                             data-program={partner.program}
                                             aria-label={labels.searchOn(partner.name)}
                                             title={labels.searchOn(partner.name)}
                                         >
                                             {partner.logo !== null ? (
                                                 <img
-                                                    class="meta-search__partner-logo"
+                                                    class="paragraph--type-search-vertical__partner-logo"
                                                     src={partner.logo}
                                                     alt={partner.name}
                                                     width="120"
@@ -360,7 +330,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                                                     loading="lazy"
                                                 />
                                             ) : (
-                                                <span class="meta-search__partner-name">{partner.name}</span>
+                                                <span class="paragraph--type-search-vertical__partner-name">{partner.name}</span>
                                             )}
                                         </button>
                                     ))}
@@ -369,7 +339,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                         );
                     })}
                 </div>
-            </section>
+            </fieldset>
         </form>
     </section>
 )}

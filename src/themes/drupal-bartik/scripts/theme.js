@@ -113,11 +113,49 @@
     },
   };
 
+  // ─── Trip search (meta_search block) ─────────────────────────
+  // Pure enhancement over the zero-JS trip form: date floors. The
+  // dates ship WITHOUT a baked `min` (a prerendered page would
+  // freeze a stale floor); min=today lands here at attach time and
+  // the checkout can never precede the picked checkin.
+  Drupal.behaviors.tripSearch = {
+    attach: function ( context ) {
+      const pad = ( n ) => String( n ).padStart( 2, '0' );
+      const now = new Date();
+      // Local date, not toISOString() — UTC would floor late-evening
+      // visitors west of Greenwich to tomorrow.
+      const today = `${ now.getFullYear() }-${ pad( now.getMonth() + 1 ) }-${ pad( now.getDate() ) }`;
+
+      once( 'trip-search-dates', 'form.meta-search-form', context ).forEach( ( form ) => {
+        const checkin = form.querySelector( 'input[type="date"][name="ci"]' );
+        const checkout = form.querySelector( 'input[type="date"][name="co"]' );
+        if ( checkin ) checkin.min = today;
+        if ( checkout ) checkout.min = today;
+        if ( ! checkin || ! checkout ) return;
+
+        checkin.addEventListener( 'change', () => {
+          checkout.min = checkin.value || today;
+          if ( checkout.value && checkout.value < checkout.min ) {
+            checkout.value = '';
+          }
+        } );
+      } );
+    },
+  };
+
+  // Mirrors Drupal.attachBehaviors — every registered behavior runs
+  // against the initial document once the DOM is ready.
+  const attachBehaviors = () => {
+    Object.keys( Drupal.behaviors ).forEach( ( id ) => {
+      if ( typeof Drupal.behaviors[ id ].attach === 'function' ) {
+        Drupal.behaviors[ id ].attach( document );
+      }
+    } );
+  };
+
   if ( document.readyState === 'loading' ) {
-    document.addEventListener( 'DOMContentLoaded', () =>
-      Drupal.behaviors.menuMain.attach( document )
-    );
+    document.addEventListener( 'DOMContentLoaded', attachBehaviors );
   } else {
-    Drupal.behaviors.menuMain.attach( document );
+    attachBehaviors();
   }
 } )( ( window.Drupal = window.Drupal || {} ) );
