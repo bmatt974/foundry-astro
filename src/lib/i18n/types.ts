@@ -374,6 +374,11 @@ export interface Dictionary {
         /** Accessible label of a partner's logo button — ":partner"
          *  is the partner name ("Search on Booking.com"). */
         searchOn: string;
+        /** Honesty marker under a destination-only vertical's title
+         *  (activities: Viator/Tiqets ignore dates and travelers by
+         *  design — the click lands on the destination page, not on
+         *  dated results). */
+        destinationOnly: string;
         /** Section labels for the 3 verticals — stable slugs shipped
          *  by the payload, mapped here at presentation time. */
         vertical: {

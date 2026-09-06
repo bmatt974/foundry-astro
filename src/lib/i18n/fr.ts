@@ -183,6 +183,7 @@ const fr: Dictionary = {
         roomsLabel: 'Chambres',
         cabinLabel: 'Classe de cabine',
         searchOn: 'Rechercher sur :partner',
+        destinationOnly: 'Ouvre la page de la destination sur le site partenaire',
         vertical: {
             hotels: 'Hôtels',
             flights: 'Vols',
