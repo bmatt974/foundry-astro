@@ -26,9 +26,9 @@ import type { PageBlock } from '../../../lib/foundry';
 import {
     META_SEARCH_PLACEMENT,
     SEARCH_FIELD_NAMES,
+    buildMetaSearchLayout,
     parseMetaSearch,
     type MetaSearchField,
-    type MetaSearchVertical,
 } from '../../../lib/blocks/meta-search';
 import { useTranslations } from '../../../lib/i18n/index';
 
@@ -54,12 +54,7 @@ const originsListId = parsed !== null && parsed.origins.length > 0 ? `${uid}-ori
 const verticals = parsed?.verticals ?? [];
 const labels = parsed?.labels ?? null;
 const prefill = parsed?.prefill ?? null;
-
-/** Fixed child-age selects — the zero-JS compromise for V1 (families
- *  of 5+ children fall back to the partner's own form). */
-const CHILD_SELECT_COUNT = 4;
-/** Matches the worker's ingress clamp (0..17). */
-const CHILD_AGES = Array.from({ length: 18 }, (_, age) => age);
+const layout = parsed === null ? null : buildMetaSearchLayout(parsed);
 
 const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
     [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
@@ -70,98 +65,9 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
     [SEARCH_FIELD_NAMES.rooms]: labels.roomsLabel,
     [SEARCH_FIELD_NAMES.cabinClass]: labels.cabinLabel,
 };
-
-/**
- * Fields the visitor never types into. `hidden` is API-declared
- * (IATA slots); `select` degrades to hidden too — the payload
- * contract carries no option list and the dictionaries no option
- * labels (the `cc` cabin class ships its API default and nothing
- * more in V1).
- */
-function isHiddenField(field: MetaSearchField): boolean {
-    return field.type === 'hidden' || field.type === 'select';
-}
-
-/**
- * A hidden field only renders when something can fill it: the API
- * default, or — for the destination IATA — the page-context prefill
- * when the destination is LOCKED (an editable destination could
- * drift from a baked `dt`, sending the visitor to the wrong city;
- * the fallback_url is the safer miss).
- */
-function hiddenValue(field: MetaSearchField): string {
-    if (field.name === SEARCH_FIELD_NAMES.iataTo && prefill !== null && prefill.locked && prefill.iataTo !== null) {
-        return prefill.iataTo;
-    }
-
-    return field.default !== null ? String(field.default) : '';
-}
-
-/** Trip-panel controls, in display order. `o` only renders when a
- *  served vertical (flights) declares it. */
-const TRIP_FIELD_ORDER: readonly string[] = [
-    SEARCH_FIELD_NAMES.destination,
-    SEARCH_FIELD_NAMES.origin,
-    SEARCH_FIELD_NAMES.checkin,
-    SEARCH_FIELD_NAMES.checkout,
-    SEARCH_FIELD_NAMES.adults,
-];
-const SHARED_FIELD_NAMES: readonly string[] = [...TRIP_FIELD_ORDER, SEARCH_FIELD_NAMES.childAges];
-
-const tripFields = TRIP_FIELD_ORDER
-    .map((name) => {
-        for (const vertical of verticals) {
-            const field = vertical.fields.find(
-                (candidate) => candidate.name === name && !isHiddenField(candidate),
-            );
-            if (field) {
-                return field;
-            }
-        }
-
-        return null;
-    })
-    .filter((field): field is MetaSearchField => field !== null);
-
-const hasChildAges = verticals.some(
-    (vertical) => vertical.fields.some((field) => field.name === SEARCH_FIELD_NAMES.childAges),
-);
-
-/** Hidden fields deduped ACROSS verticals — one form serializes them
- *  once, and partners whose template ignores a param never see it. */
-const hiddenFields = (() => {
-    const byName = new Map<string, string>();
-    for (const vertical of verticals) {
-        for (const field of vertical.fields) {
-            if (!isHiddenField(field) || byName.has(field.name)) {
-                continue;
-            }
-            const value = hiddenValue(field);
-            if (value !== '') {
-                byName.set(field.name, value);
-            }
-        }
-    }
-
-    return [...byName.entries()].map(([name, value]) => ({ name, value }));
-})();
-
-/** A vertical's own visible controls (rooms, …) — everything not
- *  already covered by the shared trip panel. */
-function verticalExtras(vertical: MetaSearchVertical): MetaSearchField[] {
-    return vertical.fields.filter(
-        (field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name),
-    );
-}
-
-/** Verticals whose partners land on a destination page and ignore
- *  the trip's dates/travelers (Viator/Tiqets consume neither —
- *  Phase 2 verdict). UI-chrome allowlist mirrored across themes;
- *  it flags an honesty note, it never filters the payload. */
-const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
 ---
 
-{parsed !== null && labels !== null && prefill !== null && (
+{parsed !== null && layout !== null && labels !== null && prefill !== null && (
     <section class="wp-block-group wp-block-group--trip-search">
         <h2 class="wp-block-heading">{parsed.heading}</h2>
 
@@ -183,7 +89,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
             Astro's FormHTMLAttributes predates the form rel attr). */}
         <form method="get" class="wp-block-trip-search" target="_blank" {...{ rel: 'noopener' }}>
             <input type="hidden" name={SEARCH_FIELD_NAMES.placement} value={META_SEARCH_PLACEMENT} />
-            {hiddenFields.map((field) => (
+            {layout.hiddenFields.map((field) => (
                 <input type="hidden" name={field.name} value={field.value} />
             ))}
 
@@ -191,7 +97,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                 <h3 class="wp-block-trip-search__step-title">{t('metaSearch.step.trip')}</h3>
                 <div class="wp-block-trip-search__panel">
                     <div class="wp-block-trip-search__fields">
-                        {tripFields.map((field) => {
+                        {layout.tripFields.map((field) => {
                             const id = `${uid}-${field.name}`;
                             const label = FIELD_LABELS[field.name] ?? field.name;
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
@@ -242,18 +148,18 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                         })}
                     </div>
 
-                    {hasChildAges && (
+                    {layout.hasChildAges && (
                         <details class="wp-block-trip-search__children">
                             <summary>{labels.childrenToggle}</summary>
                             <div class="wp-block-trip-search__ages">
-                                {Array.from({ length: CHILD_SELECT_COUNT }, (_, index) => {
+                                {Array.from({ length: layout.childSelectCount }, (_, index) => {
                                     const id = `${uid}-ca-${index + 1}`;
                                     return (
                                         <p class="wp-block-trip-search__field">
                                             <label class="wp-block-trip-search__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
                                             <select class="wp-block-trip-search__input" id={id} name={SEARCH_FIELD_NAMES.childAges}>
                                                 <option value="">—</option>
-                                                {CHILD_AGES.map((age) => (
+                                                {layout.childAges.map((age) => (
                                                     <option value={String(age)}>{age}</option>
                                                 ))}
                                             </select>
@@ -270,7 +176,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                 <h3 class="wp-block-trip-search__step-title">{t('metaSearch.step.prepare')}</h3>
                 <div class="wp-block-trip-search__rail">
                     {verticals.map((vertical) => {
-                        const extras = verticalExtras(vertical);
+                        const extras = layout.extrasByVertical[vertical.vertical] ?? [];
                         return (
                             <section class="wp-block-trip-search__vertical" data-vertical={vertical.vertical}>
                                 <header class="wp-block-trip-search__vertical-header">
@@ -299,7 +205,7 @@ const DESTINATION_ONLY_VERTICALS: readonly string[] = ['activities'];
                                         </div>
                                     )}
                                 </header>
-                                {DESTINATION_ONLY_VERTICALS.includes(vertical.vertical) && (
+                                {vertical.destinationOnly && (
                                     <p class="wp-block-trip-search__note">{t('metaSearch.destinationOnly')}</p>
                                 )}
                                 <div class="wp-block-trip-search__partners">

@@ -95,6 +95,7 @@ interface RawField {
 interface RawVertical {
     vertical?: unknown;
     label?: unknown;
+    destination_only?: unknown;
     form?: { fields?: unknown };
     partners?: unknown;
 }
@@ -148,6 +149,10 @@ export interface MetaSearchVertical {
     vertical: MetaSearchVerticalSlug;
     /** Localized tab label — dictionary first, payload fallback. */
     label: string;
+    /** API decision: the vertical's partners land on a destination
+     *  page and ignore the trip's dates/travelers — themes print the
+     *  `metaSearch.destinationOnly` honesty note under its title. */
+    destinationOnly: boolean;
     fields: MetaSearchField[];
     partners: MetaSearchPartner[];
 }
@@ -291,6 +296,7 @@ function parseVertical(
     return {
         vertical: slug,
         label: resolveVerticalLabel(slug, vertical.label, t),
+        destinationOnly: vertical.destination_only === true,
         fields,
         partners,
     };
@@ -381,5 +387,136 @@ export function parseMetaSearch(
             cabinLabel: t('metaSearch.cabinLabel'),
             searchOn: (partner) => t('metaSearch.searchOn', { partner }),
         },
+    };
+}
+
+// ──────────────────────────────────────────────
+// Form layout (theme-agnostic)
+// ──────────────────────────────────────────────
+
+/** Fixed child-age selects — the zero-JS compromise for V1 (families
+ *  of 5+ children fall back to the partner's own form). */
+const CHILD_SELECT_COUNT = 4;
+
+/** Matches the worker's ingress clamp (0..17). */
+const CHILD_AGES: readonly number[] = Array.from({ length: 18 }, (_, age) => age);
+
+/** Trip-card controls, in display order. `o` only renders when a
+ *  served vertical (flights) declares it. */
+const TRIP_FIELD_ORDER: readonly SearchFieldName[] = [
+    SEARCH_FIELD_NAMES.destination,
+    SEARCH_FIELD_NAMES.origin,
+    SEARCH_FIELD_NAMES.checkin,
+    SEARCH_FIELD_NAMES.checkout,
+    SEARCH_FIELD_NAMES.adults,
+];
+
+/** Controls the shared trip card owns — never repeated as a
+ *  vertical's own extras. */
+const SHARED_FIELD_NAMES: readonly SearchFieldName[] = [...TRIP_FIELD_ORDER, SEARCH_FIELD_NAMES.childAges];
+
+export interface MetaSearchHiddenField {
+    name: SearchFieldName;
+    value: string;
+}
+
+/**
+ * What every theme lays out, computed once: the ONE shared form's
+ * controls, deduped across the served verticals. Themes keep only
+ * their markup (ids, classes, icons) on top of this.
+ */
+export interface MetaSearchLayout {
+    /** Visible trip-card controls, in display order. A control shows
+     *  when any served vertical requests it; its attributes come from
+     *  the first vertical declaring it (payload order). */
+    tripFields: MetaSearchField[];
+    /** Hidden inputs, deduped ACROSS verticals — one form serializes
+     *  them once, and partners whose template ignores a param never
+     *  see it. Only fields something can fill are kept. */
+    hiddenFields: MetaSearchHiddenField[];
+    /** True when a served vertical accepts child ages. */
+    hasChildAges: boolean;
+    /** Each served vertical's own visible controls (rooms, …) —
+     *  everything the shared trip card does not already cover. */
+    extrasByVertical: Partial<Record<MetaSearchVerticalSlug, MetaSearchField[]>>;
+    /** How many child-age selects the fold renders. */
+    childSelectCount: number;
+    /** The options of each child-age select. */
+    childAges: readonly number[];
+}
+
+/**
+ * Fields the visitor never types into. `hidden` is API-declared
+ * (IATA slots); `select` degrades to hidden too — the payload
+ * contract carries no option list and the dictionaries no option
+ * labels (the `cc` cabin class ships its API default and nothing
+ * more in V1).
+ */
+function isHiddenField(field: MetaSearchField): boolean {
+    return field.type === 'hidden' || field.type === 'select';
+}
+
+/**
+ * A hidden field only renders when something can fill it: the API
+ * default, or — for the destination IATA — the page-context prefill
+ * when the destination is LOCKED (an editable destination could
+ * drift from a baked `dt`, sending the visitor to the wrong city;
+ * the fallback_url is the safer miss).
+ */
+function hiddenValue(field: MetaSearchField, prefill: ParsedMetaSearch['prefill']): string {
+    if (field.name === SEARCH_FIELD_NAMES.iataTo && prefill.locked && prefill.iataTo !== null) {
+        return prefill.iataTo;
+    }
+
+    return field.default !== null ? String(field.default) : '';
+}
+
+/**
+ * Lay a parsed payload out as the shared trip form every theme
+ * renders — pure, so the four themes' markup can never disagree on
+ * which control shows, which hidden value ships, or where an extra
+ * lands.
+ */
+export function buildMetaSearchLayout(parsed: ParsedMetaSearch): MetaSearchLayout {
+    const { verticals, prefill } = parsed;
+
+    const tripFields = TRIP_FIELD_ORDER.flatMap((name) => {
+        for (const vertical of verticals) {
+            const field = vertical.fields.find(
+                (candidate) => candidate.name === name && !isHiddenField(candidate),
+            );
+            if (field) {
+                return [field];
+            }
+        }
+
+        return [];
+    });
+
+    const hiddenValues = new Map<SearchFieldName, string>();
+    for (const vertical of verticals) {
+        for (const field of vertical.fields) {
+            if (!isHiddenField(field) || hiddenValues.has(field.name)) {
+                continue;
+            }
+            const value = hiddenValue(field, prefill);
+            if (value !== '') {
+                hiddenValues.set(field.name, value);
+            }
+        }
+    }
+
+    return {
+        tripFields,
+        hiddenFields: [...hiddenValues.entries()].map(([name, value]) => ({ name, value })),
+        hasChildAges: verticals.some(
+            (vertical) => vertical.fields.some((field) => field.name === SEARCH_FIELD_NAMES.childAges),
+        ),
+        extrasByVertical: Object.fromEntries(verticals.map((vertical) => [
+            vertical.vertical,
+            vertical.fields.filter((field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name)),
+        ])),
+        childSelectCount: CHILD_SELECT_COUNT,
+        childAges: CHILD_AGES,
     };
 }

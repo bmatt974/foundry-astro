@@ -85,20 +85,45 @@ const FORM_KEY_BY_SLOT: Partial<Record<Slot, SearchParamKey>> = {
     cabin: 'cc',
 };
 
-/** Per-slot filling spec — the closed DSL keys of contract §5. */
-export interface SearchParamSpec {
-    required?: boolean;
-    default?: string | string[];
-    default_offset_days?: number;
-    date_format?: string;
-    style?: string;
-    name?: string;
-    join?: string;
-    case?: string;
-    map?: Record<string, string>;
-    empty_value?: string;
-    omit_if?: string;
-}
+/**
+ * The closed per-slot spec keys of contract §5. Declared as a quoted
+ * literal list because the backend `CrossLayerContractTest` pins it
+ * against `SearchUrlFiller::SPEC_KEYS` — and `SearchParamSpec` below
+ * is mapped over it, so the type can neither miss a listed key nor
+ * grow one the list lacks.
+ */
+export const SPEC_KEYS = [
+    'required',
+    'default',
+    'default_offset_days',
+    'date_format',
+    'style',
+    'name',
+    'join',
+    'case',
+    'map',
+    'empty_value',
+    'omit_if',
+] as const;
+
+export type SpecKey = (typeof SPEC_KEYS)[number];
+
+/** Per-slot filling spec — exactly the `SPEC_KEYS`, all optional. */
+export type SearchParamSpec = Partial<{
+    [K in SpecKey]: {
+        required: boolean;
+        default: string | string[];
+        default_offset_days: number;
+        date_format: string;
+        style: string;
+        name: string;
+        join: string;
+        case: string;
+        map: Record<string, string>;
+        empty_value: string;
+        omit_if: string;
+    }[K];
+}>;
 
 /** Traveler re-binning spec — the `ages` block of contract §6. */
 export interface AgesSpec {
