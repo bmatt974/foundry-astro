@@ -76,7 +76,7 @@ const layout = parsed === null ? null : buildMetaSearchLayout(parsed);
 
 const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
     [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
-    [SEARCH_FIELD_NAMES.origin]: labels.originLabel,
+    [SEARCH_FIELD_NAMES.iataFrom]: labels.originLabel,
     [SEARCH_FIELD_NAMES.checkin]: labels.checkinLabel,
     [SEARCH_FIELD_NAMES.checkout]: labels.checkoutLabel,
     [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
@@ -86,7 +86,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
 
 const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
     [SEARCH_FIELD_NAMES.destination]: icons.glyphs.pin,
-    [SEARCH_FIELD_NAMES.origin]: icons.glyphs.pin,
+    [SEARCH_FIELD_NAMES.iataFrom]: icons.glyphs.pin,
     [SEARCH_FIELD_NAMES.checkin]: icons.glyphs.calendar,
     [SEARCH_FIELD_NAMES.checkout]: icons.glyphs.calendar,
     [SEARCH_FIELD_NAMES.adults]: icons.glyphs.travelers,
@@ -104,7 +104,7 @@ const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
         )}
         {originsListId !== null && (
             <datalist id={originsListId}>
-                {parsed.origins.map((option) => <option value={option.name} />)}
+                {parsed.origins.map((option) => <option value={option.iata}>{option.label}</option>)}
             </datalist>
         )}
 
@@ -127,7 +127,7 @@ const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
                             const label = FIELD_LABELS[field.name] ?? field.name;
                             const iconPath = FIELD_ICONS[field.name];
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
-                            const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
+                            const isOrigin = field.name === SEARCH_FIELD_NAMES.iataFrom;
                             return (
                                 <div class:list={['meta-search__field', (isDestination || isOrigin) && 'meta-search__field--wide']}>
                                     <label class="meta-search__label" for={id}>
@@ -246,6 +246,11 @@ const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
                                         {t('metaSearch.destinationOnly')}
                                     </p>
                                 )}
+                                {layout.flightToByVertical[vertical.vertical] && (
+                                    <p class="meta-search__vertical-note brand-text-muted mt-1 text-xs italic">
+                                        {layout.flightToByVertical[vertical.vertical]}
+                                    </p>
+                                )}
                                 <div class="meta-search__partners">
                                     {vertical.partners.map((partner) => (
                                         <button
@@ -256,18 +261,17 @@ const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
                                             aria-label={labels.searchOn(partner.name)}
                                             title={labels.searchOn(partner.name)}
                                         >
-                                            {partner.logo !== null ? (
+                                            {partner.logo !== null && (
                                                 <img
                                                     class="meta-search__partner-logo"
                                                     src={partner.logo}
-                                                    alt={partner.name}
-                                                    width="120"
+                                                    alt=""
+                                                    width="40"
                                                     height="40"
                                                     loading="lazy"
                                                 />
-                                            ) : (
-                                                <span class="meta-search__partner-name">{partner.name}</span>
                                             )}
+                                            <span class="meta-search__partner-name">{partner.name}</span>
                                         </button>
                                     ))}
                                 </div>

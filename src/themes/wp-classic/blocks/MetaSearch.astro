@@ -58,7 +58,7 @@ const layout = parsed === null ? null : buildMetaSearchLayout(parsed);
 
 const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
     [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
-    [SEARCH_FIELD_NAMES.origin]: labels.originLabel,
+    [SEARCH_FIELD_NAMES.iataFrom]: labels.originLabel,
     [SEARCH_FIELD_NAMES.checkin]: labels.checkinLabel,
     [SEARCH_FIELD_NAMES.checkout]: labels.checkoutLabel,
     [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
@@ -78,7 +78,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
         )}
         {originsListId !== null && (
             <datalist id={originsListId}>
-                {parsed.origins.map((option) => <option value={option.name} />)}
+                {parsed.origins.map((option) => <option value={option.iata}>{option.label}</option>)}
             </datalist>
         )}
 
@@ -101,7 +101,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                             const id = `${uid}-${field.name}`;
                             const label = FIELD_LABELS[field.name] ?? field.name;
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
-                            const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
+                            const isOrigin = field.name === SEARCH_FIELD_NAMES.iataFrom;
                             return (
                                 <p class:list={['wp-block-trip-search__field', (isDestination || isOrigin) && 'wp-block-trip-search__field--wide']}>
                                     <label class="wp-block-trip-search__label" for={id}>{label}</label>
@@ -208,6 +208,9 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                                 {vertical.destinationOnly && (
                                     <p class="wp-block-trip-search__note">{t('metaSearch.destinationOnly')}</p>
                                 )}
+                                {layout.flightToByVertical[vertical.vertical] && (
+                                    <p class="wp-block-trip-search__note">{layout.flightToByVertical[vertical.vertical]}</p>
+                                )}
                                 <div class="wp-block-trip-search__partners">
                                     {vertical.partners.map((partner) => (
                                         <button
@@ -218,18 +221,17 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                                             aria-label={labels.searchOn(partner.name)}
                                             title={labels.searchOn(partner.name)}
                                         >
-                                            {partner.logo !== null ? (
+                                            {partner.logo !== null && (
                                                 <img
                                                     class="wp-block-trip-search__partner-logo"
                                                     src={partner.logo}
-                                                    alt={partner.name}
-                                                    width="120"
+                                                    alt=""
+                                                    width="40"
                                                     height="40"
                                                     loading="lazy"
                                                 />
-                                            ) : (
-                                                <span class="wp-block-trip-search__partner-name">{partner.name}</span>
                                             )}
+                                            <span class="wp-block-trip-search__partner-name">{partner.name}</span>
                                         </button>
                                     ))}
                                 </div>

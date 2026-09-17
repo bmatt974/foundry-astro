@@ -86,6 +86,27 @@ for (const theme of THEMES) {
     });
 }
 
+for (const theme of THEMES) {
+    test(`meta_search[${theme}]: flights submit IATA codes — departure picked, destination from context`, () => {
+        const src = themeFile(theme, 'blocks/MetaSearch.astro');
+        // The departure datalist submits the IATA code as the option
+        // VALUE (the label only reads) — a typed city name never
+        // resolves a flight template.
+        assert.match(
+            src,
+            /parsed\.origins\.map\(\(option\) => <option value=\{option\.iata\}>\{option\.label\}<\/option>\)/,
+            'origin datalist option value = IATA, text = label',
+        );
+        assert.match(src, /isOrigin = field\.name === SEARCH_FIELD_NAMES\.iataFrom/, 'the departure input is `df`');
+        assert.ok(!src.includes('SEARCH_FIELD_NAMES.origin'), 'the free-text `o` is never rendered');
+        // `dt` never becomes a control: it ships through the shared
+        // hidden fields, and the visitor reads where the flight lands.
+        assert.ok(!src.includes('SEARCH_FIELD_NAMES.iataTo'), 'no theme-local `dt` input');
+        assert.match(src, /layout\.hiddenFields\.map/, 'hidden `dt` comes from the shared layout');
+        assert.match(src, /layout\.flightToByVertical\[vertical\.vertical\]\s*&&/, 'flight destination announced from the layout');
+    });
+}
+
 test('meta_search: no static build-time min graved on the date inputs', () => {
     // Prerendered pages must not bake a min=today that goes stale; the
     // floor is JS-only (or absent on the no-JS bootstrap theme).

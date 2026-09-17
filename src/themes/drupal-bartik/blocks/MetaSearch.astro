@@ -62,7 +62,7 @@ const layout = parsed === null ? null : buildMetaSearchLayout(parsed);
 
 const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
     [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
-    [SEARCH_FIELD_NAMES.origin]: labels.originLabel,
+    [SEARCH_FIELD_NAMES.iataFrom]: labels.originLabel,
     [SEARCH_FIELD_NAMES.checkin]: labels.checkinLabel,
     [SEARCH_FIELD_NAMES.checkout]: labels.checkoutLabel,
     [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
@@ -88,7 +88,7 @@ function formElementClass(type: string): string {
         )}
         {originsListId !== null && (
             <datalist id={originsListId}>
-                {parsed.origins.map((option) => <option value={option.name} />)}
+                {parsed.origins.map((option) => <option value={option.iata}>{option.label}</option>)}
             </datalist>
         )}
 
@@ -113,7 +113,7 @@ function formElementClass(type: string): string {
                             const id = `${uid}-${field.name}`;
                             const label = FIELD_LABELS[field.name] ?? field.name;
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
-                            const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
+                            const isOrigin = field.name === SEARCH_FIELD_NAMES.iataFrom;
                             return (
                                 <div class:list={['form-item', `form-item--${field.name}`, (isDestination || isOrigin) && 'form-item--wide']}>
                                     <label class="form-item__label" for={id}>{label}</label>
@@ -216,6 +216,9 @@ function formElementClass(type: string): string {
                                 {vertical.destinationOnly && (
                                     <p class="paragraph--type-search-vertical__note">{t('metaSearch.destinationOnly')}</p>
                                 )}
+                                {layout.flightToByVertical[vertical.vertical] && (
+                                    <p class="paragraph--type-search-vertical__note">{layout.flightToByVertical[vertical.vertical]}</p>
+                                )}
                                 <div class="paragraph--type-search-vertical__partners">
                                     {vertical.partners.map((partner) => (
                                         <button
@@ -226,18 +229,17 @@ function formElementClass(type: string): string {
                                             aria-label={labels.searchOn(partner.name)}
                                             title={labels.searchOn(partner.name)}
                                         >
-                                            {partner.logo !== null ? (
+                                            {partner.logo !== null && (
                                                 <img
                                                     class="paragraph--type-search-vertical__partner-logo"
                                                     src={partner.logo}
-                                                    alt={partner.name}
-                                                    width="120"
+                                                    alt=""
+                                                    width="40"
                                                     height="40"
                                                     loading="lazy"
                                                 />
-                                            ) : (
-                                                <span class="paragraph--type-search-vertical__partner-name">{partner.name}</span>
                                             )}
+                                            <span class="paragraph--type-search-vertical__partner-name">{partner.name}</span>
                                         </button>
                                     ))}
                                 </div>
