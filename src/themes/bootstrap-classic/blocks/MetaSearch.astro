@@ -64,7 +64,7 @@ const layout = parsed === null ? null : buildMetaSearchLayout(parsed);
 
 const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels === null ? {} : {
     [SEARCH_FIELD_NAMES.destination]: labels.destinationLabel,
-    [SEARCH_FIELD_NAMES.origin]: labels.originLabel,
+    [SEARCH_FIELD_NAMES.iataFrom]: labels.originLabel,
     [SEARCH_FIELD_NAMES.checkin]: labels.checkinLabel,
     [SEARCH_FIELD_NAMES.checkout]: labels.checkoutLabel,
     [SEARCH_FIELD_NAMES.adults]: labels.adultsLabel,
@@ -84,7 +84,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
         )}
         {originsListId !== null && (
             <datalist id={originsListId}>
-                {parsed.origins.map((option) => <option value={option.name} />)}
+                {parsed.origins.map((option) => <option value={option.iata}>{option.label}</option>)}
             </datalist>
         )}
 
@@ -110,7 +110,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                             const id = `${uid}-${field.name}`;
                             const label = FIELD_LABELS[field.name] ?? field.name;
                             const isDestination = field.name === SEARCH_FIELD_NAMES.destination;
-                            const isOrigin = field.name === SEARCH_FIELD_NAMES.origin;
+                            const isOrigin = field.name === SEARCH_FIELD_NAMES.iataFrom;
                             return (
                                 <div class={isDestination || isOrigin ? 'col-12 col-md-6' : 'col-6 col-md-3'}>
                                     <label class="form-label small text-body-secondary fw-semibold" for={id}>{label}</label>
@@ -211,30 +211,32 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                                 {vertical.destinationOnly && (
                                     <p class="form-text fst-italic mt-0 mb-2">{t('metaSearch.destinationOnly')}</p>
                                 )}
+                                {layout.flightToByVertical[vertical.vertical] && (
+                                    <p class="form-text fst-italic mt-0 mb-2">{layout.flightToByVertical[vertical.vertical]}</p>
+                                )}
                                 <div class="row row-cols-2 row-cols-md-4 g-2">
                                     {vertical.partners.map((partner) => (
                                         <div class="col">
                                             <button
                                                 type="submit"
                                                 formaction={partner.formAction}
-                                                class="btn btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center py-2"
+                                                class="btn btn-outline-secondary w-100 h-100 d-flex align-items-center justify-content-center gap-2 py-2"
                                                 data-program={partner.program}
                                                 aria-label={labels.searchOn(partner.name)}
                                                 title={labels.searchOn(partner.name)}
                                             >
-                                                {partner.logo !== null ? (
+                                                {partner.logo !== null && (
                                                     <img
                                                         class="img-fluid"
                                                         style="max-height: 2rem"
                                                         src={partner.logo}
-                                                        alt={partner.name}
-                                                        width="120"
+                                                        alt=""
+                                                        width="40"
                                                         height="40"
                                                         loading="lazy"
                                                     />
-                                                ) : (
-                                                    <span class="small fw-semibold">{partner.name}</span>
                                                 )}
+                                                <span class="small fw-semibold">{partner.name}</span>
                                             </button>
                                         </div>
                                     ))}

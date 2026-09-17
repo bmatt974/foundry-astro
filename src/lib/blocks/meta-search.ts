@@ -13,6 +13,12 @@
  * native GET form to `/{proxy}/{code}` (via `formaction`) and the
  * edge worker fills the partner template server-side. The front
  * never sees a partner URL.
+ *
+ * Flights speak IATA codes only (every flight partner template
+ * requires them): the origin input submits `df` from a locale-scoped
+ * airport datalist, and `dt` ships hidden — the hub the API resolved
+ * from the page context (`meta.flight_destination`). The visitor
+ * never types a flight destination.
  */
 
 import { useTranslations, type TranslationKey } from '../i18n/index.ts';
@@ -30,11 +36,14 @@ import { useTranslations, type TranslationKey } from '../i18n/index.ts';
 export const SEARCH_FIELD_NAMES = {
     /** Destination free-text (accepted as a text search by partners). */
     destination: 'd',
-    /** Origin free-text (flights) — paired with `iataFrom`. */
+    /** Origin free-text — a DSL slot the worker accepts; no form
+     *  renders it (flights submit `iataFrom`). */
     origin: 'o',
-    /** Origin IATA code (flights), e.g. `PAR`. */
+    /** Origin IATA code (flights), e.g. `CDG` — the departure input,
+     *  picked from the airport datalist. */
     iataFrom: 'df',
-    /** Destination IATA code (flights), e.g. `ROM`. */
+    /** Destination IATA code (flights), e.g. `FCO` — hidden, filled
+     *  from the API's `flight_destination`. */
     iataTo: 'dt',
     /** Check-in / departure date (ISO `yyyy-mm-dd`). */
     checkin: 'ci',
@@ -105,10 +114,16 @@ interface RawOption {
     iata?: unknown;
 }
 
+interface RawAirport {
+    iata?: unknown;
+    label?: unknown;
+}
+
 interface RawContent {
     meta?: {
         settings?: Record<string, unknown>;
-        prefill?: { destination?: unknown; iata_to?: unknown; locked?: unknown };
+        prefill?: { destination?: unknown; locked?: unknown };
+        flight_destination?: unknown;
         empty?: unknown;
     };
     verticals?: unknown;
@@ -157,10 +172,19 @@ export interface MetaSearchVertical {
     partners: MetaSearchPartner[];
 }
 
-/** A datalist entry — destination (iata nullable) or origin. */
+/** A destination datalist entry (iata nullable). */
 export interface MetaSearchOption {
     name: string;
     iata: string | null;
+}
+
+/** An airport the API resolved — a flight origin option or the
+ *  flight destination. */
+export interface MetaSearchAirport {
+    /** The IATA code the form submits (`df` / `dt`). */
+    iata: string;
+    /** API-composed display label, e.g. `Paris (CDG)`. */
+    label: string;
 }
 
 /**
@@ -171,6 +195,7 @@ export interface MetaSearchOption {
 export interface MetaSearchLabels {
     destinationLabel: string;
     destinationPlaceholder: string;
+    /** Label of the flight-origin input (`df`). */
     originLabel: string;
     checkinLabel: string;
     checkoutLabel: string;
@@ -180,6 +205,8 @@ export interface MetaSearchLabels {
     roomsLabel: string;
     cabinLabel: string;
     searchOn: (partner: string) => string;
+    /** "Flying to Rome (FCO)" — `airport` is the API's label. */
+    flightTo: (airport: string) => string;
 }
 
 export interface ParsedMetaSearch {
@@ -189,13 +216,18 @@ export interface ParsedMetaSearch {
     defaultVertical: MetaSearchVerticalSlug;
     prefill: {
         destination: string | null;
-        iataTo: string | null;
         /** True when the API pinned the destination (page context)
          *  and the input should render read-only. */
         locked: boolean;
     };
+    /** The hub flights land at (page or site context) — ships as the
+     *  hidden `dt`. Never null while a vertical declares `dt`: the
+     *  parser drops such a vertical rather than render logos that
+     *  would land on partner homepages. */
+    flightDestination: MetaSearchAirport | null;
     destinations: MetaSearchOption[];
-    origins: MetaSearchOption[];
+    /** Flight-origin datalist: value = IATA, text = label. */
+    origins: MetaSearchAirport[];
     labels: MetaSearchLabels;
 }
 
@@ -320,6 +352,27 @@ function parseOptions(raw: unknown): MetaSearchOption[] {
         });
 }
 
+function parseAirport(raw: unknown): MetaSearchAirport | null {
+    if (!raw || typeof raw !== 'object') {
+        return null;
+    }
+    const airport = raw as RawAirport;
+    if (typeof airport.iata !== 'string' || airport.iata === '') {
+        return null;
+    }
+
+    return {
+        iata: airport.iata,
+        label: typeof airport.label === 'string' && airport.label !== '' ? airport.label : airport.iata,
+    };
+}
+
+function parseAirports(raw: unknown): MetaSearchAirport[] {
+    return (Array.isArray(raw) ? raw : [])
+        .map(parseAirport)
+        .filter((airport): airport is MetaSearchAirport => airport !== null);
+}
+
 /**
  * Parse a MetaSearch block's raw `content` payload into a
  * presentation-ready shape, or `null` when there is nothing to
@@ -340,10 +393,15 @@ export function parseMetaSearch(
     }
 
     const t = useTranslations(locale, wording);
+    const flightDestination = parseAirport(meta.flight_destination);
 
     const verticals = (Array.isArray(raw.verticals) ? raw.verticals : [])
         .map((vertical) => parseVertical(vertical, linkProxyPath, t))
-        .filter((vertical): vertical is MetaSearchVertical => vertical !== null);
+        .filter((vertical): vertical is MetaSearchVertical => vertical !== null)
+        // Defensive twin of the API rule: a vertical needing the
+        // destination IATA cannot search without one.
+        .filter((vertical) => flightDestination !== null
+            || !vertical.fields.some((field) => field.name === SEARCH_FIELD_NAMES.iataTo));
 
     if (verticals.length === 0) {
         return null;
@@ -367,13 +425,11 @@ export function parseMetaSearch(
             destination: typeof prefill.destination === 'string' && prefill.destination !== ''
                 ? prefill.destination
                 : null,
-            iataTo: typeof prefill.iata_to === 'string' && prefill.iata_to !== ''
-                ? prefill.iata_to
-                : null,
             locked: prefill.locked === true,
         },
+        flightDestination,
         destinations: parseOptions(raw.destinations),
-        origins: parseOptions(raw.origins),
+        origins: parseAirports(raw.origins),
         labels: {
             destinationLabel: t('metaSearch.destinationLabel'),
             destinationPlaceholder: t('metaSearch.destinationPlaceholder'),
@@ -386,6 +442,7 @@ export function parseMetaSearch(
             roomsLabel: t('metaSearch.roomsLabel'),
             cabinLabel: t('metaSearch.cabinLabel'),
             searchOn: (partner) => t('metaSearch.searchOn', { partner }),
+            flightTo: (airport) => t('metaSearch.flightTo', { airport }),
         },
     };
 }
@@ -401,11 +458,11 @@ const CHILD_SELECT_COUNT = 4;
 /** Matches the worker's ingress clamp (0..17). */
 const CHILD_AGES: readonly number[] = Array.from({ length: 18 }, (_, age) => age);
 
-/** Trip-card controls, in display order. `o` only renders when a
- *  served vertical (flights) declares it. */
+/** Trip-card controls, in display order. The departure airport
+ *  (`df`) only renders when a served vertical (flights) declares it. */
 const TRIP_FIELD_ORDER: readonly SearchFieldName[] = [
     SEARCH_FIELD_NAMES.destination,
-    SEARCH_FIELD_NAMES.origin,
+    SEARCH_FIELD_NAMES.iataFrom,
     SEARCH_FIELD_NAMES.checkin,
     SEARCH_FIELD_NAMES.checkout,
     SEARCH_FIELD_NAMES.adults,
@@ -439,6 +496,10 @@ export interface MetaSearchLayout {
     /** Each served vertical's own visible controls (rooms, …) —
      *  everything the shared trip card does not already cover. */
     extrasByVertical: Partial<Record<MetaSearchVerticalSlug, MetaSearchField[]>>;
+    /** "Flying to Rome (FCO)" under each vertical shipping the hidden
+     *  `dt` — the visitor sees where the flight lands, since no input
+     *  shows it. */
+    flightToByVertical: Partial<Record<MetaSearchVerticalSlug, string>>;
     /** How many child-age selects the fold renders. */
     childSelectCount: number;
     /** The options of each child-age select. */
@@ -458,14 +519,14 @@ function isHiddenField(field: MetaSearchField): boolean {
 
 /**
  * A hidden field only renders when something can fill it: the API
- * default, or — for the destination IATA — the page-context prefill
- * when the destination is LOCKED (an editable destination could
- * drift from a baked `dt`, sending the visitor to the wrong city;
- * the fallback_url is the safer miss).
+ * default, or — for the destination IATA — the hub the API resolved
+ * from the page context. The flight destination is the site's or
+ * page's, never the editable hotel destination `d`: the visitor is
+ * told where the flight lands instead of typing it.
  */
-function hiddenValue(field: MetaSearchField, prefill: ParsedMetaSearch['prefill']): string {
-    if (field.name === SEARCH_FIELD_NAMES.iataTo && prefill.locked && prefill.iataTo !== null) {
-        return prefill.iataTo;
+function hiddenValue(field: MetaSearchField, flightDestination: MetaSearchAirport | null): string {
+    if (field.name === SEARCH_FIELD_NAMES.iataTo) {
+        return flightDestination?.iata ?? '';
     }
 
     return field.default !== null ? String(field.default) : '';
@@ -478,7 +539,7 @@ function hiddenValue(field: MetaSearchField, prefill: ParsedMetaSearch['prefill'
  * lands.
  */
 export function buildMetaSearchLayout(parsed: ParsedMetaSearch): MetaSearchLayout {
-    const { verticals, prefill } = parsed;
+    const { verticals, flightDestination, labels } = parsed;
 
     const tripFields = TRIP_FIELD_ORDER.flatMap((name) => {
         for (const vertical of verticals) {
@@ -499,7 +560,7 @@ export function buildMetaSearchLayout(parsed: ParsedMetaSearch): MetaSearchLayou
             if (!isHiddenField(field) || hiddenValues.has(field.name)) {
                 continue;
             }
-            const value = hiddenValue(field, prefill);
+            const value = hiddenValue(field, flightDestination);
             if (value !== '') {
                 hiddenValues.set(field.name, value);
             }
@@ -516,6 +577,12 @@ export function buildMetaSearchLayout(parsed: ParsedMetaSearch): MetaSearchLayou
             vertical.vertical,
             vertical.fields.filter((field) => !isHiddenField(field) && !SHARED_FIELD_NAMES.includes(field.name)),
         ])),
+        flightToByVertical: flightDestination === null ? {} : Object.fromEntries(verticals
+            .filter((vertical) => vertical.fields.some((field) => field.name === SEARCH_FIELD_NAMES.iataTo))
+            // The API ships the airport's plain name (`Rome`); the code
+            // is re-joined here so the note reads `Rome (FCO)` — the
+            // hidden `dt` value the visitor never sees in an input.
+            .map((vertical) => [vertical.vertical, labels.flightTo(`${flightDestination.label} (${flightDestination.iata})`)])),
         childSelectCount: CHILD_SELECT_COUNT,
         childAges: CHILD_AGES,
     };

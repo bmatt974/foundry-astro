@@ -72,9 +72,7 @@ const VERTICALS = [
         destination_only: false,
         form: {
             fields: [
-                field('o', 'text'),
-                field('d', 'text'),
-                field('df', 'hidden'),
+                field('df', 'text'),
                 field('dt', 'hidden'),
                 field('ci', 'date'),
                 field('co', 'date'),
@@ -108,12 +106,16 @@ const DESTINATIONS = [
     { name: 'Athens', iata: 'ATH' },
 ];
 
+// The API ships the airport's plain name; the datalist shows the IATA
+// as the option value, so the label must not repeat it.
 const ORIGINS = [
-    { name: 'Paris', iata: 'PAR' },
-    { name: 'Lyon', iata: 'LYS' },
-    { name: 'Marseille', iata: 'MRS' },
-    { name: 'Brussels', iata: 'BRU' },
+    { iata: 'CDG', label: 'Paris' },
+    { iata: 'ORY', label: 'Paris' },
+    { iata: 'NCE', label: 'Nice' },
+    { iata: 'LYS', label: 'Lyon' },
 ];
+
+const FLIGHT_DESTINATION = { iata: 'FCO', label: 'Rome' };
 
 interface FixtureOptions {
     /** Pin the destination (Place / Destination page context). */
@@ -147,9 +149,9 @@ export function metaSearchBlock(options: FixtureOptions = {}, id = 900): PageBlo
                 },
                 prefill: {
                     destination: 'Rome',
-                    iata_to: 'ROM',
                     locked: options.locked ?? false,
                 },
+                flight_destination: FLIGHT_DESTINATION,
                 empty: options.empty ?? false,
             },
             verticals: VERTICALS,
@@ -173,7 +175,7 @@ export function metaSearchScenarios(): MetaSearchScenario[] {
         {
             slug: 'baseline',
             title: 'A — Three verticals, Rome prefilled',
-            caption: 'Full payload: hotels default tab (4 partners), flights with origin datalist + hidden IATA fields, activities. Destination editable.',
+            caption: 'Full payload: hotels default tab (4 partners), flights with the airport datalist (submits df) + hidden dt flying to Rome (FCO), activities. Destination editable.',
             block: metaSearchBlock({}, 910),
         },
         {
