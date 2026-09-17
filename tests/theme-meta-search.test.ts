@@ -3,8 +3,8 @@
  * themes. The parser and i18n suites cover the payload→shape and the
  * label dictionaries, but nothing rendered the theme components — so
  * dropping `target=_blank`, renaming a wire field, forgetting to
- * register the block, or showing the destination-only marker under a
- * dated vertical would all leave the suite green (Phase-2 V4 review,
+ * register the block, or gating the destination-only marker on
+ * anything but the API flag would all leave the suite green (Phase-2 V4 review,
  * MINOR coverage gap). This reads the four `MetaSearch.astro` + their
  * `Block.astro` off disk and pins the invariants that must hold in
  * EVERY theme, the same source-reading technique as
@@ -63,12 +63,26 @@ for (const theme of THEMES) {
         assert.match(block, /MetaSearch/, 'the MetaSearch component is imported/mapped');
     });
 
-    test(`meta_search[${theme}]: destination-only marker is i18n-keyed, activities-gated`, () => {
+    test(`meta_search[${theme}]: destination-only marker is i18n-keyed, gated on the API flag`, () => {
         const src = themeFile(theme, 'blocks/MetaSearch.astro');
         // The honesty marker is a dictionary key, never a literal, and
-        // keyed off the activities allowlist — not hotels/flights.
-        assert.match(src, /destinationOnly/, 'marker text comes from the metaSearch.destinationOnly key');
-        assert.match(src, /activities/, 'marker gated on the activities vertical');
+        // shows off the payload's `destination_only` flag (parsed as
+        // `vertical.destinationOnly`) — the API decides which vertical
+        // ignores dates, the theme holds no slug allowlist of its own.
+        assert.match(src, /t\('metaSearch\.destinationOnly'\)/, 'marker text comes from the metaSearch.destinationOnly key');
+        assert.match(src, /vertical\.destinationOnly\s*&&/, 'marker gated on the parsed destination_only flag');
+        assert.ok(!/['"]activities['"]/.test(src), 'no front-side vertical allowlist');
+    });
+
+    test(`meta_search[${theme}]: form logic comes from the shared layout builder`, () => {
+        const src = themeFile(theme, 'blocks/MetaSearch.astro');
+        // Which controls show, which hidden values ship and where the
+        // extras land live once in buildMetaSearchLayout — a theme
+        // re-growing its own copy would drift from the other three.
+        assert.match(src, /buildMetaSearchLayout\(parsed\)/, 'layout computed by the shared builder');
+        for (const local of ['isHiddenField', 'hiddenValue', 'TRIP_FIELD_ORDER', 'SHARED_FIELD_NAMES', 'CHILD_AGES', 'DESTINATION_ONLY_VERTICALS']) {
+            assert.ok(!src.includes(local), `no theme-local ${local}`);
+        }
     });
 }
 

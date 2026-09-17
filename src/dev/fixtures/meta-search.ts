@@ -54,6 +54,7 @@ const field = (
 const VERTICALS = [
     {
         vertical: 'hotels',
+        destination_only: false,
         form: {
             fields: [
                 field('d', 'text'),
@@ -68,6 +69,7 @@ const VERTICALS = [
     },
     {
         vertical: 'flights',
+        destination_only: false,
         form: {
             fields: [
                 field('o', 'text'),
@@ -85,6 +87,7 @@ const VERTICALS = [
     },
     {
         vertical: 'activities',
+        destination_only: true,
         form: {
             fields: [
                 field('d', 'text'),
