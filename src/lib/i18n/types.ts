@@ -358,7 +358,8 @@ export interface Dictionary {
         /** Placeholder of the destination input ("City, region or
          *  landmark…"). */
         destinationPlaceholder: string;
-        /** Label of the flight-origin input (`o`). */
+        /** Label of the flight-origin input (`df`, the departure
+         *  airport picked from the datalist). */
         originLabel: string;
         /** Label of the check-in / departure date input (`ci`). */
         checkinLabel: string;
@@ -378,6 +379,10 @@ export interface Dictionary {
         /** Accessible label of a partner's logo button — ":partner"
          *  is the partner name ("Search on Booking.com"). */
         searchOn: string;
+        /** Where the flights land, under the flights section —
+         *  ":airport" is the API-resolved hub label ("Flying to Rome
+         *  (FCO)"). The visitor never types a flight destination. */
+        flightTo: string;
         /** Honesty marker under a destination-only vertical's title
          *  (activities: Viator/Tiqets ignore dates and travelers by
          *  design — the click lands on the destination page, not on

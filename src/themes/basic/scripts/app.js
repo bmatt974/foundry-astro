@@ -55,7 +55,7 @@ const initMenuDropdowns = () => {
 
 const initTripMemory = (form, today) => {
     const KEY = 'foundry:last-trip';
-    const NAMES = ['d', 'o', 'ci', 'co', 'a', 'ca'];
+    const NAMES = ['d', 'df', 'ci', 'co', 'a', 'ca'];
     const fieldsOf = (name) =>
         [...form.querySelectorAll(`[name="${name}"]`)].filter((el) => el.type !== 'hidden');
     try {

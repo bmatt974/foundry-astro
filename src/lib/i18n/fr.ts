@@ -203,6 +203,7 @@ const fr: Dictionary = {
         roomsLabel: 'Chambres',
         cabinLabel: 'Classe de cabine',
         searchOn: 'Rechercher sur :partner',
+        flightTo: 'Vol vers :airport',
         destinationOnly: 'Ouvre la page de la destination sur le site partenaire',
         vertical: {
             hotels: 'Hôtels',

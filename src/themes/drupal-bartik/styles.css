@@ -884,6 +884,7 @@ body.layout-container {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.55rem;
     min-height: 3.25rem;
     padding: 0.6rem 0.9rem;
     background: var(--color-bg);

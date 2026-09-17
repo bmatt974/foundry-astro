@@ -185,6 +185,7 @@ const en: Dictionary = {
         roomsLabel: 'Rooms',
         cabinLabel: 'Cabin class',
         searchOn: 'Search on :partner',
+        flightTo: 'Flying to :airport',
         destinationOnly: 'Opens the destination page on the partner site',
         vertical: {
             hotels: 'Hotels',

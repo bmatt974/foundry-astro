@@ -31,7 +31,7 @@ const partner = (code: string, overrides: Record<string, unknown> = {}) => ({
 const content = (overrides: Record<string, unknown> = {}) => ({
     meta: {
         settings: {},
-        prefill: { destination: null, iata_to: null, locked: false },
+        prefill: { destination: null, locked: false },
         empty: false,
     },
     verticals: [
@@ -42,7 +42,7 @@ const content = (overrides: Record<string, unknown> = {}) => ({
         },
     ],
     destinations: [{ name: 'Rome', iata: 'ROM' }],
-    origins: [{ name: 'Paris', iata: 'PAR' }],
+    origins: [{ iata: 'CDG', label: 'Paris (CDG)' }],
     ...overrides,
 });
 
@@ -76,7 +76,8 @@ test('parses a minimal payload into the theme-facing shape', () => {
     assert.equal(vertical.partners[0].formAction, '/visit/code00000001');
     assert.equal(parsed.defaultVertical, 'hotels');
     assert.deepEqual(parsed.destinations, [{ name: 'Rome', iata: 'ROM' }]);
-    assert.deepEqual(parsed.origins, [{ name: 'Paris', iata: 'PAR' }]);
+    assert.deepEqual(parsed.origins, [{ iata: 'CDG', label: 'Paris (CDG)' }]);
+    assert.equal(parsed.flightDestination, null);
 });
 
 test('destination_only is read off the payload, strictly boolean', () => {
@@ -124,13 +125,13 @@ test('prefill flows through; heading falls back to the dictionary', () => {
     const parsed = parseMetaSearch(content({
         meta: {
             settings: {},
-            prefill: { destination: 'Rome', iata_to: 'ROM', locked: true },
+            prefill: { destination: 'Rome', locked: true },
             empty: false,
         },
     }), 'fr');
 
     assert.ok(parsed);
-    assert.deepEqual(parsed.prefill, { destination: 'Rome', iataTo: 'ROM', locked: true });
+    assert.deepEqual(parsed.prefill, { destination: 'Rome', locked: true });
     assert.equal(parsed.heading, 'Où partez-vous ?');
 });
 
@@ -244,6 +245,25 @@ test('unknown field names are ignored', () => {
     assert.deepEqual(parsed.verticals[0].fields.map((f) => f.name), ['d']);
 });
 
+test('flight destination and origins parse as airports; codeless entries drop, label falls back to the code', () => {
+    const parsed = parseMetaSearch(content({
+        meta: { settings: {}, flight_destination: { iata: 'FCO', label: 'Rome (FCO)' }, empty: false },
+        origins: [{ iata: 'CDG', label: 'Paris (CDG)' }, { iata: 'ORY' }, { label: 'No code' }, { name: 'Paris', iata: '' }, null],
+    }), 'en');
+
+    assert.ok(parsed);
+    assert.deepEqual(parsed.flightDestination, { iata: 'FCO', label: 'Rome (FCO)' });
+    assert.deepEqual(parsed.origins, [
+        { iata: 'CDG', label: 'Paris (CDG)' },
+        { iata: 'ORY', label: 'ORY' },
+    ]);
+
+    const codeless = parseMetaSearch(content({
+        meta: { settings: {}, flight_destination: { label: 'Rome' }, empty: false },
+    }), 'en');
+    assert.equal(codeless?.flightDestination, null);
+});
+
 test('malformed datalist entries are dropped, iata normalises to null', () => {
     const parsed = parseMetaSearch(content({
         destinations: [{ name: 'Rome', iata: 'ROM' }, { name: 'Assisi' }, { name: '' }, { iata: 'XXX' }, null],
@@ -288,14 +308,20 @@ test('form-control labels are pre-resolved; closures substitute runtime values',
 
 // ─── form layout ────────────────────────────────────────────────
 
+// The API ships the airport's plain name; the layout re-joins the
+// code into the note (`Rome (FCO)`).
+const ROME_HUB = { iata: 'FCO', label: 'Rome' };
+
 const parsedFrom = (
     verticals: unknown[],
-    prefill: { destination: string | null; iata_to: string | null; locked: boolean } = { destination: 'Rome', iata_to: 'ROM', locked: false },
+    prefill: { destination: string | null; locked: boolean } = { destination: 'Rome', locked: false },
+    flightDestination: { iata: string; label: string } | null = ROME_HUB,
+    locale = 'en',
 ): ParsedMetaSearch => {
     const parsed = parseMetaSearch(content({
-        meta: { settings: {}, prefill, empty: false },
+        meta: { settings: {}, prefill, flight_destination: flightDestination, empty: false },
         verticals,
-    }), 'en');
+    }), locale);
     assert.ok(parsed);
 
     return parsed;
@@ -320,8 +346,7 @@ const FLIGHTS = {
     vertical: 'flights',
     form: {
         fields: [
-            { name: 'o', type: 'text' },
-            { name: 'df', type: 'hidden' },
+            { name: 'df', type: 'text' },
             { name: 'dt', type: 'hidden' },
             { name: 'ci', type: 'date' },
             { name: 'co', type: 'date' },
@@ -343,7 +368,8 @@ const ACTIVITIES = {
 test('layout: trip card unions the verticals in fixed order, first declaring vertical wins', () => {
     const layout = buildMetaSearchLayout(parsedFrom([HOTELS, FLIGHTS]));
 
-    assert.deepEqual(layout.tripFields.map((f) => f.name), ['d', 'o', 'ci', 'co', 'a']);
+    // The departure airport `df` is a trip control; `dt` never is.
+    assert.deepEqual(layout.tripFields.map((f) => f.name), ['d', 'df', 'ci', 'co', 'a']);
     // `a` is declared by both — hotels comes first in payload order.
     assert.deepEqual(layout.tripFields.find((f) => f.name === 'a'), {
         name: 'a', type: 'number', default: 2, min: 1, max: 9,
@@ -353,7 +379,7 @@ test('layout: trip card unions the verticals in fixed order, first declaring ver
     assert.equal(flightsFirst.tripFields.find((f) => f.name === 'a')?.max, 5);
 });
 
-test('layout: origin only shows when a served vertical declares it', () => {
+test('layout: the departure airport only shows when a served vertical declares it', () => {
     const layout = buildMetaSearchLayout(parsedFrom([HOTELS, ACTIVITIES]));
 
     assert.deepEqual(layout.tripFields.map((f) => f.name), ['d', 'ci', 'co', 'a']);
@@ -362,29 +388,49 @@ test('layout: origin only shows when a served vertical declares it', () => {
 test('layout: hidden fields are deduped across verticals and valueless ones dropped', () => {
     const laterVertical = {
         ...ACTIVITIES,
-        form: { fields: [{ name: 'cc', type: 'select', default: 'business' }, { name: 'df', type: 'hidden', default: 'PAR' }] },
+        form: { fields: [{ name: 'cc', type: 'select', default: 'business' }, { name: 'ca', type: 'hidden', default: '4' }] },
     };
 
     const layout = buildMetaSearchLayout(parsedFrom([FLIGHTS, laterVertical]));
 
-    // `cc` keeps the FIRST vertical's value; `df` had no value in the
-    // first vertical so the second one fills it; `dt` (editable
-    // destination) and `ca` (no default) have nothing to ship.
+    // `dt` ships the API's flight destination; `cc` keeps the FIRST
+    // vertical's value; `ca` had no value in the first vertical so
+    // the second one fills it.
     assert.deepEqual(layout.hiddenFields, [
+        { name: 'dt', value: 'FCO' },
         { name: 'cc', value: 'economy' },
-        { name: 'df', value: 'PAR' },
+        { name: 'ca', value: '4' },
     ]);
 });
 
-test('layout: the destination IATA only ships when the destination is locked', () => {
-    const locked = buildMetaSearchLayout(parsedFrom([FLIGHTS], { destination: 'Rome', iata_to: 'ROM', locked: true }));
-    assert.deepEqual(locked.hiddenFields.find((f) => f.name === 'dt'), { name: 'dt', value: 'ROM' });
+test('layout: the destination IATA is the API flight destination, whatever the typed destination', () => {
+    for (const locked of [true, false]) {
+        const layout = buildMetaSearchLayout(parsedFrom([FLIGHTS], { destination: 'Milan', locked }));
+        assert.deepEqual(layout.hiddenFields.find((f) => f.name === 'dt'), { name: 'dt', value: 'FCO' });
+    }
+});
 
-    const editable = buildMetaSearchLayout(parsedFrom([FLIGHTS], { destination: 'Rome', iata_to: 'ROM', locked: false }));
-    assert.equal(editable.hiddenFields.find((f) => f.name === 'dt'), undefined);
+test('a vertical needing the destination IATA is dropped when the API resolved no flight destination', () => {
+    const parsed = parsedFrom([HOTELS, FLIGHTS], undefined, null);
 
-    const lockedWithoutIata = buildMetaSearchLayout(parsedFrom([FLIGHTS], { destination: 'Rome', iata_to: null, locked: true }));
-    assert.equal(lockedWithoutIata.hiddenFields.find((f) => f.name === 'dt'), undefined);
+    // No logo that would land on a partner homepage.
+    assert.equal(parsed.flightDestination, null);
+    assert.deepEqual(parsed.verticals.map((v) => v.vertical), ['hotels']);
+    assert.equal(buildMetaSearchLayout(parsed).tripFields.some((f) => f.name === 'df'), false);
+
+    assert.equal(parseMetaSearch(content({ verticals: [FLIGHTS] }), 'en'), null);
+});
+
+test('layout: the flight destination is announced under each vertical shipping dt', () => {
+    assert.deepEqual(
+        buildMetaSearchLayout(parsedFrom([HOTELS, FLIGHTS, ACTIVITIES])).flightToByVertical,
+        { flights: 'Flying to Rome (FCO)' },
+    );
+    assert.deepEqual(
+        buildMetaSearchLayout(parsedFrom([FLIGHTS], undefined, ROME_HUB, 'fr')).flightToByVertical,
+        { flights: 'Vol vers Rome (FCO)' },
+    );
+    assert.deepEqual(buildMetaSearchLayout(parsedFrom([HOTELS, ACTIVITIES])).flightToByVertical, {});
 });
 
 test('layout: extras are each vertical\'s own visible controls', () => {
@@ -417,7 +463,8 @@ test('the dev fixture parses into 3 verticals with 4 hotel partners', () => {
     assert.deepEqual(parsed.verticals.map((v) => v.vertical), ['hotels', 'flights', 'activities']);
     assert.deepEqual(parsed.verticals.map((v) => v.destinationOnly), [false, false, true]);
     assert.equal(parsed.verticals[0].partners.length, 4);
-    assert.deepEqual(parsed.prefill, { destination: 'Rome', iataTo: 'ROM', locked: false });
+    assert.deepEqual(parsed.prefill, { destination: 'Rome', locked: false });
+    assert.deepEqual(parsed.flightDestination, { iata: 'FCO', label: 'Rome' });
     for (const vertical of parsed.verticals) {
         for (const p of vertical.partners) {
             assert.match(p.formAction, /^\/visit\/[a-z0-9]+$/);

@@ -409,6 +409,7 @@ section.my-8, section.my-10, section.my-12 { margin-block: var(--section-spacing
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.55rem;
     min-height: 3.25rem;
     padding: 0.6rem 0.9rem;
     font: inherit;
