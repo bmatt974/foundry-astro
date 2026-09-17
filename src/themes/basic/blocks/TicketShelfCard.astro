@@ -26,7 +26,13 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
 
 const badges = shelfBadgeLabels(offer, shelf, t, omitZones);
 
-const coveredNames = offer.coveredPlaces.map((place) => place.name).slice(0, 3);
+/* Two claims, two wordings: "+ X" says a ticket is included, which is
+   true only when the API proved it. A venue known from the product
+   title is a STOP — the provider says so itself ("Notre-Dame
+   (exterior)") — and printing it as an inclusion sold entries the
+   listing explicitly excludes (measured 2026-09-15). */
+const coveredNames = offer.coveredPlaces.filter((place) => place.proven).map((place) => place.name).slice(0, 3);
+const passingNames = offer.coveredPlaces.filter((place) => !place.proven).map((place) => place.name).slice(0, 3);
 
 /* The chip is an API verdict carried by the row — the front dresses it. */
 const highlightLabel = offer.highlight === 'best_price'
@@ -99,6 +105,9 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
 
         {coveredNames.length > 0 && (
             <span class="brand-text-muted text-xs">+ {coveredNames.join(' · ')}</span>
+        )}
+        {passingNames.length > 0 && (
+            <span class="brand-text-muted text-xs">{t('tickets.passesBy')} {passingNames.join(' · ')}</span>
         )}
 
         <div class="mt-auto flex items-center justify-between gap-3 pt-2">

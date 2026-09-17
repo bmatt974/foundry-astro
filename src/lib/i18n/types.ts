@@ -118,11 +118,14 @@ export interface Dictionary {
             small_group: string;
             private: string;
             pass_combo: string;
+            dining: string;
             around_visit: string;
         };
         /** Shelf section chrome — the declination sub-headers. Zone
          *  sections print the API's zone names verbatim; this labels
          *  the section with nothing to add. */
+        entryIncluded: string;
+        passesBy: string;
         shelfSection: {
             classic: string;
         };
@@ -175,6 +178,7 @@ export interface Dictionary {
             /** Anchor link that scrolls to the ticket's row in the
              *  comparator below ("details"). */
             details: string;
+            inYourLanguage: string;
         };
         /** Filter chip rows above each bucket. */
         filter: {

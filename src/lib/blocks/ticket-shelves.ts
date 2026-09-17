@@ -57,6 +57,15 @@ export interface CoveredPlace {
     id: number;
     name: string;
     isPrimary: boolean;
+    /**
+     * Whether an ADMISSION to this venue is proven, or only a stop on
+     * the itinerary. The API ships the distinction because the row's
+     * wording depends on it: "+ Louvre" claims a ticket, and 86 % of
+     * these venues are known only from the product title — which on a
+     * circuit lists stops. Viator says it plainly on the same
+     * products: "Notre-Dame (exterior)".
+     */
+    proven: boolean;
 }
 
 const LANGUAGE_STATES = ['match', 'other', 'undisclosed'] as const;
@@ -141,6 +150,9 @@ export const SHELF_ORDER = [
     'small_group',
     'private',
     'pass_combo',
+    // A meal taken at the venue. Last of the sellable shelves: it
+    // answers a different question from "which ticket do I buy".
+    'dining',
     // The demoted coverage group — offers the API could not PROVE to
     // include the venue's entry (bus tours, city passes, exterior
     // walks). Always last; carries no comparative highlights.
@@ -198,6 +210,9 @@ export interface ShelfOffer {
     experience: ShelfExperienceSlug | null;
     groupType: (typeof GROUP_TYPE_SLUGS)[number] | null;
     bundleSubtype: (typeof BUNDLE_SUBTYPE_SLUGS)[number] | null;
+    /** Whether the venue's admission is PROVEN included. `null` means
+     *  unproven, never "no" — the distinction the aside shelf rests on. */
+    entryIncluded: boolean | null;
     /** Venue-internal zones this offer PROVES — localized, ready to print. */
     zones: string[];
     /** Venues beyond the page's own group (combos worth a mention). */
@@ -271,6 +286,13 @@ export function shelfBadgeLabels(
 ): string[] {
     return [
         ...offer.zones.filter((zone) => !omitZones.includes(zone)),
+        // The dining shelf is the one place where "the admission is
+        // included" is both TRUE and unsaid: every other shelf either
+        // states it in its header or denies it. A meal at the venue
+        // really does let you in, and moving these rows out of the
+        // admission shelf (2026-09-15) took that fact off the page
+        // instead of relocating it.
+        ...(shelf === 'dining' && offer.entryIncluded === true ? [t('tickets.entryIncluded')] : []),
         ...(offer.experience ? [t(`tickets.experienceType.${offer.experience}` as TranslationKey)] : []),
         ...(offer.groupType && offer.groupType !== 'standard' && (shelf === 'pass_combo' || shelf === 'entry' || shelf === 'audio_guided')
             ? [t(`tickets.groupType.${offer.groupType}` as TranslationKey)]
@@ -462,6 +484,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         features: Array.isArray(entry.features)
             ? entry.features.filter((f): f is string => typeof f === 'string')
             : [],
+        entryIncluded: typeof entry.entry_included === 'boolean' ? entry.entry_included : null,
         experience: EXPERIENCE_SLUGS.find((slug) => slug === entry.experience) ?? null,
         groupType: GROUP_TYPE_SLUGS.find((slug) => slug === entry.group_type) ?? null,
         bundleSubtype: BUNDLE_SUBTYPE_SLUGS.find((slug) => slug === entry.bundle_subtype) ?? null,
@@ -475,6 +498,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
                         id: typeof (place as { id?: unknown }).id === 'number' ? (place as { id: number }).id : 0,
                         name: (place as { name: string }).name,
                         isPrimary: (place as { is_primary?: unknown }).is_primary === true,
+                        proven: (place as { proven?: unknown }).proven === true,
                     }]
                     : [],
             )

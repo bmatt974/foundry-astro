@@ -69,10 +69,21 @@ const picks = parsed.quickPicks
 /** Slots the dictionaries know; an API-added slot degrades to its bare
  *  slug instead of leaking a raw translation key path. */
 const KNOWN_PICK_SLOTS = ['recommended', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
-function pickSlotLabel(slot: string): string {
-    return KNOWN_PICK_SLOTS.includes(slot)
+function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
+    const label = KNOWN_PICK_SLOTS.includes(slot)
         ? t(`tickets.quickPicks.${slot}` as TranslationKey)
         : slot;
+
+    /* The recommendation carries its REASON when the reason is the
+       language. Measured 2026-09-17 on the Acropolis: the resolver
+       had just dropped an English-guided tour at 30,60 € for a French
+       audio guide at 39,00 €, and the judge read "dearer and worse
+       rated" because nothing on the page said why. A verdict without
+       its motive is indistinguishable from a bad verdict — the same
+       flaw as "garantit une progression plus fluide", inverted. */
+    return slot === 'recommended' && offer?.language?.state === 'match'
+        ? `${label} — ${t('tickets.quickPicks.inYourLanguage')}`
+        : label;
 }
 
 const pricesCheckedOn = parsed.pricesCheckedAt !== null
@@ -96,7 +107,7 @@ const itemListJson = emitSchema
         itemListElement: picks.map((pick, index) => ({
             '@type': 'ListItem',
             position: index + 1,
-            name: `${pick.slots.map((slot) => pickSlotLabel(slot)).join(' · ')} : ${pick.offer.title}`,
+            name: `${pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')} : ${pick.offer.title}`,
             url: `${Astro.url.origin}${Astro.url.pathname}#offer-${pick.offer.id}`,
         })),
     })
@@ -153,7 +164,7 @@ function showMoreLabel(count: number): string {
                     {picks.map((pick) => (
                         <li class="flex flex-wrap items-baseline gap-x-2 text-sm">
                             <span class="font-semibold" style="color: #1f2937">
-                                {pick.slots.map((slot) => pickSlotLabel(slot)).join(' · ')}
+                                {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
                             </span>
                             <a href={`#offer-${pick.offer.id}`} class="brand-text-muted underline decoration-dotted">
                                 {pick.offer.title}

@@ -55,8 +55,24 @@ const fr: Dictionary = {
             small_group: 'Visite en petit groupe',
             private: 'Visite privée',
             pass_combo: 'Pass & Combos',
-            around_visit: 'Autour de la visite — sans billet d’entrée',
+            // The product IS a meal at the venue, not a way in — see
+            // TicketShelf::Dining. Naming the venue would be wrong on a
+            // shelf shared by several restaurants.
+            dining: 'Repas au monument',
+            // Scoped to THIS monument, never to the product: these
+            // rows routinely include admission elsewhere (a Paris day
+            // tour covering the Louvre and Notre-Dame), and the old
+            // wording — « sans billet d’entrée » — read as "no ticket
+            // at all" right above a row listing the venues it covers.
+            around_visit: 'Autour de la visite — entrée au monument non incluse',
         },
+        // Worn by a row whose shelf does not already state it — today
+        // only the dining shelf, where a meal really does let you in.
+        entryIncluded: 'Entrée incluse',
+        // Prefix for venues the product only PASSES BY. Kept apart from
+        // the "+ X" inclusion prefix — the provider makes the same
+        // distinction on its own listing: « Notre-Dame (exterior) ».
+        passesBy: 'passe par',
         shelfSection: {
             classic: 'Parcours classique',
         },
@@ -97,6 +113,10 @@ const fr: Dictionary = {
             family: 'Avec des enfants',
             unusual: 'Le plus insolite',
             details: 'détails',
+            // Appended to « Notre recommandation » when the winning
+            // offer is delivered in the page's language — the reason
+            // the resolver preferred it over a cheaper foreign one.
+            inYourLanguage: 'en français',
         },
         filter: {
             groupHeader: 'Avec qui',

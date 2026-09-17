@@ -53,8 +53,11 @@ const en: Dictionary = {
             small_group: 'Small-group tours',
             private: 'Private tours',
             pass_combo: 'Passes & Combos',
-            around_visit: 'Around the visit — no entry ticket',
+            dining: 'Dining at the venue',
+            around_visit: 'Around the visit — admission to the monument not included',
         },
+        entryIncluded: 'Admission included',
+        passesBy: 'passes by',
         shelfSection: {
             classic: 'Classic visit',
         },
@@ -95,6 +98,7 @@ const en: Dictionary = {
             family: 'With kids',
             unusual: 'Something different',
             details: 'details',
+            inYourLanguage: 'in English',
         },
         filter: {
             groupHeader: 'With whom',
