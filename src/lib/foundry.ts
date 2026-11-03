@@ -142,6 +142,9 @@ export interface Page {
     updated_at: string | null;
     seo: Record<string, unknown> | null;
     settings: Record<string, unknown> | null;
+    /** h2 a table of contents needs on this page, decided by the API;
+     *  null = the default rule of `shouldShowToc`. */
+    toc_min_sections?: number | null;
     translation: PageTranslation | null;
     blocks: PageBlock[];
     sourceable: Sourceable | null;

@@ -204,6 +204,9 @@ export interface Dictionary {
             showMore: string;
             /** Singular form of `showMore` ("Voir 1 autre offre"). */
             showMoreOne: string;
+            /** Link from a hub's digest shelf to the child page that
+             *  compares it in full ("Comparer les :count visites"). */
+            seeAll: string;
             /** ":format (:count)" — header on each bucket section. */
             header: string;
             /** Shown when no tickets land in a bucket. */

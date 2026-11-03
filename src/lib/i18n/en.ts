@@ -109,6 +109,7 @@ const en: Dictionary = {
         bucket: {
             showMore: 'Show :count more offers',
             showMoreOne: 'Show 1 more offer',
+            seeAll: 'Compare all :count offers',
             header: ':format (:count)',
             empty: 'No tickets in this category yet.',
         },

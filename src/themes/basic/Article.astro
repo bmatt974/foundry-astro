@@ -95,7 +95,7 @@ const Wrapper = isSearchPage ? 'div' : Fragment;
             // Byline now ships inline inside the page header.
             return null;
         case 'toc':
-            return <Toc blocks={page.blocks} />;
+            return <Toc blocks={page.blocks} minSections={page.toc_min_sections} />;
         case 'sourceable_info':
             // Place pages with API-composed visitor chips get the
             // visitor header (chips + click-to-load map); everything

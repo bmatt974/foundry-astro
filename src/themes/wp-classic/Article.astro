@@ -77,7 +77,7 @@ const showBio = bioSettings.show && (
                 // Byline now ships inline inside the page header.
                 return null;
             case 'toc':
-                return <Toc blocks={page.blocks} />;
+                return <Toc blocks={page.blocks} minSections={page.toc_min_sections} />;
             case 'sourceable_info':
                 return <SourceableInfo sourceable={page.sourceable} locale={locale} />;
             case 'page_blocks':

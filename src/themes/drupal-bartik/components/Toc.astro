@@ -6,20 +6,20 @@
  */
 import type { PageBlock } from '../../../lib/foundry';
 import { useTranslations } from '../../../lib/i18n';
-import { extractHeadingsFromBlocks } from '../../../lib/toc';
+import { extractHeadingsFromBlocks, shouldShowToc } from '../../../lib/toc';
 
 interface Props {
     blocks: PageBlock[];
+    minSections?: number | null;
 }
 
-const { blocks } = Astro.props;
+const { blocks, minSections } = Astro.props;
 const headings = extractHeadingsFromBlocks(blocks);
-const MIN_HEADINGS = 3;
 const t = useTranslations(Astro.locals.locale ?? 'en', Astro.locals.wording);
 const tocLabel = t('toc.label');
 ---
 
-{headings.length >= MIN_HEADINGS && (
+{shouldShowToc(headings, minSections) && (
     <nav class="region region--toc block block--type-toc" aria-label={tocLabel}>
         <h2 class="block__title">{tocLabel}</h2>
         <div class="field field--name-field-toc-items">

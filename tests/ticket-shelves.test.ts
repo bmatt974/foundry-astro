@@ -317,3 +317,16 @@ test('frozen translations still shipping click_id keep their cloaked href', () =
     assert.equal(legacy.href, '/visite/abc123def456?p=ticket_shelf');
     assert.equal(both.href, '/visite/newcode00001?p=ticket_shelf', 'code wins over click_id');
 });
+
+test('a digest shelf keeps the full count and the link the API resolved', () => {
+    const parsed = parseShelvesBlock(block([
+        { shelf: 'guided', offers: [offer({ id: 1 })], more: { page_id: 1955, count: 21, url: '/visites-guidees-du-colisee' } },
+        { shelf: 'private', offers: [offer({ id: 2 })], more: { page_id: 1957, count: 13, url: null } },
+        { shelf: 'entry', offers: [offer({ id: 3 })] },
+    ]), 'fr');
+
+    assert.deepEqual(parsed.shelves[0].more, { count: 21, url: '/visites-guidees-du-colisee' });
+    // An unpublished child: the count stands, the link waits.
+    assert.deepEqual(parsed.shelves[1].more, { count: 13, url: null });
+    assert.equal(parsed.shelves[2].more, null);
+});

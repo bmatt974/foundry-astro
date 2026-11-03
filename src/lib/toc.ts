@@ -222,6 +222,19 @@ const BODY_BLOCK_TYPES = new Set(['text', 'section', 'summary']);
  */
 const walkCache = new WeakMap<object, Heading[]>();
 
+/** Below this, a "Sommaire" lists next to nothing. */
+const MIN_TOC_HEADINGS = 3;
+
+/**
+ * The API may ask more of a page (`toc_min_sections`), counting h2 only: a
+ * body's h3 must not decide it from one regeneration to the next.
+ */
+export function shouldShowToc(headings: Heading[], minSections?: number | null): boolean {
+    return minSections == null
+        ? headings.length >= MIN_TOC_HEADINGS
+        : headings.filter((heading) => heading.level === 2).length >= minSections;
+}
+
 export function extractHeadingsFromBlocks(
     blocks: ReadonlyArray<{ block_type: string; content: Record<string, unknown> | null }>,
 ): Heading[] {

@@ -127,6 +127,7 @@ const fr: Dictionary = {
         bucket: {
             showMore: 'Voir :count autres offres',
             showMoreOne: 'Voir 1 autre offre',
+            seeAll: 'Comparer les :count offres',
             header: ':format (:count)',
             empty: 'Aucun billet dans cette catégorie pour le moment.',
         },

@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
 import {
+    shouldShowToc,
     anchorIdFor,
     applyAssignedHeadingIds,
     extractHeadingsFromBlocks,
@@ -213,4 +214,20 @@ test('applyAssignedHeadingIds strips ids when no list is given', () => {
     assert.equal(applyAssignedHeadingIds(html), '<h2>A</h2>\n<h4>deep</h4>\n');
     const wp = '<h2 class="wp-block-heading" id="a">A</h2>\n';
     assert.equal(applyAssignedHeadingIds(wp), '<h2 class="wp-block-heading">A</h2>\n');
+});
+
+const tocHeadings = (h2: number, h3: number) => [
+    ...Array.from({ length: h2 }, (_, i) => ({ level: 2, text: `A${i}`, slug: `a${i}` })),
+    ...Array.from({ length: h3 }, (_, i) => ({ level: 3, text: `B${i}`, slug: `b${i}` })),
+] as never;
+
+test('a table of contents needs three headings by default, h3 included', () => {
+    assert.equal(shouldShowToc(tocHeadings(1, 1)), false);
+    assert.equal(shouldShowToc(tocHeadings(1, 2)), true);
+    assert.equal(shouldShowToc(tocHeadings(3, 0), null), true);
+});
+
+test('the threshold the API asks for counts h2 only', () => {
+    assert.equal(shouldShowToc(tocHeadings(5, 4), 6), false);
+    assert.equal(shouldShowToc(tocHeadings(6, 0), 6), true);
 });

@@ -236,6 +236,10 @@ export interface ParsedShelf {
     /** All the shelf's offers, sections flattened — highlight and
      *  quick-pick resolution work at shelf scope. */
     offers: ShelfOffer[];
+    /** A hub's digest shelf: how many offers the full comparison holds
+     *  and the child page that has them (null while it is not
+     *  published). Absent on a complete shelf. */
+    more: { count: number; url: string | null } | null;
 }
 
 export interface ShelfQuickPick {
@@ -373,8 +377,12 @@ export function parseShelvesBlock(
             });
 
             const offers = sections.flatMap((section) => section.offers);
+            const rawMore = (raw as { more?: { count?: unknown; url?: unknown } }).more;
+            const more = rawMore && typeof rawMore.count === 'number'
+                ? { count: rawMore.count, url: typeof rawMore.url === 'string' && rawMore.url !== '' ? rawMore.url : null }
+                : null;
 
-            return offers.length > 0 ? [{ shelf, sections, offers }] : [];
+            return offers.length > 0 ? [{ shelf, sections, offers, more }] : [];
         });
 
     const totalCount = shelves.reduce((sum, shelf) => sum + shelf.offers.length, 0);
