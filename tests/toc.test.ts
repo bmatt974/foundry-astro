@@ -231,3 +231,21 @@ test('the threshold the API asks for counts h2 only', () => {
     assert.equal(shouldShowToc(tocHeadings(5, 4), 6), false);
     assert.equal(shouldShowToc(tocHeadings(6, 0), 6), true);
 });
+
+test('a block anchor the API decided is stamped as it is, before any heading of the page', () => {
+    // Another page links to `regles-des-billets`: an earlier heading with
+    // the same slug takes the suffix, never the anchored block.
+    const anchored = { block_type: 'text', content: { title: 'Règlement des billets', body: '', anchor: 'regles-des-billets' }, id: 2 };
+    const blocks = [BLOCK_TEXT(1, 'Règles des billets', undefined), anchored];
+
+    const headings = extractHeadingsFromBlocks(blocks);
+
+    assert.deepEqual(headings.map((h) => h.slug), ['regles-des-billets-2', 'regles-des-billets']);
+    assert.equal(anchorIdFor(anchored, 'Règlement des billets'), 'regles-des-billets');
+});
+
+test('an anchor that is not an id is ignored', () => {
+    const block = { block_type: 'text', content: { title: 'Tickets', anchor: 'Not An Id!' }, id: 1 };
+
+    assert.equal(anchorIdFor(block, 'Tickets'), 'tickets');
+});

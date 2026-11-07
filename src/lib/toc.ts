@@ -160,7 +160,18 @@ export function headingIdsFor(block: object): BlockHeadingIds | undefined {
  * nine parse helpers and components before this.
  */
 export function anchorIdFor(block: object, title: string): string {
-    return headingIdsFor(block)?.titleId ?? slugify(title);
+    return headingIdsFor(block)?.titleId ?? apiAnchorOf(block) ?? slugify(title);
+}
+
+/**
+ * The heading id the API decided for a block (`content.anchor`), which
+ * other pages link to: printed as it is, never re-slugged. Undefined
+ * when the payload sets none or sets something that is not an id.
+ */
+function apiAnchorOf(block: object): string | undefined {
+    const anchor = (block as { content?: Record<string, unknown> | null }).content?.anchor;
+
+    return typeof anchor === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(anchor) ? anchor : undefined;
 }
 
 /**
@@ -250,6 +261,16 @@ export function extractHeadingsFromBlocks(
     const out: Heading[] = [];
     const registry = new SlugRegistry();
 
+    // Anchors the API decided are claimed first: another page links to
+    // them, so a heading earlier on this page must take the suffix.
+    const apiAnchors = new Map<object, string>();
+    for (const block of blocks) {
+        const anchor = apiAnchorOf(block);
+        if (anchor !== undefined) {
+            apiAnchors.set(block, registry.claim(anchor));
+        }
+    }
+
     for (const block of blocks) {
         const ids: BlockHeadingIds = { bodyIds: [] };
 
@@ -265,7 +286,7 @@ export function extractHeadingsFromBlocks(
             title = block.content?.title ?? block.content?.heading;
         }
         if (typeof title === 'string' && title.trim() !== '') {
-            ids.titleId = registry.claim(title.trim());
+            ids.titleId = apiAnchors.get(block) ?? registry.claim(title.trim());
             out.push({ level: 2, text: title.trim(), slug: ids.titleId });
         }
 
