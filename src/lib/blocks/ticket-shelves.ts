@@ -247,6 +247,12 @@ export interface ShelfQuickPick {
     offerId: number;
 }
 
+/** One pick per kind of ticket — `shelf` is the shelf slug. */
+export interface ShelfCategoryPick {
+    shelf: string;
+    offerId: number;
+}
+
 /**
  * Editor knobs the shelves renderer honours. The knobs that governed
  * the retired seller-aggregation model (sort_by, hide_price_outliers,
@@ -269,6 +275,10 @@ export interface ParsedShelves {
     settings: ShelfSettings;
     shelves: ParsedShelf[];
     quickPicks: ShelfQuickPick[];
+    categoryPicks: ShelfCategoryPick[];
+    /** The strip alone, above the page's full comparator: the shelves
+     *  only carry the rows the picks name. */
+    picksOnly: boolean;
     totalCount: number;
     entryIncludedIn: { name: string } | null;
     languageAdvice: LanguageAdvice | null;
@@ -391,7 +401,8 @@ export function parseShelvesBlock(
     const headingLevel = ([2, 3, 4, 5].includes(headingLevelRaw) ? headingLevelRaw : 2) as 2 | 3 | 4 | 5;
     const headingText = typeof settings.heading_text === 'string' && settings.heading_text.trim() !== ''
         ? settings.heading_text.trim()
-        : t('tickets.defaultHeading');
+        // A picks-only block is the strip, and is headed as one.
+        : t(settings.picks_only === true ? 'tickets.quickPicks.title' : 'tickets.defaultHeading');
 
     const entryIncludedInRaw = meta.entry_included_in as { name?: unknown } | null | undefined;
     const entryIncludedIn = entryIncludedInRaw && typeof entryIncludedInRaw.name === 'string'
@@ -420,12 +431,22 @@ export function parseShelvesBlock(
             return [{ offerId, slots: slots.filter((slot): slot is string => typeof slot === 'string') }];
         });
 
+    const categoryPicks: ShelfCategoryPick[] = (Array.isArray(content.category_picks) ? content.category_picks : [])
+        .flatMap((raw: unknown) => {
+            if (!raw || typeof raw !== 'object') return [];
+            const offerId = (raw as { offer_id?: unknown }).offer_id;
+            const shelf = (raw as { shelf?: unknown }).shelf;
+            return typeof offerId === 'number' && typeof shelf === 'string' ? [{ offerId, shelf }] : [];
+        });
+
     return {
         heading: headingText,
         headingLevel,
         settings: parsedSettings,
         shelves,
         quickPicks,
+        categoryPicks,
+        picksOnly: settings.picks_only === true,
         totalCount,
         entryIncludedIn,
         languageAdvice: parseLanguageAdvice(meta.language_advice),

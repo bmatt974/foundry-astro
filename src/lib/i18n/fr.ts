@@ -113,6 +113,8 @@ const fr: Dictionary = {
             most_complete: 'Le plus complet',
             family: 'Avec des enfants',
             unusual: 'Le plus insolite',
+            /** Header of the one-pick-per-shelf list. */
+            byCategory: 'Par type de billet',
             details: 'détails',
             // Appended to « Notre recommandation » when the winning
             // offer is delivered in the page's language — the reason

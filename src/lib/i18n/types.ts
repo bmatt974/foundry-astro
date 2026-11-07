@@ -181,6 +181,8 @@ export interface Dictionary {
             most_complete: string;
             family: string;
             unusual: string;
+            /** Header of the one-pick-per-shelf list ("Par type de billet"). */
+            byCategory: string;
             /** Anchor link that scrolls to the ticket's row in the
              *  comparator below ("details"). */
             details: string;

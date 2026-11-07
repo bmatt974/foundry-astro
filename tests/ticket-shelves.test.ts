@@ -137,6 +137,28 @@ test('quick picks resolve to offers and drop what they cannot point at', () => {
     assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1 }]);
 });
 
+test('category picks keep their shelf slug and drop malformed entries', () => {
+    const payload = block([{ shelf: 'guided', offers: [offer({ id: 2 })] }], { settings: { picks_only: true } });
+    (payload.content as Record<string, unknown>).category_picks = [
+        { shelf: 'guided', offer_id: 2 },
+        { shelf: 'private' },
+        { offer_id: 3 },
+    ];
+
+    const parsed = parseShelvesBlock(payload, 'fr');
+
+    assert.deepEqual(parsed.categoryPicks, [{ shelf: 'guided', offerId: 2 }]);
+    assert.equal(parsed.picksOnly, true);
+    assert.equal(parsed.heading, 'Pour les plus pressés', 'headed as the strip, not as a second comparator');
+});
+
+test('a block is the full comparator unless the payload says picks only', () => {
+    const parsed = parseShelvesBlock(block([{ shelf: 'entry', offers: [offer()] }]), 'fr');
+
+    assert.equal(parsed.picksOnly, false);
+    assert.deepEqual(parsed.categoryPicks, []);
+});
+
 test('sections parse with their declination and flatten into the shelf offers', () => {
     const parsed = parseShelvesBlock(block([
         {

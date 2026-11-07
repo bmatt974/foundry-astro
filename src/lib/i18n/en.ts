@@ -98,6 +98,8 @@ const en: Dictionary = {
             most_complete: 'Most complete',
             family: 'With kids',
             unusual: 'Something different',
+            /** Header of the one-pick-per-shelf list. */
+            byCategory: 'By kind of ticket',
             details: 'details',
             inYourLanguage: 'in English',
         },

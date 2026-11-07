@@ -24,12 +24,12 @@ import {
 } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { formatDate } from '../../../lib/format';
-import { serializeJsonLd } from '../../../lib/seo';
 import type { PageBlock } from '../../../lib/foundry';
 import TicketShelfRow from './TicketShelfRow.astro';
 import TicketShelfCard from './TicketShelfCard.astro';
 import TicketShelfTable from './TicketShelfTable.astro';
 import TicketShelfDetailed from './TicketShelfDetailed.astro';
+import TicketsPicks from './TicketsPicks.astro';
 
 interface Props {
     block: PageBlock;
@@ -55,62 +55,8 @@ const BlockHeading = `h${parsed.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
 const ShelfHeading = `h${Math.min(parsed.headingLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
 const SectionHeading = `h${Math.min(parsed.headingLevel + 2, 6)}` as 'h4' | 'h5' | 'h6';
 
-/** Quick picks resolved against the rows they point at; a pick whose
- *  offer fell out of the page renders nothing. */
-const rowById = new Map<number, ShelfOffer>(
-    parsed.shelves.flatMap((shelf: ParsedShelf) => shelf.offers.map((offer) => [offer.id, offer])),
-);
-const picks = parsed.quickPicks
-    .flatMap((pick) => {
-        const offer = rowById.get(pick.offerId);
-        return offer && pick.slots.length > 0 ? [{ ...pick, offer }] : [];
-    });
-
-/** Slots the dictionaries know; an API-added slot degrades to its bare
- *  slug instead of leaking a raw translation key path. */
-const KNOWN_PICK_SLOTS = ['recommended', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
-function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
-    const label = KNOWN_PICK_SLOTS.includes(slot)
-        ? t(`tickets.quickPicks.${slot}` as TranslationKey)
-        : slot;
-
-    /* The recommendation carries its REASON when the reason is the
-       language. Measured 2026-09-17 on the Acropolis: the resolver
-       had just dropped an English-guided tour at 30,60 € for a French
-       audio guide at 39,00 €, and the judge read "dearer and worse
-       rated" because nothing on the page said why. A verdict without
-       its motive is indistinguishable from a bad verdict — the same
-       flaw as "garantit une progression plus fluide", inverted. */
-    return slot === 'recommended' && offer?.language?.state === 'match'
-        ? `${label} — ${t('tickets.quickPicks.inYourLanguage')}`
-        : label;
-}
-
 const pricesCheckedOn = parsed.pricesCheckedAt !== null
     ? formatDate(parsed.pricesCheckedAt, locale)
-    : null;
-
-/* schema.org ItemList — the picks strip literally answers "what's the
- * cheapest / best ticket?", the exact shape AI Overviews / Perplexity
- * cite. Re-homed from the deleted legacy quick-picks component, same
- * contract: gated on the per-site `jsonld_level` experiment axis (list
- * markup is beyond article-only postures), URLs are self-referential
- * page anchors, NEVER the affiliate links — structured data must not
- * leak the monetisation layer. */
-const jsonldLevel = Astro.locals.tenant?.experiments?.jsonld_level ?? 'none';
-const emitSchema = picks.length > 0 && jsonldLevel !== 'none' && jsonldLevel !== 'article_only';
-const itemListJson = emitSchema
-    ? serializeJsonLd({
-        '@context': 'https://schema.org',
-        '@type': 'ItemList',
-        name: t('tickets.quickPicks.title'),
-        itemListElement: picks.map((pick, index) => ({
-            '@type': 'ListItem',
-            position: index + 1,
-            name: `${pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')} : ${pick.offer.title}`,
-            url: `${Astro.url.origin}${Astro.url.pathname}#offer-${pick.offer.id}`,
-        })),
-    })
     : null;
 
 /** The cheapest priced offer's formatted price — the section summary's
@@ -130,7 +76,6 @@ function showMoreLabel(count: number): string {
 
 {parsed.totalCount > 0 && (
     <section id="tickets" class="tickets-shelves my-8">
-        {itemListJson && <script type="application/ld+json" is:inline set:html={itemListJson} />}
         <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
             {parsed.heading}
         </BlockHeading>
@@ -155,28 +100,7 @@ function showMoreLabel(count: number): string {
             </p>
         )}
 
-        {picks.length > 0 && (
-            <aside aria-label={t('tickets.quickPicks.title')} class="brand-border my-5 rounded-lg border bg-gray-50 p-4">
-                <p class="brand-text-muted mb-2 text-xs font-semibold uppercase tracking-wider">
-                    {t('tickets.quickPicks.title')}
-                </p>
-                <ul class="space-y-1.5">
-                    {picks.map((pick) => (
-                        <li class="flex flex-wrap items-baseline gap-x-2 text-sm">
-                            <span class="font-semibold" style="color: #1f2937">
-                                {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
-                            </span>
-                            <a href={`#offer-${pick.offer.id}`} class="brand-text-muted underline decoration-dotted">
-                                {pick.offer.title}
-                            </a>
-                            {pick.offer.priceText && (
-                                <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
-                            )}
-                        </li>
-                    ))}
-                </ul>
-            </aside>
-        )}
+        <TicketsPicks parsed={parsed} />
 
         <div class="space-y-10">
             {parsed.shelves.map((shelf: ParsedShelf) => {

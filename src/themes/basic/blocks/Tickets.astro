@@ -8,12 +8,15 @@
  * the DISPOSITION inside TicketsShelves: rows (simple/default), cards,
  * table (also the legacy `compare`), detailed (also the legacy `rich`).
  *
+ * A `picks_only` payload is the picks strip alone (TicketsPicks).
+ *
  * A payload without a `shelves` key — a destination page's empty block,
  * or malformed content — renders nothing rather than a guess.
  */
 import type { PageBlock } from '../../../lib/foundry';
-import { isShelvesPayload } from '../../../lib/blocks/ticket-shelves';
+import { isShelvesPayload, parseShelvesBlock } from '../../../lib/blocks/ticket-shelves';
 import TicketsShelves from './TicketsShelves.astro';
+import TicketsPicks from './TicketsPicks.astro';
 
 interface Props {
     block: PageBlock;
@@ -22,6 +25,11 @@ interface Props {
 const { block } = Astro.props;
 
 const isShelves = isShelvesPayload(block.content);
+/* A picks-only block (`picks_only`) is the strip on its own, above the
+   page's full comparator: it renders the picks, never the shelves. */
+const parsed = isShelves
+    ? parseShelvesBlock(block, Astro.locals.locale ?? 'en', Astro.locals.wording ?? null, Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go')
+    : null;
 const shelfLayout = block.variant === 'table' || block.variant === 'compare'
     ? 'table' as const
     : block.variant === 'cards'
@@ -31,4 +39,6 @@ const shelfLayout = block.variant === 'table' || block.variant === 'compare'
             : 'rows' as const;
 ---
 
-{isShelves && <TicketsShelves block={block} layout={shelfLayout} />}
+{parsed?.picksOnly
+    ? <TicketsPicks parsed={parsed} standalone />
+    : isShelves && <TicketsShelves block={block} layout={shelfLayout} />}
