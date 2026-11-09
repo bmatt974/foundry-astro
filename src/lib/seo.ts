@@ -215,6 +215,12 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         graph.push(node);
     }
 
+    // Nodes the API composed (prices, offer counts): printed verbatim,
+    // the front decides nothing about a product.
+    for (const node of page?.structured_data ?? []) {
+        graph.push(node);
+    }
+
     return {
         '@context': 'https://schema.org',
         '@graph': graph,

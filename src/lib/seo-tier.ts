@@ -52,6 +52,13 @@ export function computePageTier(page: Page | null, tenant: TenantContext): SeoTi
         return 'featured';
     }
 
+    //    Same for a page the API ships an offer markup for: its site
+    //    (or the page itself) chose the price snippet, the tier must
+    //    not drop the schema it rides on.
+    if ((page.structured_data ?? []).length > 0) {
+        return 'featured';
+    }
+
     // 4. Everything else: seeded 30/50/20 distribution.
     const slug = page.translation?.slug ?? `page-${page.id}`;
     const seed = `${tenant.website.hostname}:${slug}`;

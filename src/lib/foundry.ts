@@ -148,6 +148,9 @@ export interface Page {
     translation: PageTranslation | null;
     blocks: PageBlock[];
     sourceable: Sourceable | null;
+    /** schema.org nodes composed by the API (the tickets' AggregateOffer…),
+     *  added to the page's JSON-LD graph as they are. */
+    structured_data?: Record<string, unknown>[];
     nav: {
         parent: NavNode | null;
         /** Full ancestor chain ordered root → direct parent (excludes
