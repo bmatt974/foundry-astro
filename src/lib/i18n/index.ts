@@ -43,15 +43,25 @@
  * stays well under 50KB minified — each dictionary is a few hundred
  * bytes of strings, eagerly imported, looked up in O(1).
  */
+import de from './de.ts';
 import en from './en.ts';
+import es from './es.ts';
 import fr from './fr.ts';
+import it from './it.ts';
+import nl from './nl.ts';
+import pt from './pt.ts';
 import type { Dictionary } from './types.ts';
 
 export type { Dictionary } from './types.ts';
 
 const DICTIONARIES: Record<string, Dictionary> = {
+    de,
     en,
+    es,
     fr,
+    it,
+    nl,
+    pt,
 };
 
 export const FALLBACK_LOCALE = 'en';

@@ -24,6 +24,11 @@ import {
 } from '../src/lib/i18n/index.ts';
 import en from '../src/lib/i18n/en.ts';
 import fr from '../src/lib/i18n/fr.ts';
+import de from '../src/lib/i18n/de.ts';
+import es from '../src/lib/i18n/es.ts';
+import it from '../src/lib/i18n/it.ts';
+import nl from '../src/lib/i18n/nl.ts';
+import pt from '../src/lib/i18n/pt.ts';
 
 // ─── __() — direct dictionary lookup, no wording overrides ──────
 
@@ -146,7 +151,7 @@ test('splitLinkBody handles placeholder at the start or end of the body', () => 
 // ─── Dictionary shape (smoke) ───────────────────────────────────
 
 test('every registered dictionary has the required keys', () => {
-    for (const dict of [en, fr]) {
+    for (const dict of [en, fr, de, es, it, nl, pt]) {
         assert.ok(dict.toc.label.length > 0, 'toc.label must be a non-empty string');
         assert.ok(
             dict.footer.affiliateDisclosure.body.includes('{link}'),
@@ -232,4 +237,58 @@ test('notFound title can be overridden by per-site wording', () => {
     assert.equal(t('notFound.title'), 'Oups, perdu ?');
     // Other keys fall back to the dictionary.
     assert.equal(t('notFound.cta'), "Retour à l'accueil");
+});
+
+// ─── Every page locale gets its own chrome ──────────────────────
+
+/** Every leaf of a dictionary, as dot-path → string. */
+function leaves(node: unknown, prefix = ''): Map<string, string> {
+    const out = new Map<string, string>();
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+        const path = prefix === '' ? key : `${prefix}.${key}`;
+        if (typeof value === 'string') {
+            out.set(path, value);
+        } else {
+            for (const [p, v] of leaves(value, path)) {
+                out.set(p, v);
+            }
+        }
+    }
+
+    return out;
+}
+
+const PAGE_LOCALES = { de, es, it, nl, pt };
+
+test('each page locale fills every key and keeps every placeholder', () => {
+    const reference = leaves(en);
+    for (const [code, dict] of Object.entries(PAGE_LOCALES)) {
+        const own = leaves(dict);
+        for (const [path, english] of reference) {
+            const value = own.get(path);
+            assert.ok(value !== undefined && value.length > 0, `${code}: ${path} is empty`);
+            const placeholders = (s: string): string[] => (s.match(/:[a-z]+|\{link\}/g) ?? []).sort();
+            assert.deepEqual(placeholders(value), placeholders(english), `${code}: ${path} changed its placeholders`);
+        }
+    }
+});
+
+test('a page locale no longer falls back to English chrome', () => {
+    // Measured 2026-11-09: the Spanish Arena page printed "Which ticket
+    // should you buy?", "Book" and "In a hurry? The short list" between
+    // Spanish paragraphs, because only en and fr were registered.
+    for (const code of Object.keys(PAGE_LOCALES)) {
+        assert.notEqual(__('tickets.defaultHeading', code), en.tickets.defaultHeading, code);
+        assert.notEqual(__('tickets.quickPicks.title', code), en.tickets.quickPicks.title, code);
+        assert.notEqual(__('footer.affiliateDisclosure.body', code), en.footer.affiliateDisclosure.body, code);
+    }
+});
+
+test('a page locale keeps the URL segments Laravel builds its links with', () => {
+    // LocalisedSegments localises en and fr only; any other segment here
+    // would serve author and search pages at paths the API never links to.
+    for (const code of Object.keys(PAGE_LOCALES)) {
+        assert.equal(__('routes.authorsPrefix', code), 'authors', code);
+        assert.equal(__('routes.searchSlug', code), 'search', code);
+    }
 });
