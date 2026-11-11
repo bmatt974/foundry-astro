@@ -62,3 +62,20 @@ test('structured data: a page shipping an offer markup is featured, whatever its
     // The admin's explicit tier still wins.
     assert.equal(computePageTier(page(product, 'light'), tenant as never), 'light');
 });
+
+test('structured data: the article is modified when the page was last edited, not when it was published', () => {
+    const page = {
+        id: 1936,
+        translation: { locale: 'fr', slug: 'sagrada-familia', title: 'Sagrada Família', published_at: '2026-08-01T00:00:00+00:00' },
+        published_at: '2026-08-01T00:00:00+00:00',
+        updated_at: '2026-11-11T22:00:00+00:00',
+        blocks: [],
+        sourceable: null,
+        nav: { parent: null, breadcrumb: [], children: [], siblings: [] },
+    } as never;
+    const jsonLd = buildJsonLd({ tenant: tenant as never, locale: 'fr', page, canonicalUrl: 'https://test.example/fr/sagrada-familia', imageUrl: null });
+    const article = (jsonLd as { '@graph': Array<Record<string, unknown>> })['@graph'].find((n) => n['@type'] === 'Article');
+
+    assert.equal(article?.dateModified, '2026-11-11T22:00:00+00:00');
+    assert.equal(article?.datePublished, '2026-08-01T00:00:00+00:00');
+});

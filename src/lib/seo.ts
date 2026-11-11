@@ -122,7 +122,10 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
             image: imageUrl ?? undefined,
             url: canonicalUrl ?? undefined,
             datePublished: t.published_at ?? undefined,
-            dateModified: page.published_at ?? t.published_at ?? undefined,
+            // The page's last edit, as the visible "Mis à jour le" line
+            // reads it: publication repeated here, a page redrafted
+            // never told search engines it had changed.
+            dateModified: page.updated_at ?? page.published_at ?? t.published_at ?? undefined,
             inLanguage: locale,
             isPartOf: { '@id': websiteId },
             author: authors.length === 0
