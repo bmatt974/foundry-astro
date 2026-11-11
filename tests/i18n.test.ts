@@ -275,7 +275,7 @@ test('each page locale fills every key and keeps every placeholder', () => {
 
 test('a page locale no longer falls back to English chrome', () => {
     // Measured 2026-11-09: the Spanish Arena page printed "Which ticket
-    // should you buy?", "Book" and "In a hurry? The short list" between
+    // should you buy?", "Book" and "Our picks at a glance" between
     // Spanish paragraphs, because only en and fr were registered.
     for (const code of Object.keys(PAGE_LOCALES)) {
         assert.notEqual(__('tickets.defaultHeading', code), en.tickets.defaultHeading, code);

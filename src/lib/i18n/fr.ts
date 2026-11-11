@@ -106,7 +106,7 @@ const fr: Dictionary = {
             priority: 'Coupe-file',
         },
         quickPicks: {
-            title: 'Pour les plus pressés',
+            title: 'Nos choix en bref',
             recommended: 'Notre recommandation',
             cheapest: 'Le moins cher',
             best_rated: 'Le mieux noté',

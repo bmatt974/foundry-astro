@@ -149,7 +149,7 @@ test('category picks keep their shelf slug and drop malformed entries', () => {
 
     assert.deepEqual(parsed.categoryPicks, [{ shelf: 'guided', offerId: 2 }]);
     assert.equal(parsed.picksOnly, true);
-    assert.equal(parsed.heading, 'Pour les plus pressés', 'headed as the strip, not as a second comparator');
+    assert.equal(parsed.heading, 'Nos choix en bref', 'headed as the strip, not as a second comparator');
 });
 
 test('a block is the full comparator unless the payload says picks only', () => {

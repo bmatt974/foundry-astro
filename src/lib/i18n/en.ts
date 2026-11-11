@@ -91,7 +91,7 @@ const en: Dictionary = {
             priority: 'Skip-the-line',
         },
         quickPicks: {
-            title: 'In a hurry? The short list',
+            title: 'Our picks at a glance',
             recommended: 'Our pick',
             cheapest: 'Cheapest',
             best_rated: 'Best rated',

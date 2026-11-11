@@ -93,7 +93,7 @@ const es: Dictionary = {
             priority: 'Sin colas',
         },
         quickPicks: {
-            title: '¿Con prisa? Nuestra selección',
+            title: 'Nuestra selección en breve',
             recommended: 'Nuestra recomendación',
             cheapest: 'La más barata',
             best_rated: 'La mejor valorada',

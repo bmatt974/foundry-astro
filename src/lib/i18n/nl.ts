@@ -93,7 +93,7 @@ const nl: Dictionary = {
             priority: 'Zonder wachtrij',
         },
         quickPicks: {
-            title: 'Weinig tijd? Onze selectie',
+            title: 'Onze selectie in het kort',
             recommended: 'Onze aanrader',
             cheapest: 'Goedkoopst',
             best_rated: 'Best beoordeeld',
