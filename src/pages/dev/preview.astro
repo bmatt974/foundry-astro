@@ -27,13 +27,14 @@
  * Defaults: theme = tenant template or `basic`; vw = desktop;
  * path = `/` (the current tenant's landing).
  *
- * Dev only — the route 404s in production builds.
+ * Dev and preview builds only — the route 404s in a public build.
  */
 export const prerender = false;
 
+import { allowsThemeSwitch } from '../../lib/theme-switch';
 import { listThemes } from '../../themes/registry';
 
-if (import.meta.env.PROD) {
+if (!allowsThemeSwitch({ isDev: import.meta.env.DEV, previewToken: import.meta.env.FOUNDRY_PREVIEW_TOKEN })) {
     return new Response('Not found', { status: 404 });
 }
 

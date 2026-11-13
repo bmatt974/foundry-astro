@@ -3,6 +3,7 @@ import { defineConfig, passthroughImageService } from 'astro/config';
 import node from '@astrojs/node';
 import tailwindcss from '@tailwindcss/vite';
 import { affiliateRouteIncludes } from './src/lib/affiliate-prefixes.ts';
+import { allowsThemeSwitch } from './src/lib/theme-switch.ts';
 
 // `astro.config.mjs` runs in raw Node before Vite, so `import.meta.env`
 // isn't populated yet. Load `.env` into `process.env` so the config can
@@ -197,13 +198,18 @@ if (buildHostname && Object.keys(staticRedirects).length > 0) {
 // middleware are no-ops, and the theme override (`?theme=` /
 // foundry_dev_theme cookie) silently fails on those routes.
 //
-// This integration flips `prerender` to false ONLY in `astro dev`,
-// so the middleware can react to ?theme= and cookies per request
-// like any other SSR page. `astro build` (and `astro preview` after
-// it) keep the prerender path untouched — the prod artefact is
-// identical to before.
-/** @returns {import('astro').AstroIntegration} */
-function devSsrForPrerenderedRoutes() {
+// This integration flips `prerender` to false in `astro dev`, and in
+// a build carrying a preview token — slab's private preview of every
+// website, which must answer each site, each draft and ?theme= live
+// instead of the one site frozen at build time (2026-11-13). The
+// middleware then reacts to ?theme= and cookies per request like any
+// other SSR page. A public build has no token: its artefact keeps
+// the prerender path, identical to before.
+/**
+ * @param {boolean} isPreviewBuild
+ * @returns {import('astro').AstroIntegration}
+ */
+function devSsrForPrerenderedRoutes(isPreviewBuild) {
     let isDev = false;
     return {
         name: 'dev-ssr-for-prerendered-routes',
@@ -212,7 +218,7 @@ function devSsrForPrerenderedRoutes() {
                 isDev = command === 'dev';
             },
             'astro:route:setup': ({ route }) => {
-                if (!isDev) {
+                if (!isDev && !isPreviewBuild) {
                     return;
                 }
                 const path = route.component.replace(/\\/g, '/');
@@ -238,7 +244,7 @@ export default defineConfig({
     adapter: await resolveAdapter(),
     outDir,
     redirects: staticRedirects,
-    integrations: [devSsrForPrerenderedRoutes()],
+    integrations: [devSsrForPrerenderedRoutes(allowsThemeSwitch({ isDev: false, previewToken: process.env.FOUNDRY_PREVIEW_TOKEN }))],
 
     // The dev toolbar injects a custom element + shadow DOM into
     // every page. Its global event listeners can interfere with
