@@ -20,6 +20,7 @@ import { defineMiddleware } from 'astro:middleware';
 import { matchAffiliateClickPath, redirectClick } from './lib/affiliate-redirect';
 import { fetchWebsiteByHost, resolveTenantForBuild, type TenantResolution } from './lib/foundry';
 import { normaliseHost, shouldUseBuildHostFallback } from './lib/host';
+import { allowsThemeSwitch } from './lib/theme-switch';
 import { useRoutes } from './lib/routes';
 
 interface CacheEntry {
@@ -146,11 +147,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // for this request and persists via a session cookie so links on
     // the page keep the chosen theme. `?theme=` (empty) clears it and
     // reverts to the website's configured template. Unknown names
-    // silently fall back to `basic` via the registry. Gated on DEV so
-    // production builds ignore the param entirely — `astro dev` runs
-    // even prerendered routes on demand, so the override reaches every
-    // page locally.
-    if (import.meta.env.DEV) {
+    // silently fall back to `basic` via the registry. Gated on DEV or a
+    // preview build (slab's private preview): public builds ignore the
+    // param entirely — `astro dev` runs even prerendered routes on
+    // demand, so the override reaches every page locally.
+    if (allowsThemeSwitch({ isDev: import.meta.env.DEV, previewToken: import.meta.env.FOUNDRY_PREVIEW_TOKEN })) {
         const queryOverride = context.url.searchParams.get('theme');
         if (queryOverride !== null) {
             if (queryOverride === '') {
