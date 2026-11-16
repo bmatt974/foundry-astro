@@ -283,6 +283,8 @@ export interface ParsedShelves {
     entryIncludedIn: { name: string } | null;
     languageAdvice: LanguageAdvice | null;
     pricesCheckedAt: string | null;
+    /** How the comparison was made, composed by the API: printed as is. */
+    methodSentences: string[];
 }
 
 /**
@@ -451,7 +453,14 @@ export function parseShelvesBlock(
         entryIncludedIn,
         languageAdvice: parseLanguageAdvice(meta.language_advice),
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
+        methodSentences: parseMethodSentences(meta.method),
     };
+}
+
+function parseMethodSentences(raw: unknown): string[] {
+    if (!raw || typeof raw !== 'object') return [];
+    const sentences = (raw as Record<string, unknown>).sentences;
+    return Array.isArray(sentences) ? sentences.filter((s): s is string => typeof s === 'string' && s !== '') : [];
 }
 
 function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {

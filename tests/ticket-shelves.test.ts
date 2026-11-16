@@ -352,3 +352,9 @@ test('a digest shelf keeps the full count and the link the API resolved', () => 
     assert.deepEqual(parsed.shelves[1].more, { count: 13, url: null });
     assert.equal(parsed.shelves[2].more, null);
 });
+
+test('the comparison method is printed as the API composed it, malformed sentences dropped', () => {
+    const sentences = ['Nous avons comparé 20 offres de 4 vendeurs : Viator, Headout, Tiqets, Site officiel.', 'Prix relevés par nos soins le 2 novembre 2026.'];
+    assert.deepEqual(parseShelvesBlock(block([], { method: { offers: 20, sentences: [...sentences, 3, ''] } }), 'fr').methodSentences, sentences);
+    assert.deepEqual(parseShelvesBlock(block([]), 'fr').methodSentences, []);
+});

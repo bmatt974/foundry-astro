@@ -270,7 +270,11 @@ function showMoreLabel(count: number): string {
             })}
         </div>
 
-        {pricesCheckedOn && (
+        {parsed.methodSentences.length > 0 ? (
+            <p class="brand-text-muted mt-3 text-xs" data-comparison-method>
+                {parsed.methodSentences.join(' ')}
+            </p>
+        ) : pricesCheckedOn && (
             <p class="brand-text-muted mt-3 text-xs">
                 {t('tickets.compare.pricesUpdated')}{' '}<time datetime={parsed.pricesCheckedAt}>{pricesCheckedOn}</time>
             </p>
