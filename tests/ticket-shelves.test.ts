@@ -134,7 +134,7 @@ test('quick picks resolve to offers and drop what they cannot point at', () => {
         ],
     ), 'fr');
 
-    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1 }]);
+    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1, title: null }]);
 });
 
 test('category picks keep their shelf slug and drop malformed entries', () => {
@@ -147,7 +147,7 @@ test('category picks keep their shelf slug and drop malformed entries', () => {
 
     const parsed = parseShelvesBlock(payload, 'fr');
 
-    assert.deepEqual(parsed.categoryPicks, [{ shelf: 'guided', offerId: 2 }]);
+    assert.deepEqual(parsed.categoryPicks, [{ shelf: 'guided', offerId: 2, title: null }]);
     assert.equal(parsed.picksOnly, true);
     assert.equal(parsed.heading, 'Nos choix en bref', 'headed as the strip, not as a second comparator');
 });
@@ -371,4 +371,14 @@ test('the comparison method is printed as the API composed it, malformed sentenc
     const sentences = ['Nous avons comparé 20 offres de 4 vendeurs : Viator, Headout, Tiqets, Site officiel.', 'Prix relevés par nos soins le 2 novembre 2026.'];
     assert.deepEqual(parseShelvesBlock(block([], { method: { offers: 20, sentences: [...sentences, 3, ''] } }), 'fr').methodSentences, sentences);
     assert.deepEqual(parseShelvesBlock(block([]), 'fr').methodSentences, []);
+});
+
+test('a pick carries the name the API gave it, else none', () => {
+    const parsed = parseShelvesBlock(block([], {}, [
+        { slots: ['recommended'], offer_id: 1, title: 'Visite guidée en petit groupe : Colisée' },
+        { slots: ['cheapest'], offer_id: 2, title: '' },
+    ]));
+
+    assert.equal(parsed.quickPicks[0].title, 'Visite guidée en petit groupe : Colisée');
+    assert.equal(parsed.quickPicks[1].title, null);
 });

@@ -23,6 +23,7 @@ interface Props {
 const { parsed, standalone = false } = Astro.props;
 const locale = Astro.locals.locale ?? 'en';
 const t = useTranslations(locale, Astro.locals.wording ?? null);
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 
 /** Picks resolved against the rows they point at; a pick whose offer
  *  fell out of the page renders nothing. */
@@ -31,11 +32,11 @@ const rowById = new Map<number, ShelfOffer>(
 );
 const picks = parsed.quickPicks.flatMap((pick) => {
     const offer = rowById.get(pick.offerId);
-    return offer && pick.slots.length > 0 ? [{ ...pick, offer }] : [];
+    return offer && pick.slots.length > 0 ? [{ ...pick, offer, name: pick.title ?? offer.title }] : [];
 });
 const categoryPicks = parsed.categoryPicks.flatMap((pick) => {
     const offer = rowById.get(pick.offerId);
-    return offer ? [{ ...pick, offer }] : [];
+    return offer ? [{ ...pick, offer, name: pick.title ?? offer.title }] : [];
 });
 
 /** Slots the dictionaries know; an API-added slot degrades to its bare
@@ -73,7 +74,7 @@ const itemListJson = emitSchema
         itemListElement: picks.map((pick, index) => ({
             '@type': 'ListItem',
             position: index + 1,
-            name: `${pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')} : ${pick.offer.title}`,
+            name: `${pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')} : ${pick.name}`,
             url: `${Astro.url.origin}${Astro.url.pathname}#offer-${pick.offer.id}`,
         })),
     })
@@ -108,8 +109,8 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                             <span class="font-semibold" style="color: #1f2937">
                                 {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
                             </span>
-                            <a href={`#offer-${pick.offer.id}`} class="brand-text-muted underline decoration-dotted">
-                                {pick.offer.title}
+                            <a href={pick.offer.href ?? `#offer-${pick.offer.id}`} target={pick.offer.href ? '_blank' : undefined} rel={pick.offer.href ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                                {pick.name}
                             </a>
                             {pick.offer.priceText && (
                                 <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
@@ -129,8 +130,8 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                                 <span class="font-semibold" style="color: #1f2937">
                                     {t(`tickets.shelf.${pick.shelf}` as TranslationKey)}
                                 </span>
-                                <a href={`#offer-${pick.offer.id}`} class="brand-text-muted underline decoration-dotted">
-                                    {pick.offer.title}
+                                <a href={pick.offer.href ?? `#offer-${pick.offer.id}`} target={pick.offer.href ? '_blank' : undefined} rel={pick.offer.href ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                                    {pick.name}
                                 </a>
                                 {pick.offer.priceText && (
                                     <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
