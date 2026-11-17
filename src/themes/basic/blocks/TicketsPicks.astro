@@ -109,7 +109,7 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                             <span class="font-semibold" style="color: #1f2937">
                                 {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
                             </span>
-                            <a href={pick.offer.href ?? `#offer-${pick.offer.id}`} target={pick.offer.href ? '_blank' : undefined} rel={pick.offer.href ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                            <a href={pick.offer.pickHref ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
                                 {pick.name}
                             </a>
                             {pick.offer.priceText && (
@@ -130,7 +130,7 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                                 <span class="font-semibold" style="color: #1f2937">
                                     {t(`tickets.shelf.${pick.shelf}` as TranslationKey)}
                                 </span>
-                                <a href={pick.offer.href ?? `#offer-${pick.offer.id}`} target={pick.offer.href ? '_blank' : undefined} rel={pick.offer.href ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                                <a href={pick.offer.pickHref ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
                                     {pick.name}
                                 </a>
                                 {pick.offer.priceText && (

@@ -338,6 +338,7 @@ export function parseReferer(
 const PLACEMENTS = [
     'comparison_table',
     'ticket_shelf',
+    'quick_pick',
     'cta',
     'inline_link',
     'sidebar',

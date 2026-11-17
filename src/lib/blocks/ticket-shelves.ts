@@ -187,6 +187,8 @@ export interface ShelfOffer {
     providerLogoPath: string | null;
     providerBrandColor: string | null;
     href: string | null;
+    /** The same link, counted as a click from the picks strip. */
+    pickHref: string | null;
     priceEur: number | null;
     priceText: string | null;
     /** The provider's own strike price, only when it genuinely exceeds
@@ -517,6 +519,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         // fallback, never the preference (anti-footprint: the per-site
         // worker owns the real target) — see `affiliateHref`.
         href: affiliateHref(entry, linkProxyPath, 'ticket_shelf'),
+        pickHref: affiliateHref(entry, linkProxyPath, 'quick_pick'),
         priceEur,
         priceText: formatPrice(priceEur, locale),
         originalPriceEur,

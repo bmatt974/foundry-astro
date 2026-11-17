@@ -145,7 +145,7 @@ test('injectSubId: never touches other placeholders', () => {
 // ──────────────────────────────────────────────
 
 test('parsePlacement: accepts exactly the eight enum slugs', () => {
-    for (const slug of ['comparison_table', 'ticket_shelf', 'cta', 'inline_link', 'sidebar', 'deal', 'article', 'meta_search']) {
+    for (const slug of ['comparison_table', 'ticket_shelf', 'quick_pick', 'cta', 'inline_link', 'sidebar', 'deal', 'article', 'meta_search']) {
         assert.equal(parsePlacement(slug), slug);
     }
 });

@@ -332,6 +332,7 @@ test('a live link code cloaks the href behind the per-site proxy path', () => {
 
     const [cloaked, naked] = parsed.shelves[0].offers;
     assert.equal(cloaked.href, '/visite/abc123def456?p=ticket_shelf', 'The cloaked handle wins over the partner URL.');
+    assert.equal(cloaked.pickHref, '/visite/abc123def456?p=quick_pick', 'A pick counts its own clicks.');
     assert.equal(naked.href, 'https://example.test/x', 'No live link: the naked partner URL is the honest fallback.');
 });
 
