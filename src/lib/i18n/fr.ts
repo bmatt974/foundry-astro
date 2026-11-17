@@ -76,6 +76,7 @@ const fr: Dictionary = {
         passesBy: 'passe par',
         shelfSection: {
             classic: 'Parcours classique',
+            onOption: '(en option)',
         },
         groupType: {
             standard: 'Standard',

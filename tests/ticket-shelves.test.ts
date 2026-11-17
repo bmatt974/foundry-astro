@@ -190,17 +190,31 @@ test('a pre-section payload reads as one classic section', () => {
 test('section labels: zone names verbatim, chrome for the rest', () => {
     const t = (key: string): string => key;
     assert.equal(
-        sectionLabel({ zones: ['Arène', 'Souterrains'], bundleSubtype: null, offers: [] }, 'guided', t as never),
+        sectionLabel({ zones: ['Arène', 'Souterrains'], bundleSubtype: null, onOption: false, offers: [] }, 'guided', t as never),
         'Arène + Souterrains',
     );
     assert.equal(
-        sectionLabel({ zones: [], bundleSubtype: null, offers: [] }, 'guided', t as never),
+        sectionLabel({ zones: [], bundleSubtype: null, onOption: false, offers: [] }, 'guided', t as never),
         'tickets.shelfSection.classic',
     );
     assert.equal(
-        sectionLabel({ zones: [], bundleSubtype: 'card', offers: [] }, 'pass_combo', t as never),
+        sectionLabel({ zones: [], bundleSubtype: 'card', onOption: false, offers: [] }, 'pass_combo', t as never),
         'tickets.bundleSubtype.card',
     );
+    // Six arena options sat under "Parcours classique" (2026-11-17).
+    assert.equal(
+        sectionLabel({ zones: ['Arène'], bundleSubtype: null, onOption: true, offers: [] }, 'guided', t as never),
+        'Arène tickets.shelfSection.onOption',
+    );
+});
+
+test('a section selling its zone as an option says so', () => {
+    const parsed = parseShelvesBlock(block([
+        { shelf: 'guided', sections: [{ zones: ['Arène du Colisée'], on_option: true, offers: [offer({ id: 7 })] }] },
+    ]), 'fr');
+
+    assert.equal(parsed.shelves[0].sections[0].onOption, true);
+    assert.deepEqual(parsed.shelves[0].sections[0].zones, ['Arène du Colisée']);
 });
 
 test('a strike price only survives when it genuinely exceeds the selling price', () => {

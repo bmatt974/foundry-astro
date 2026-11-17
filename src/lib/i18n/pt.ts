@@ -63,6 +63,7 @@ const pt: Dictionary = {
         passesBy: 'passa por',
         shelfSection: {
             classic: 'Visita clássica',
+            onOption: '(como opção)',
         },
         groupType: {
             standard: 'Padrão',

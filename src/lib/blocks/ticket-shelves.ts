@@ -227,6 +227,8 @@ export interface ShelfOffer {
 export interface ParsedShelfSection {
     zones: string[];
     bundleSubtype: (typeof BUNDLE_SUBTYPE_SLUGS)[number] | null;
+    /** The zones are sold as an option of these offers, not included. */
+    onOption: boolean;
     offers: ShelfOffer[];
 }
 
@@ -336,9 +338,13 @@ export function sectionLabel(
             : t('tickets.bundleSubtype.combo' as TranslationKey);
     }
 
-    return section.zones.length > 0
-        ? section.zones.join(' + ')
-        : t('tickets.shelfSection.classic' as TranslationKey);
+    if (section.zones.length === 0) {
+        return t('tickets.shelfSection.classic' as TranslationKey);
+    }
+
+    return section.onOption
+        ? `${section.zones.join(' + ')} ${t('tickets.shelfSection.onOption' as TranslationKey)}`
+        : section.zones.join(' + ');
 }
 
 /** Shape sniff for the dispatcher: a §2bis payload carries `shelves`. */
@@ -383,6 +389,7 @@ export function parseShelvesBlock(
                             ? section.zones.filter((zone): zone is string => typeof zone === 'string')
                             : [],
                         bundleSubtype: BUNDLE_SUBTYPE_SLUGS.find((slug) => slug === section.bundle_subtype) ?? null,
+                        onOption: section.on_option === true,
                         offers,
                     }]
                     : [];

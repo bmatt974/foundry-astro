@@ -134,6 +134,8 @@ export interface Dictionary {
         passesBy: string;
         shelfSection: {
             classic: string;
+            /** Suffix after the zone names of offers selling them as an option. */
+            onOption: string;
         };
         /** 3 group types — Axis 2. Card badge + filter chip + sub-section. */
         groupType: {

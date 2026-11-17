@@ -63,6 +63,7 @@ const nl: Dictionary = {
         passesBy: 'komt langs',
         shelfSection: {
             classic: 'Klassiek bezoek',
+            onOption: '(als optie)',
         },
         groupType: {
             standard: 'Standaard',
