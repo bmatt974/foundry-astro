@@ -134,7 +134,17 @@ test('quick picks resolve to offers and drop what they cannot point at', () => {
         ],
     ), 'fr');
 
-    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1, title: null, option: null }]);
+    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1, title: null, option: null, reason: null }]);
+});
+
+test('a quick pick carries the reason the API composed', () => {
+    const parsed = parseShelvesBlock(block(
+        [{ shelf: 'entry', offers: [offer({ id: 1 })] }],
+        {},
+        [{ slots: ['most_complete'], offer_id: 1, reason: 'Seule offre à réunir Arène, Souterrains, guide et petit groupe' }],
+    ), 'fr');
+
+    assert.equal(parsed.quickPicks[0].reason, 'Seule offre à réunir Arène, Souterrains, guide et petit groupe');
 });
 
 test('category picks keep their shelf slug and drop malformed entries', () => {

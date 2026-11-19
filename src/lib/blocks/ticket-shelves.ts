@@ -253,6 +253,8 @@ export interface ShelfQuickPick {
     title: string | null;
     /** The option to pick at the seller, as the seller names it in the page language. */
     option: string | null;
+    /** Why it won, composed by the API (the most complete: what no other offer brings together). */
+    reason: string | null;
 }
 
 /** One pick per kind of ticket — `shelf` is the shelf slug. */
@@ -447,7 +449,7 @@ export function parseShelvesBlock(
             const offerId = (raw as { offer_id?: unknown }).offer_id;
             const slots = (raw as { slots?: unknown }).slots;
             if (typeof offerId !== 'number' || !Array.isArray(slots)) return [];
-            return [{ offerId, slots: slots.filter((slot): slot is string => typeof slot === 'string'), title: pickTitle(raw), option: pickOption(raw) }];
+            return [{ offerId, slots: slots.filter((slot): slot is string => typeof slot === 'string'), title: pickTitle(raw), option: pickOption(raw), reason: pickReason(raw) }];
         });
 
     const categoryPicks: ShelfCategoryPick[] = (Array.isArray(content.category_picks) ? content.category_picks : [])
@@ -473,6 +475,11 @@ export function parseShelvesBlock(
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
     };
+}
+
+function pickReason(raw: object): string | null {
+    const reason = (raw as { reason?: unknown }).reason;
+    return typeof reason === 'string' && reason.trim() !== '' ? reason.trim() : null;
 }
 
 function pickOption(raw: object): string | null {

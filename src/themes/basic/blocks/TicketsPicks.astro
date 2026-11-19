@@ -124,6 +124,9 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                             {pick.option && (
                                 <span class="brand-text-muted text-xs opacity-80">{t('tickets.quickPicks.option', { option: pick.option })}</span>
                             )}
+                            {pick.reason && (
+                                <span class="brand-text-muted basis-full text-xs">{pick.reason}</span>
+                            )}
                         </li>
                     ))}
                 </ul>
