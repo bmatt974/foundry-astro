@@ -38,7 +38,7 @@ const nl: Dictionary = {
         cta: 'Terug naar de startpagina',
     },
     tickets: {
-        defaultHeading: 'Welk ticket kies je?',
+        defaultHeading: 'Alle aanbiedingen vergeleken',
         entryIncludedIn:
             'De toegang is inbegrepen bij het ticket voor :name. Alle aanbiedingen hieronder geven hier toegang.',
         format: {
@@ -94,7 +94,7 @@ const nl: Dictionary = {
             priority: 'Zonder wachtrij',
         },
         quickPicks: {
-            title: 'Onze selectie in het kort',
+            title: 'Onze aanbevolen tickets',
             recommended: 'Onze aanrader',
             cheapest: 'Goedkoopst',
             best_rated: 'Best beoordeeld',
@@ -104,6 +104,8 @@ const nl: Dictionary = {
             /** Header of the one-pick-per-shelf list. */
             byCategory: 'Per soort ticket',
             details: 'details',
+            /** After the price: the seller's option the pick is priced at. */
+            option: 'kies de optie ‘:option’',
             inYourLanguage: 'in het Nederlands',
         },
         filter: {
@@ -143,7 +145,7 @@ const nl: Dictionary = {
             rating: 'Beoordeling',
             groupType: 'Soort groep',
             featurePresent: '✓',
-            featureAbsent: '—',
+            featureAbsent: '-',
             stampBestPrice: 'Beste prijs',
             stampBestRated: 'Best beoordeeld',
             stampBestValue: 'Beste prijs-kwaliteit',

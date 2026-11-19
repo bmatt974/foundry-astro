@@ -249,8 +249,10 @@ export interface ParsedShelf {
 export interface ShelfQuickPick {
     slots: string[];
     offerId: number;
-    /** The API's name for the pick when the row's title misstates the product; null prints the row's. */
+    /** The API's name for the pick; null prints the row's. */
     title: string | null;
+    /** The option to pick at the seller, as the seller names it in the page language. */
+    option: string | null;
 }
 
 /** One pick per kind of ticket — `shelf` is the shelf slug. */
@@ -258,6 +260,9 @@ export interface ShelfCategoryPick {
     shelf: string;
     offerId: number;
     title: string | null;
+    option: string | null;
+    /** The shelf's best ticket in the page language, shown beside a pick that is not. */
+    inPageLanguage: boolean;
 }
 
 /**
@@ -442,7 +447,7 @@ export function parseShelvesBlock(
             const offerId = (raw as { offer_id?: unknown }).offer_id;
             const slots = (raw as { slots?: unknown }).slots;
             if (typeof offerId !== 'number' || !Array.isArray(slots)) return [];
-            return [{ offerId, slots: slots.filter((slot): slot is string => typeof slot === 'string'), title: pickTitle(raw) }];
+            return [{ offerId, slots: slots.filter((slot): slot is string => typeof slot === 'string'), title: pickTitle(raw), option: pickOption(raw) }];
         });
 
     const categoryPicks: ShelfCategoryPick[] = (Array.isArray(content.category_picks) ? content.category_picks : [])
@@ -450,7 +455,8 @@ export function parseShelvesBlock(
             if (!raw || typeof raw !== 'object') return [];
             const offerId = (raw as { offer_id?: unknown }).offer_id;
             const shelf = (raw as { shelf?: unknown }).shelf;
-            return typeof offerId === 'number' && typeof shelf === 'string' ? [{ offerId, shelf, title: pickTitle(raw) }] : [];
+            const inPageLanguage = (raw as { in_page_language?: unknown }).in_page_language === true;
+            return typeof offerId === 'number' && typeof shelf === 'string' ? [{ offerId, shelf, title: pickTitle(raw), option: pickOption(raw), inPageLanguage }] : [];
         });
 
     return {
@@ -467,6 +473,11 @@ export function parseShelvesBlock(
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
     };
+}
+
+function pickOption(raw: object): string | null {
+    const option = (raw as { option?: unknown }).option;
+    return typeof option === 'string' && option.trim() !== '' ? option.trim() : null;
 }
 
 function pickTitle(raw: object): string | null {

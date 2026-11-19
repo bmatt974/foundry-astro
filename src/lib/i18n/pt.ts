@@ -38,7 +38,7 @@ const pt: Dictionary = {
         cta: 'Voltar ao início',
     },
     tickets: {
-        defaultHeading: 'Que bilhete escolher?',
+        defaultHeading: 'Comparar todas as ofertas',
         entryIncludedIn:
             'A entrada está incluída no bilhete de :name. Todas as ofertas abaixo dão acesso a este local.',
         format: {
@@ -94,7 +94,7 @@ const pt: Dictionary = {
             priority: 'Sem filas',
         },
         quickPicks: {
-            title: 'A nossa seleção em resumo',
+            title: 'Os bilhetes que recomendamos',
             recommended: 'A nossa recomendação',
             cheapest: 'O mais barato',
             best_rated: 'O mais bem avaliado',
@@ -104,6 +104,8 @@ const pt: Dictionary = {
             /** Header of the one-pick-per-shelf list. */
             byCategory: 'Por tipo de bilhete',
             details: 'detalhes',
+            /** After the price: the seller's option the pick is priced at. */
+            option: 'opção a escolher: «:option»',
             inYourLanguage: 'em português',
         },
         filter: {
@@ -143,7 +145,7 @@ const pt: Dictionary = {
             rating: 'Avaliação',
             groupType: 'Tipo de grupo',
             featurePresent: '✓',
-            featureAbsent: '—',
+            featureAbsent: '-',
             stampBestPrice: 'Melhor preço',
             stampBestRated: 'Mais bem avaliado',
             stampBestValue: 'Melhor relação qualidade-preço',

@@ -134,22 +134,26 @@ test('quick picks resolve to offers and drop what they cannot point at', () => {
         ],
     ), 'fr');
 
-    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1, title: null }]);
+    assert.deepEqual(parsed.quickPicks, [{ slots: ['cheapest'], offerId: 1, title: null, option: null }]);
 });
 
 test('category picks keep their shelf slug and drop malformed entries', () => {
     const payload = block([{ shelf: 'guided', offers: [offer({ id: 2 })] }], { settings: { picks_only: true } });
     (payload.content as Record<string, unknown>).category_picks = [
         { shelf: 'guided', offer_id: 2 },
+        { shelf: 'guided', offer_id: 4, in_page_language: true },
         { shelf: 'private' },
         { offer_id: 3 },
     ];
 
     const parsed = parseShelvesBlock(payload, 'fr');
 
-    assert.deepEqual(parsed.categoryPicks, [{ shelf: 'guided', offerId: 2, title: null }]);
+    assert.deepEqual(parsed.categoryPicks, [
+        { shelf: 'guided', offerId: 2, title: null, option: null, inPageLanguage: false },
+        { shelf: 'guided', offerId: 4, title: null, option: null, inPageLanguage: true },
+    ]);
     assert.equal(parsed.picksOnly, true);
-    assert.equal(parsed.heading, 'Nos choix en bref', 'headed as the strip, not as a second comparator');
+    assert.equal(parsed.heading, 'Nos billets conseillés', 'headed as the strip, not as a second comparator');
 });
 
 test('a block is the full comparator unless the payload says picks only', () => {
@@ -382,4 +386,14 @@ test('a pick carries the name the API gave it, else none', () => {
 
     assert.equal(parsed.quickPicks[0].title, 'Visite guidée en petit groupe : Colisée');
     assert.equal(parsed.quickPicks[1].title, null);
+});
+
+test('a pick carries the option to choose at the seller, else none', () => {
+    const parsed = parseShelvesBlock(block([], {}, [
+        { slots: ['best_rated'], offer_id: 1, title: 'Visite guidée en petit groupe du Colisée, sans l\'Arène', option: "Option SANS l'arène" },
+        { slots: ['cheapest'], offer_id: 2, option: ' ' },
+    ]));
+
+    assert.equal(parsed.quickPicks[0].option, "Option SANS l'arène");
+    assert.equal(parsed.quickPicks[1].option, null);
 });

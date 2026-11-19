@@ -164,7 +164,7 @@ function formElementClass(type: string): string {
                                         <div class="form-item">
                                             <label class="form-item__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
                                             <select class="form-element form-element--type-select" id={id} name={SEARCH_FIELD_NAMES.childAges}>
-                                                <option value="">—</option>
+                                                <option value="">-</option>
                                                 {layout.childAges.map((age) => (
                                                     <option value={String(age)}>{age}</option>
                                                 ))}

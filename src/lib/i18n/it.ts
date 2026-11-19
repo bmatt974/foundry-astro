@@ -38,7 +38,7 @@ const it: Dictionary = {
         cta: 'Torna alla home',
     },
     tickets: {
-        defaultHeading: 'Quale biglietto scegliere?',
+        defaultHeading: 'Confronta tutte le offerte',
         entryIncludedIn:
             "L'ingresso è incluso nel biglietto di :name. Tutte le offerte qui sotto danno accesso a questo luogo.",
         format: {
@@ -94,7 +94,7 @@ const it: Dictionary = {
             priority: 'Salta la fila',
         },
         quickPicks: {
-            title: 'La nostra selezione in breve',
+            title: 'I biglietti che consigliamo',
             recommended: 'Il nostro consiglio',
             cheapest: 'Il più economico',
             best_rated: 'Il più apprezzato',
@@ -104,6 +104,8 @@ const it: Dictionary = {
             /** Header of the one-pick-per-shelf list. */
             byCategory: 'Per tipo di biglietto',
             details: 'dettagli',
+            /** After the price: the seller's option the pick is priced at. */
+            option: 'opzione da scegliere: «:option»',
             inYourLanguage: 'in italiano',
         },
         filter: {
@@ -143,7 +145,7 @@ const it: Dictionary = {
             rating: 'Valutazione',
             groupType: 'Tipo di gruppo',
             featurePresent: '✓',
-            featureAbsent: '—',
+            featureAbsent: '-',
             stampBestPrice: 'Miglior prezzo',
             stampBestRated: 'Più apprezzato',
             stampBestValue: 'Miglior rapporto qualità-prezzo',

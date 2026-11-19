@@ -17,7 +17,7 @@ const { websiteName, locale, isDefaultLocale, sitemap } = Astro.props;
     <p class="entry-subtitle">
         Locale <code class="wp-inline-code">{locale}</code>
         {isDefaultLocale && <> (default)</>}
-        — {sitemap.length} pages
+        · {sitemap.length} pages
     </p>
 </header>
 

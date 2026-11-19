@@ -158,7 +158,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                                         <p class="wp-block-trip-search__field">
                                             <label class="wp-block-trip-search__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
                                             <select class="wp-block-trip-search__input" id={id} name={SEARCH_FIELD_NAMES.childAges}>
-                                                <option value="">—</option>
+                                                <option value="">-</option>
                                                 {layout.childAges.map((age) => (
                                                     <option value={String(age)}>{age}</option>
                                                 ))}

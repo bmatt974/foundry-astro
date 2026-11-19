@@ -25,7 +25,7 @@ const image = parseImage(block);
         {(image.caption || image.credit) && (
             <figcaption>
                 {image.caption}
-                {image.credit && <small class="content-image__credit"> — {image.credit}</small>}
+                {image.credit && <small class="content-image__credit"> · {image.credit}</small>}
             </figcaption>
         )}
     </figure>

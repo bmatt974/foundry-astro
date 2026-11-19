@@ -6,7 +6,7 @@ const en: Dictionary = {
     },
     footer: {
         affiliateDisclosure: {
-            body: 'Some links on this site are {link} — purchases made through them may earn us a commission at no extra cost to you.',
+            body: 'Some links on this site are {link}: purchases made through them may earn us a commission at no extra cost to you.',
             linkText: 'affiliate links',
         },
     },
@@ -36,7 +36,7 @@ const en: Dictionary = {
         cta: 'Back to home',
     },
     tickets: {
-        defaultHeading: 'Which ticket should you buy?',
+        defaultHeading: 'Compare every offer',
         entryIncludedIn:
             'Entry is included with the :name ticket. Every offer below grants access here.',
         format: {
@@ -55,7 +55,7 @@ const en: Dictionary = {
             private: 'Private tours',
             pass_combo: 'Passes & Combos',
             dining: 'Dining at the venue',
-            around_visit: 'Around the visit — admission to the monument not included',
+            around_visit: 'Around the visit (admission to the monument not included)',
         },
         entryIncluded: 'Admission included',
         passesBy: 'passes by',
@@ -92,7 +92,7 @@ const en: Dictionary = {
             priority: 'Skip-the-line',
         },
         quickPicks: {
-            title: 'Our picks at a glance',
+            title: 'Our recommended tickets',
             recommended: 'Our pick',
             cheapest: 'Cheapest',
             best_rated: 'Best rated',
@@ -102,6 +102,8 @@ const en: Dictionary = {
             /** Header of the one-pick-per-shelf list. */
             byCategory: 'By kind of ticket',
             details: 'details',
+            /** After the price: the seller's option the pick is priced at. */
+            option: 'option to choose: “:option”',
             inYourLanguage: 'in English',
         },
         filter: {
@@ -141,7 +143,7 @@ const en: Dictionary = {
             rating: 'Rating',
             groupType: 'Group type',
             featurePresent: '✓',
-            featureAbsent: '—',
+            featureAbsent: '-',
             stampBestPrice: 'Best price',
             stampBestRated: 'Best rated',
             stampBestValue: 'Best value',

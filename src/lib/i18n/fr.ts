@@ -36,7 +36,7 @@ const fr: Dictionary = {
         cta: "Retour à l'accueil",
     },
     tickets: {
-        defaultHeading: 'Quel billet choisir ?',
+        defaultHeading: 'Comparer toutes les offres',
         entryIncludedIn:
             "L'entrée est incluse dans le billet du :name. Toutes les offres ci-dessous y donnent accès.",
         format: {
@@ -65,7 +65,7 @@ const fr: Dictionary = {
             // tour covering the Louvre and Notre-Dame), and the old
             // wording — « sans billet d’entrée » — read as "no ticket
             // at all" right above a row listing the venues it covers.
-            around_visit: 'Autour de la visite — entrée au monument non incluse',
+            around_visit: 'Autour de la visite (entrée au monument non incluse)',
         },
         // Worn by a row whose shelf does not already state it — today
         // only the dining shelf, where a meal really does let you in.
@@ -107,7 +107,7 @@ const fr: Dictionary = {
             priority: 'Coupe-file',
         },
         quickPicks: {
-            title: 'Nos choix en bref',
+            title: 'Nos billets conseillés',
             recommended: 'Notre recommandation',
             cheapest: 'Le moins cher',
             best_rated: 'Le mieux noté',
@@ -117,6 +117,8 @@ const fr: Dictionary = {
             /** Header of the one-pick-per-shelf list. */
             byCategory: 'Par type de billet',
             details: 'détails',
+            /** After the price: the seller's option the pick is priced at. */
+            option: 'option à choisir : « :option »',
             // Appended to « Notre recommandation » when the winning
             // offer is delivered in the page's language — the reason
             // the resolver preferred it over a cheaper foreign one.
@@ -159,7 +161,7 @@ const fr: Dictionary = {
             rating: 'Note',
             groupType: 'Type de groupe',
             featurePresent: '✓',
-            featureAbsent: '—',
+            featureAbsent: '-',
             stampBestPrice: 'Meilleur prix',
             stampBestRated: 'Meilleure note',
             stampBestValue: 'Qualité-prix',

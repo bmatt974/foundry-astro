@@ -194,7 +194,7 @@ const FIELD_ICONS: Partial<Record<MetaSearchField['name'], string>> = {
                                         <div class="meta-search__age-field">
                                             <label class="meta-search__label" for={id}>{labels.childAgeLabel(index + 1)}</label>
                                             <select class="meta-search__input" id={id} name={SEARCH_FIELD_NAMES.childAges}>
-                                                <option value="">—</option>
+                                                <option value="">-</option>
                                                 {layout.childAges.map((age) => (
                                                     <option value={String(age)}>{age}</option>
                                                 ))}

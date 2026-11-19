@@ -95,10 +95,10 @@ const arrow = settings.showProviderArrow ? ' →' : '';
                                     : <span>{offer.providerLabel}</span>}
                             </span>
                         </td>
-                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.durationText ?? '—'}</td>
-                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.ratingText ?? '—'}</td>
+                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.durationText ?? '-'}</td>
+                        <td class="brand-text-muted whitespace-nowrap px-3 py-2 text-xs">{offer.ratingText ?? '-'}</td>
                         <td class="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums" style="color: #111827">
-                            {offer.priceText ?? '—'}
+                            {offer.priceText ?? '-'}
                         </td>
                         <td class="whitespace-nowrap px-3 py-2 text-right">
                             {offer.href && (

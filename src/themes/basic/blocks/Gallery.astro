@@ -27,7 +27,7 @@ const images = parseGallery(block);
                 {(image.caption || image.credit) && (
                     <figcaption>
                         {image.caption}
-                        {image.credit && <small> — {image.credit}</small>}
+                        {image.credit && <small> · {image.credit}</small>}
                     </figcaption>
                 )}
             </figure>

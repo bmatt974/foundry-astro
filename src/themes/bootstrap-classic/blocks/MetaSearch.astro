@@ -161,7 +161,7 @@ const FIELD_LABELS: Partial<Record<MetaSearchField['name'], string>> = labels ==
                                         <div class="col-6 col-md-3">
                                             <label class="form-label small text-body-secondary" for={id}>{labels.childAgeLabel(index + 1)}</label>
                                             <select class="form-select form-select-sm" id={id} name={SEARCH_FIELD_NAMES.childAges}>
-                                                <option value="">—</option>
+                                                <option value="">-</option>
                                                 {layout.childAges.map((age) => (
                                                     <option value={String(age)}>{age}</option>
                                                 ))}

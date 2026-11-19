@@ -1,6 +1,6 @@
 ---
 /**
- * Tickets — the picks strip ("Nos choix en bref"): one ticket per
+ * Tickets — the picks strip ("Nos billets conseillés"): one ticket per
  * buying intent, then one per kind of ticket, each linked to its row
  * in the comparator. The API elects every winner; this component only
  * resolves them against the rows the payload ships and labels the
@@ -54,7 +54,7 @@ function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
        rated" because nothing on the page said why. A verdict without
        its motive is indistinguishable from a bad verdict. */
     return slot === 'recommended' && offer?.language?.state === 'match'
-        ? `${label} — ${t('tickets.quickPicks.inYourLanguage')}`
+        ? `${label} ${t('tickets.quickPicks.inYourLanguage')}`
         : label;
 }
 
@@ -92,11 +92,14 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
     <section id={standalone ? 'ticket-picks' : undefined} class={standalone ? 'tickets-picks my-8' : undefined}>
         {itemListJson && <script type="application/ld+json" is:inline set:html={itemListJson} />}
         {standalone && (
-            <BlockHeading class="brand-text-primary mt-10 mb-4 text-2xl font-bold tracking-tight">
+            <BlockHeading class="text-2xl font-semibold mb-3">
                 {parsed.heading}
             </BlockHeading>
         )}
-        <Strip aria-label={standalone ? undefined : t('tickets.quickPicks.title')} class="brand-border my-5 rounded-lg border bg-gray-50 p-4">
+        {/* Inside the comparator the strip is boxed off from the shelves;
+            on its own it is a plain block, the page's summary above it
+            being the one framed. */}
+        <Strip aria-label={standalone ? undefined : t('tickets.quickPicks.title')} class={standalone ? 'my-3' : 'brand-border my-5 rounded-lg border bg-gray-50 p-4'}>
             {!standalone && (
                 <p class="brand-text-muted mb-2 text-xs font-semibold uppercase tracking-wider">
                     {t('tickets.quickPicks.title')}
@@ -115,6 +118,9 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                             {pick.offer.priceText && (
                                 <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
                             )}
+                            {pick.option && (
+                                <span class="brand-text-muted text-xs opacity-80">{t('tickets.quickPicks.option', { option: pick.option })}</span>
+                            )}
                         </li>
                     ))}
                 </ul>
@@ -128,13 +134,18 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                         {categoryPicks.map((pick) => (
                             <li class="flex flex-wrap items-baseline gap-x-2 text-sm">
                                 <span class="font-semibold" style="color: #1f2937">
-                                    {t(`tickets.shelf.${pick.shelf}` as TranslationKey)}
+                                    {pick.inPageLanguage
+                                        ? `${t(`tickets.shelf.${pick.shelf}` as TranslationKey)} ${t('tickets.quickPicks.inYourLanguage')}`
+                                        : t(`tickets.shelf.${pick.shelf}` as TranslationKey)}
                                 </span>
                                 <a href={pick.offer.pickHref ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
                                     {pick.name}
                                 </a>
                                 {pick.offer.priceText && (
                                     <span class="brand-text-muted tabular-nums">{pick.offer.priceText}</span>
+                                )}
+                                {pick.option && (
+                                    <span class="brand-text-muted text-xs opacity-80">{t('tickets.quickPicks.option', { option: pick.option })}</span>
                                 )}
                             </li>
                         ))}
