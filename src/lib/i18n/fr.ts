@@ -109,6 +109,7 @@ const fr: Dictionary = {
         quickPicks: {
             title: 'Nos billets conseillés',
             recommended: 'Notre recommandation',
+            with_guide: 'Pour comprendre le monument, avec un guide',
             cheapest: 'Le moins cher',
             best_rated: 'Le mieux noté',
             most_complete: 'Le plus complet',

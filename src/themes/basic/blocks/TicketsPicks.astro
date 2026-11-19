@@ -41,7 +41,7 @@ const categoryPicks = parsed.categoryPicks.flatMap((pick) => {
 
 /** Slots the dictionaries know; an API-added slot degrades to its bare
  *  slug instead of leaking a raw translation key path. */
-const KNOWN_PICK_SLOTS = ['recommended', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
+const KNOWN_PICK_SLOTS = ['recommended', 'with_guide', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
 function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
     const label = KNOWN_PICK_SLOTS.includes(slot)
         ? t(`tickets.quickPicks.${slot}` as TranslationKey)

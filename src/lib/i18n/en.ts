@@ -94,6 +94,7 @@ const en: Dictionary = {
         quickPicks: {
             title: 'Our recommended tickets',
             recommended: 'Our pick',
+            with_guide: 'With a guide, to understand the site',
             cheapest: 'Cheapest',
             best_rated: 'Best rated',
             most_complete: 'Most complete',

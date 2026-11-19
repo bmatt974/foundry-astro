@@ -178,6 +178,8 @@ export interface Dictionary {
         quickPicks: {
             title: string;
             recommended: string;
+            /** The guided tour an official entry displaced from "recommended". */
+            with_guide: string;
             cheapest: string;
             best_rated: string;
             most_complete: string;

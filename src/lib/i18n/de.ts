@@ -96,6 +96,7 @@ const de: Dictionary = {
         quickPicks: {
             title: 'Unsere empfohlenen Tickets',
             recommended: 'Unsere Empfehlung',
+            with_guide: 'Mit Führung, um das Bauwerk zu verstehen',
             cheapest: 'Am günstigsten',
             best_rated: 'Am besten bewertet',
             most_complete: 'Am umfassendsten',

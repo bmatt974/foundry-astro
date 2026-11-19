@@ -96,6 +96,7 @@ const nl: Dictionary = {
         quickPicks: {
             title: 'Onze aanbevolen tickets',
             recommended: 'Onze aanrader',
+            with_guide: 'Met een gids, om het monument te begrijpen',
             cheapest: 'Goedkoopst',
             best_rated: 'Best beoordeeld',
             most_complete: 'Meest compleet',
