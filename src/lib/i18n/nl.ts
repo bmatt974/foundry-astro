@@ -4,6 +4,10 @@ const nl: Dictionary = {
     toc: {
         label: 'Inhoud',
     },
+    text: {
+        /** Folds what a text block ships apart (`details`): the rules read after choosing. */
+        details: 'Alle voorwaarden',
+    },
     footer: {
         affiliateDisclosure: {
             body: 'Sommige links op deze site zijn {link}: als je via deze links koopt, kunnen we een commissie ontvangen, zonder extra kosten voor jou.',

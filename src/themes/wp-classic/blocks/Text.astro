@@ -2,13 +2,15 @@
 import type { PageBlock } from '../../../lib/foundry';
 import { parseText } from '../../../lib/blocks/text';
 import Markdown from '../components/Markdown.astro';
+import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const { title, body, anchorId, bodyHeadingIds } = parseText(block);
+const { title, body, details, anchorId, bodyHeadingIds } = parseText(block);
+const t = useTranslations(Astro.locals.locale ?? 'en', Astro.locals.wording ?? null);
 ---
 
 {(title || body) && (
@@ -17,5 +19,11 @@ const { title, body, anchorId, bodyHeadingIds } = parseText(block);
             <h2 id={anchorId} class="wp-block-heading">{title}</h2>
         )}
         <Markdown text={body} headingIds={bodyHeadingIds} />
+        {details && (
+            <details class="wp-block-details">
+                <summary>{t('text.details')}</summary>
+                <Markdown text={details} />
+            </details>
+        )}
     </article>
 )}

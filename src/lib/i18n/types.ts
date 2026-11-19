@@ -23,6 +23,10 @@ export interface Dictionary {
         /** Heading shown above the auto-generated table of contents. */
         label: string;
     };
+    text: {
+        /** Summary of the fold holding a text block's `details`. */
+        details: string;
+    };
     footer: {
         affiliateDisclosure: {
             /** `{link}` placeholder gets replaced by an `<a>linkText</a>`. */

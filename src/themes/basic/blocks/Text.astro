@@ -2,13 +2,15 @@
 import type { PageBlock } from '../../../lib/foundry';
 import { parseText } from '../../../lib/blocks/text';
 import Markdown from '../components/Markdown.astro';
+import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
     block: PageBlock;
 }
 
 const { block } = Astro.props;
-const { title, body, anchorId, bodyHeadingIds } = parseText(block);
+const { title, body, details, anchorId, bodyHeadingIds } = parseText(block);
+const t = useTranslations(Astro.locals.locale ?? 'en', Astro.locals.wording ?? null);
 /** The API marks the block a page opens on (`settings.presentation`
  *  = `panel`): framed, its heading in the brand colour. */
 const isPanel = block.settings?.presentation === 'panel';
@@ -25,6 +27,12 @@ const isPanel = block.settings?.presentation === 'panel';
             </div>
         ) : (
             <Markdown text={body} headingIds={bodyHeadingIds} class="text-gray-800" />
+        )}
+        {details && (
+            <details class="mt-3">
+                <summary class="brand-text-muted cursor-pointer text-sm underline">{t('text.details')}</summary>
+                <Markdown text={details} class="mt-3 text-gray-800" />
+            </details>
         )}
     </section>
 )}

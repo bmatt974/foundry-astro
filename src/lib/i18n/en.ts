@@ -4,6 +4,10 @@ const en: Dictionary = {
     toc: {
         label: 'Table of contents',
     },
+    text: {
+        /** Folds what a text block ships apart (`details`): the rules read after choosing. */
+        details: 'All the conditions',
+    },
     footer: {
         affiliateDisclosure: {
             body: 'Some links on this site are {link}: purchases made through them may earn us a commission at no extra cost to you.',

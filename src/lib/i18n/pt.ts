@@ -4,6 +4,10 @@ const pt: Dictionary = {
     toc: {
         label: 'Índice',
     },
+    text: {
+        /** Folds what a text block ships apart (`details`): the rules read after choosing. */
+        details: 'Todas as condições',
+    },
     footer: {
         affiliateDisclosure: {
             body: 'Alguns links deste site são {link}: se comprar através deles, podemos receber uma comissão, sem custo adicional para si.',
