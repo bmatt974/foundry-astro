@@ -190,6 +190,7 @@ export interface Dictionary {
             /** Anchor link that scrolls to the ticket's row in the
              *  comparator below ("details"). */
             details: string;
+            option: string;
             inYourLanguage: string;
         };
         /** Filter chip rows above each bucket. */

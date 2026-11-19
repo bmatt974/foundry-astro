@@ -53,7 +53,10 @@ function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
        audio guide at 39,00 €, and the judge read "dearer and worse
        rated" because nothing on the page said why. A verdict without
        its motive is indistinguishable from a bad verdict. */
-    return slot === 'recommended' && offer?.language?.state === 'match'
+    /* "Le mieux noté" is chosen among the offers in the reader's
+       language when one is rated (2026-11-19): without the suffix, it
+       reads false beside a better-rated English tour. */
+    return ['recommended', 'best_rated'].includes(slot) && offer?.language?.state === 'match'
         ? `${label} ${t('tickets.quickPicks.inYourLanguage')}`
         : label;
 }
