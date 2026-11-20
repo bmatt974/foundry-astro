@@ -72,6 +72,18 @@ const en: Dictionary = {
             small_group: 'Small group',
             private: 'Private',
         },
+        gapPays: {
+            live_guide: 'guide',
+            audio_device: 'audio guide',
+            audio_app: 'audio guide',
+            small_group: 'small group',
+            private_tour: 'private tour',
+            meal_included: 'meal',
+            transport_included: 'transport',
+            hotel_pickup: 'hotel pickup',
+            multi_attraction_pass: 'other sites',
+            original_experience: 'special experience',
+        },
         experienceType: {
             classic: 'Classic',
             photo: 'Photo shoot',
@@ -139,7 +151,8 @@ const en: Dictionary = {
             differentPackage: 'Different inclusions',
             aggregatedAcross: 'Aggregated across :count providers',
             viewOffer: 'View offer',
-            saveAmount: 'Save :pct%',
+            officialGap: ':amount more than the official ticket',
+            officialGapPays: ': :list',
         },
         table: {
             priceFrom: 'From',

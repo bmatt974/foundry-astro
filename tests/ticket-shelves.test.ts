@@ -231,25 +231,28 @@ test('a section selling its zone as an option says so', () => {
     assert.deepEqual(parsed.shelves[0].sections[0].zones, ['Arène du Colisée']);
 });
 
-test('a strike price only survives when it genuinely exceeds the selling price', () => {
+test('the gap to the official ticket is read off the row, never derived', () => {
     const parsed = parseShelvesBlock(block([
         {
-            shelf: 'entry',
+            shelf: 'guided',
             offers: [
-                offer({ id: 1, price_eur: 20, original_price_eur: 27 }),
-                offer({ id: 2, price_eur: 20, original_price_eur: 20 }),
-                offer({ id: 3, price_eur: 20, original_price_eur: 15 }),
-                offer({ id: 4, price_eur: null, original_price_eur: 27 }),
+                offer({ id: 1, price_eur: 54, official_gap: { amount_eur: 36, reference_title: ' Billet officiel 24h ', pays: ['live_guide', 'made_up'] } }),
+                offer({ id: 2, price_eur: 54, original_price_eur: 80, savings_percent: 32 }),
+                offer({ id: 3, official_gap: { amount_eur: 0, reference_title: 'Billet officiel 24h', pays: [] } }),
+                offer({ id: 4, official_gap: { amount_eur: 12, reference_title: '', pays: [] } }),
             ],
         },
     ]), 'fr');
 
-    const [promo, flat, inverted, unpriced] = parsed.shelves[0].offers;
-    assert.equal(promo.originalPriceEur, 27);
-    assert.match(promo.originalPriceText ?? '', /27/);
-    assert.equal(flat.originalPriceEur, null, 'Equal is not a discount.');
-    assert.equal(inverted.originalPriceEur, null, 'A strike price below the price is noise, not a promo.');
-    assert.equal(unpriced.originalPriceEur, null, 'No selling price, no discount claim.');
+    const [anchored, promo, flat, unnamed] = parsed.shelves[0].offers;
+    assert.match(anchored.officialGap?.amountText ?? '', /36/);
+    assert.equal(anchored.officialGap?.referenceTitle, 'Billet officiel 24h');
+    assert.deepEqual(anchored.officialGap?.pays, ['live_guide'], 'An unknown slug is dropped, never printed raw.');
+    assert.equal(promo.officialGap, null);
+    assert.equal('originalPriceEur' in promo, false, 'A reseller strike price is never carried.');
+    assert.equal('savingsPercent' in promo, false);
+    assert.equal(flat.officialGap, null, 'No gap, no line.');
+    assert.equal(unnamed.officialGap, null, 'A gap without its reference is not a claim we print.');
 });
 
 test('editor knobs parse with safe defaults and reject unknown slugs', () => {
@@ -264,13 +267,13 @@ test('editor knobs parse with safe defaults and reject unknown slugs', () => {
     assert.equal(parsed.settings.showPhotos, false);
 });
 
-test('the highlight and savings verdicts are read off the row, never derived', () => {
+test('the highlight verdict is read off the row, never derived', () => {
     const parsed = parseShelvesBlock(block([
         {
             shelf: 'guided',
             offers: [
-                offer({ id: 1, highlight: 'best_price', savings_percent: 26 }),
-                offer({ id: 2, highlight: 'made_up_slot', savings_percent: 'lots' }),
+                offer({ id: 1, highlight: 'best_price' }),
+                offer({ id: 2, highlight: 'made_up_slot' }),
                 offer({ id: 3 }),
             ],
         },
@@ -278,9 +281,7 @@ test('the highlight and savings verdicts are read off the row, never derived', (
 
     const [winner, malformed, plain] = parsed.shelves[0].offers;
     assert.equal(winner.highlight, 'best_price');
-    assert.equal(winner.savingsPercent, 26);
     assert.equal(malformed.highlight, null, 'An unknown verdict slug is dropped, never guessed.');
-    assert.equal(malformed.savingsPercent, null);
     assert.equal(plain.highlight, null);
 });
 

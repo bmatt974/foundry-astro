@@ -13,7 +13,7 @@
  * through the dictionaries; the language badge and every zone name
  * arrive composed by the API.
  */
-import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
+import { officialGapLabel, shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
@@ -31,6 +31,7 @@ const t = useTranslations(locale, wording);
 const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 
 const badges = shelfBadgeLabels(offer, shelf, t, omitZones);
+const gapLabel = officialGapLabel(offer, t);
 
 /** Combos worth a mention: venues beyond this page's own group. */
 /* Two claims, two wordings: "+ X" says a ticket is included, which is
@@ -132,6 +133,9 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
             <>
                 {offer.priceText && (
                     <span class="text-sm font-semibold tabular-nums" style="color: #111827">{offer.priceText}</span>
+                )}
+                {gapLabel && offer.officialGap && (
+                    <span class="brand-text-muted text-[11px] leading-tight" title={offer.officialGap.referenceTitle}>{gapLabel}</span>
                 )}
                 {offer.href && (
                     <a

@@ -191,14 +191,11 @@ export interface ShelfOffer {
     pickHref: string | null;
     priceEur: number | null;
     priceText: string | null;
-    /** The provider's own strike price, only when it genuinely exceeds
-     *  the selling price — the single honest "was €X" a listing can
-     *  claim since cross-seller comparison died with the group model. */
-    originalPriceEur: number | null;
-    originalPriceText: string | null;
-    /** API verdict that the promotion is worth saying — the front
-     *  prints it, it never derives one. */
-    savingsPercent: number | null;
+    /** What the row costs above the venue's own ticket for the same
+     *  access, as the API measured it: the amount ready to print, the
+     *  official ticket it is measured against, and the stable slugs of
+     *  what the gap buys. The front never derives one. */
+    officialGap: { amountText: string; referenceTitle: string; pays: string[] } | null;
     /** API verdict: this row wins the shelf's editor-targeted chip. */
     highlight: 'best_price' | 'best_rated' | null;
     rating: number | null;
@@ -498,6 +495,40 @@ function parseMethodSentences(raw: unknown): string[] {
     return Array.isArray(sentences) ? sentences.filter((s): s is string => typeof s === 'string' && s !== '') : [];
 }
 
+const GAP_PAYS = ['live_guide', 'audio_device', 'audio_app', 'small_group', 'private_tour', 'meal_included', 'transport_included', 'hotel_pickup', 'multi_attraction_pass', 'original_experience'] as const;
+
+function parseOfficialGap(raw: unknown, locale: string): ShelfOffer['officialGap'] {
+    if (!raw || typeof raw !== 'object') return null;
+    const gap = raw as Record<string, unknown>;
+    const amountText = typeof gap.amount_eur === 'number' && gap.amount_eur > 0 ? formatPrice(gap.amount_eur, locale) : null;
+    if (amountText === null || typeof gap.reference_title !== 'string' || gap.reference_title.trim() === '') {
+        return null;
+    }
+
+    return {
+        amountText,
+        referenceTitle: gap.reference_title.trim(),
+        // An unknown slug is dropped, never printed raw.
+        pays: Array.isArray(gap.pays) ? gap.pays.filter((slug): slug is string => (GAP_PAYS as readonly string[]).includes(slug as string)) : [],
+    };
+}
+
+/**
+ * The gap line under a price: "+36 € vs the official ticket: guide,
+ * small group". Amount, reference and slugs are the API's; the wording
+ * is chrome.
+ */
+export function officialGapLabel(
+    offer: ShelfOffer,
+    t: (key: TranslationKey, replacements?: Record<string, string>) => string,
+): string | null {
+    if (offer.officialGap === null) return null;
+    const line = t('tickets.card.officialGap', { amount: offer.officialGap.amountText });
+    const pays = [...new Set(offer.officialGap.pays.map((slug) => t(`tickets.gapPays.${slug}` as TranslationKey)))];
+
+    return pays.length > 0 ? `${line}${t('tickets.card.officialGapPays', { list: pays.join(', ') })}` : line;
+}
+
 function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {
     if (!raw || typeof raw !== 'object') return [];
     const entry = raw as Record<string, unknown>;
@@ -509,11 +540,6 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
     }
 
     const priceEur = typeof entry.price_eur === 'number' ? entry.price_eur : null;
-    const originalPriceEur = typeof entry.original_price_eur === 'number'
-        && priceEur !== null
-        && entry.original_price_eur > priceEur
-        ? entry.original_price_eur
-        : null;
     const durationMinutes = typeof entry.duration_minutes === 'number' ? entry.duration_minutes : null;
     const durationMax = typeof entry.duration_max_minutes === 'number' ? entry.duration_max_minutes : null;
 
@@ -540,9 +566,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         pickHref: affiliateHref(entry, linkProxyPath, 'quick_pick'),
         priceEur,
         priceText: formatPrice(priceEur, locale),
-        originalPriceEur,
-        originalPriceText: formatPrice(originalPriceEur, locale),
-        savingsPercent: typeof entry.savings_percent === 'number' ? entry.savings_percent : null,
+        officialGap: parseOfficialGap(entry.official_gap, locale),
         highlight: (['best_price', 'best_rated'] as const).find((slug) => slug === entry.highlight) ?? null,
         rating: typeof entry.rating === 'number' ? entry.rating : null,
         reviewCount: typeof entry.review_count === 'number' ? entry.review_count : null,
