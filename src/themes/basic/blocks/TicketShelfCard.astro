@@ -7,7 +7,7 @@
  * A card still speaks only for its own listing. The disposition changes
  * how the shelf reads, never what it claims.
  */
-import { officialGapLabel, shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
+import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
@@ -25,7 +25,6 @@ const t = useTranslations(locale, wording);
 const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 
 const badges = shelfBadgeLabels(offer, shelf, t, omitZones);
-const gapLabel = officialGapLabel(offer, t);
 /* Stated by the partner, printed as stated: silence about cancelling is
    not a refusal, so nothing is printed without it. */
 const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.feature.free_cancellation') : null;
@@ -129,11 +128,11 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
                     {offer.priceText && (
                         <span class="text-sm font-semibold tabular-nums" style="color: #111827">{offer.priceText}</span>
                     )}
-                    {gapLabel && offer.officialGap && (
-                        <span class="brand-text-muted text-[11px] leading-tight" title={offer.officialGap.referenceTitle}>{gapLabel}</span>
-                    )}
                     {cancelLabel && (
                         <span class="text-[11px] leading-tight" style="color: var(--brand-accent-success)">{cancelLabel}</span>
+                    )}
+                    {offer.salesOpen && (
+                        <span class="brand-text-muted text-[11px] leading-tight">{offer.salesOpen}</span>
                     )}
                     {offer.href && (
                         <a

@@ -14,7 +14,7 @@
  * the §2bis pivot, not a styling choice. The one discount a single
  * listing can claim honestly is its provider's own strike price.
  */
-import { officialGapLabel, shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
+import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
 interface Props {
@@ -57,8 +57,6 @@ const ratingBadge = offer.rating !== null
     : null;
 const reviewVolume = offer.ratingText?.match(/\(([^)]+)\)/)?.[1] ?? null;
 
-/* The gap to the official ticket is the API's measure. */
-const gapLabel = officialGapLabel(offer, t);
 /* Stated by the partner, printed as stated: silence about cancelling is
    not a refusal, so nothing is printed without it. */
 const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.feature.free_cancellation') : null;
@@ -164,11 +162,11 @@ const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.fe
                         <span class="text-xl font-bold tabular-nums" style="color: #111827">{offer.priceText}</span>
                     )}
                 </span>
-                {gapLabel && offer.officialGap && (
-                    <span class="brand-text-muted text-[11px] leading-tight" title={offer.officialGap.referenceTitle}>{gapLabel}</span>
-                )}
                 {cancelLabel && (
                     <span class="text-[11px] leading-tight" style="color: var(--brand-accent-success)">{cancelLabel}</span>
+                )}
+                {offer.salesOpen && (
+                    <span class="brand-text-muted text-[11px] leading-tight">{offer.salesOpen}</span>
                 )}
 
                 {offer.href && (

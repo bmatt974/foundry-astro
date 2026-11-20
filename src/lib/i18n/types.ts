@@ -148,19 +148,6 @@ export interface Dictionary {
             private: string;
         };
         /** 9 experience types — Axis 3. Card badge + filter chip + sub-section. */
-        /** What a gap to the official ticket buys, by API slug. */
-        gapPays: {
-            live_guide: string;
-            audio_device: string;
-            audio_app: string;
-            small_group: string;
-            private_tour: string;
-            meal_included: string;
-            transport_included: string;
-            hotel_pickup: string;
-            multi_attraction_pass: string;
-            original_experience: string;
-        };
         experienceType: {
             classic: string;
             photo: string;
@@ -289,11 +276,6 @@ export interface Dictionary {
              *  with a visible tap target without requiring editors
              *  to remember to author one. */
             viewOffer: string;
-            /** ":amount" is the formatted gap to the venue's own ticket,
-             *  measured by the API. */
-            officialGap: string;
-            /** Appended to the gap line: ":list" names what the gap buys. */
-            officialGapPays: string;
         };
         /** Comparison-table UI strings — row labels in the left
          *  column of each bucket's `<table>` (variant = 'table'). */

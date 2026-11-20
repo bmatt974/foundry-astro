@@ -127,6 +127,9 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                             {pick.reason && (
                                 <span class="brand-text-muted basis-full text-xs">{pick.reason}</span>
                             )}
+                            {pick.offer.salesOpen && (
+                                <span class="brand-text-muted basis-full text-xs">{pick.offer.salesOpen}</span>
+                            )}
                         </li>
                     ))}
                 </ul>

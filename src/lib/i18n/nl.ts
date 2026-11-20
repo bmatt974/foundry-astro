@@ -74,18 +74,6 @@ const nl: Dictionary = {
             small_group: 'Kleine groep',
             private: 'Privé',
         },
-        gapPays: {
-            live_guide: 'gids',
-            audio_device: 'audiogids',
-            audio_app: 'audiogids',
-            small_group: 'kleine groep',
-            private_tour: 'privétour',
-            meal_included: 'maaltijd',
-            transport_included: 'vervoer',
-            hotel_pickup: 'ophalen bij hotel',
-            multi_attraction_pass: 'andere bezienswaardigheden',
-            original_experience: 'bijzondere ervaring',
-        },
         experienceType: {
             classic: 'Klassiek',
             photo: 'Fotoshoot',
@@ -153,8 +141,6 @@ const nl: Dictionary = {
             differentPackage: 'Andere inhoud',
             aggregatedAcross: 'Samengevoegd uit :count aanbieders',
             viewOffer: 'Bekijk aanbieding',
-            officialGap: ':amount meer dan het officiële ticket',
-            officialGapPays: ': :list',
         },
         table: {
             priceFrom: 'Vanaf',

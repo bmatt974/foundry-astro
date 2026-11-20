@@ -231,28 +231,32 @@ test('a section selling its zone as an option says so', () => {
     assert.deepEqual(parsed.shelves[0].sections[0].zones, ['Arène du Colisée']);
 });
 
-test('the gap to the official ticket is read off the row, never derived', () => {
+test('the sales opening is the API sentence, printed as is or not at all', () => {
     const parsed = parseShelvesBlock(block([
         {
-            shelf: 'guided',
+            shelf: 'entry',
             offers: [
-                offer({ id: 1, price_eur: 54, official_gap: { amount_eur: 36, reference_title: ' Billet officiel 24h ', pays: ['live_guide', 'made_up'] } }),
-                offer({ id: 2, price_eur: 54, original_price_eur: 80, savings_percent: 32 }),
-                offer({ id: 3, official_gap: { amount_eur: 0, reference_title: 'Billet officiel 24h', pays: [] } }),
-                offer({ id: 4, official_gap: { amount_eur: 12, reference_title: '', pays: [] } }),
+                offer({ id: 1, sales_open: ' La vente ouvre 30 jours avant la visite ' }),
+                offer({ id: 2, sales_open: '' }),
+                offer({ id: 3 }),
             ],
         },
     ]), 'fr');
 
-    const [anchored, promo, flat, unnamed] = parsed.shelves[0].offers;
-    assert.match(anchored.officialGap?.amountText ?? '', /36/);
-    assert.equal(anchored.officialGap?.referenceTitle, 'Billet officiel 24h');
-    assert.deepEqual(anchored.officialGap?.pays, ['live_guide'], 'An unknown slug is dropped, never printed raw.');
-    assert.equal(promo.officialGap, null);
-    assert.equal('originalPriceEur' in promo, false, 'A reseller strike price is never carried.');
+    const [dated, blank, silent] = parsed.shelves[0].offers;
+    assert.equal(dated.salesOpen, 'La vente ouvre 30 jours avant la visite');
+    assert.equal(blank.salesOpen, null);
+    assert.equal(silent.salesOpen, null);
+});
+
+test('a reseller strike price is never carried', () => {
+    const parsed = parseShelvesBlock(block([
+        { shelf: 'guided', offers: [offer({ id: 2, price_eur: 54, original_price_eur: 80, savings_percent: 32 })] },
+    ]), 'fr');
+
+    const [promo] = parsed.shelves[0].offers;
+    assert.equal('originalPriceEur' in promo, false);
     assert.equal('savingsPercent' in promo, false);
-    assert.equal(flat.officialGap, null, 'No gap, no line.');
-    assert.equal(unnamed.officialGap, null, 'A gap without its reference is not a claim we print.');
 });
 
 test('editor knobs parse with safe defaults and reject unknown slugs', () => {

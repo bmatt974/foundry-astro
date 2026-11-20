@@ -74,18 +74,6 @@ const pt: Dictionary = {
             small_group: 'Pequeno grupo',
             private: 'Privada',
         },
-        gapPays: {
-            live_guide: 'guia',
-            audio_device: 'audioguia',
-            audio_app: 'audioguia',
-            small_group: 'grupo pequeno',
-            private_tour: 'visita privada',
-            meal_included: 'refeição',
-            transport_included: 'transporte',
-            hotel_pickup: 'recolha no hotel',
-            multi_attraction_pass: 'outros locais',
-            original_experience: 'experiência especial',
-        },
         experienceType: {
             classic: 'Clássica',
             photo: 'Sessão fotográfica',
@@ -153,8 +141,6 @@ const pt: Dictionary = {
             differentPackage: 'Inclui outras coisas',
             aggregatedAcross: 'Agregado de :count fornecedores',
             viewOffer: 'Ver oferta',
-            officialGap: ':amount a mais do que o bilhete oficial',
-            officialGapPays: ': :list',
         },
         table: {
             priceFrom: 'Desde',
