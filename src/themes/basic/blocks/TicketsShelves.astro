@@ -19,6 +19,7 @@ import {
     parseShelvesBlock,
     methodLineAround,
     sectionLabel,
+    zoneViewsBySection,
     type ParsedShelf,
     type ParsedShelfSection,
     type ShelfOffer,
@@ -77,6 +78,7 @@ function showMoreLabel(count: number): string {
         ? t('tickets.bucket.showMoreOne')
         : t('tickets.bucket.showMore', { count: String(count) });
 }
+const zoneViewsOf = zoneViewsBySection(parsed);
 ---
 
 {parsed.totalCount > 0 && (
@@ -130,6 +132,7 @@ function showMoreLabel(count: number): string {
                                    stripping the badges there would erase
                                    the access claim from the page. */
                                 const omitZones = showSectionHeaders ? section.zones : [];
+                                const zoneViews = zoneViewsOf.get(section) ?? [];
                                 const hero = section.offers[0];
                                 const alternatives = section.offers.slice(1);
                                 const visibleAlternatives = alternatives.slice(0, DETAILED_ALTERNATIVES_VISIBLE);
@@ -149,6 +152,12 @@ function showMoreLabel(count: number): string {
                                                 )}
                                             </SectionHeading>
                                         )}
+
+                                        {/* What stands behind a zone's name, one
+                                            sourced sentence, where it first appears. */}
+                                        {zoneViews.map((view) => (
+                                            <p class="brand-text-muted mb-2 text-sm" data-zone-view><span class="font-semibold">{view.name}</span> : {view.line}</p>
+                                        ))}
 
                                         {layout === 'table' ? (
                                             <TicketShelfTable

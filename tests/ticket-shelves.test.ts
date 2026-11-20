@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { isShelvesPayload, leadTicket, methodLineAround, parseShelvesBlock, sectionLabel } from '../src/lib/blocks/ticket-shelves.ts';
+import { isShelvesPayload, leadTicket, methodLineAround, parseShelvesBlock, sectionLabel, zoneViewsBySection } from '../src/lib/blocks/ticket-shelves.ts';
 import type { PageBlock } from '../src/lib/foundry.ts';
 
 function block(shelves: Array<Record<string, unknown>>, meta: Record<string, unknown> = {}, quickPicks: Array<Record<string, unknown>> = []): PageBlock {
@@ -493,4 +493,22 @@ test('a scale left with one step the front can print is no scale', () => {
 
     assert.deepEqual(parseShelvesBlock(block([], { tiers }), 'fr').tiers, []);
     assert.deepEqual(parseShelvesBlock(block([], {}), 'fr').tiers, []);
+});
+
+test('a zone is said once, under the first section that names it', () => {
+    const section = (id: number, zones: string[]) => ({ zones, offers: [offer({ id, zones })] });
+    const parsed = parseShelvesBlock(block([
+        { shelf: 'entry', sections: [section(1, ['Arène']), section(2, ['Arène', 'Souterrains'])] },
+        { shelf: 'guided', sections: [section(3, ['Arène', 'Souterrains'])] },
+    ], {
+        zone_views: [
+            { name: 'Souterrains', line: ' Les souterrains abritaient les animaux. ' },
+            { name: 'Belvédère', line: 'Jamais vendu ici.' },
+            { name: 'Arène', line: '' },
+        ],
+    }), 'fr');
+
+    const placed = [...zoneViewsBySection(parsed)].map(([section, views]) => [section.offers[0].id, views]);
+
+    assert.deepEqual(placed, [[2, [{ name: 'Souterrains', line: 'Les souterrains abritaient les animaux.' }]]]);
 });

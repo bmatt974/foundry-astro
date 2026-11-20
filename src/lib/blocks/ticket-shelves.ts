@@ -308,6 +308,9 @@ export interface ParsedShelves {
     /** The page's one link to the venue's own site: the seller name to
      *  wrap in the method line, and its counted, cloaked href. */
     officialSource: { name: string; href: string } | null;
+    /** One sourced sentence per zone the sections sell access to, as
+     *  the API composed it; a zone without one is absent. */
+    zoneViews: { name: string; line: string }[];
 }
 
 /**
@@ -366,6 +369,34 @@ export function sectionLabel(
     return section.onOption
         ? `${section.zones.join(' + ')} ${t('tickets.shelfSection.onOption' as TranslationKey)}`
         : section.zones.join(' + ');
+}
+
+function parseZoneViews(raw: unknown): { name: string; line: string }[] {
+    if (!Array.isArray(raw)) return [];
+
+    return raw.flatMap((entry) => {
+        const { name, line } = (entry ?? {}) as Record<string, unknown>;
+        return typeof name === 'string' && typeof line === 'string' && name.trim() !== '' && line.trim() !== ''
+            ? [{ name: name.trim(), line: line.trim() }]
+            : [];
+    });
+}
+
+/**
+ * Each zone's sentence under the first section that names the zone:
+ * said once on the page, where the reader first meets the name.
+ * Repeated under every section it stood four times on the arena page.
+ */
+export function zoneViewsBySection(parsed: ParsedShelves): Map<ParsedShelfSection, { name: string; line: string }[]> {
+    const placed = new Map<ParsedShelfSection, { name: string; line: string }[]>();
+    const sections = parsed.shelves.flatMap((shelf) => shelf.sections);
+
+    for (const view of parsed.zoneViews) {
+        const first = sections.find((section) => section.zones.includes(view.name));
+        if (first) placed.set(first, [...(placed.get(first) ?? []), view]);
+    }
+
+    return placed;
 }
 
 /** Shape sniff for the dispatcher: a §2bis payload carries `shelves`. */
@@ -487,6 +518,7 @@ export function parseShelvesBlock(
         tiers: parseTiers(meta.tiers, locale, reviewsSuffix, linkProxyPath),
         leadLine: typeof meta.lead_line === 'string' && meta.lead_line.trim() !== '' ? meta.lead_line.trim() : null,
         officialSource: parseOfficialSource(meta.official_source, linkProxyPath),
+        zoneViews: parseZoneViews(meta.zone_views),
     };
 }
 
