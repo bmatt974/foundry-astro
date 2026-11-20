@@ -294,6 +294,9 @@ export interface ParsedShelves {
     pricesCheckedAt: string | null;
     /** How the comparison was made, composed by the API: printed as is. */
     methodSentences: string[];
+    /** The page's one link to the venue's own site: the seller name to
+     *  wrap in the method line, and its counted, cloaked href. */
+    officialSource: { name: string; href: string } | null;
 }
 
 /**
@@ -469,6 +472,7 @@ export function parseShelvesBlock(
         languageAdvice: parseLanguageAdvice(meta.language_advice),
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
+        officialSource: parseOfficialSource(meta.official_source, linkProxyPath),
     };
 }
 
@@ -491,6 +495,29 @@ function parseMethodSentences(raw: unknown): string[] {
     if (!raw || typeof raw !== 'object') return [];
     const sentences = (raw as Record<string, unknown>).sentences;
     return Array.isArray(sentences) ? sentences.filter((s): s is string => typeof s === 'string' && s !== '') : [];
+}
+
+/**
+ * Cloaked or nothing: unlike a row, the source link never falls back
+ * to a naked address, so no official URL is printed in the page.
+ */
+function parseOfficialSource(raw: unknown, linkProxyPath: string): { name: string; href: string } | null {
+    if (!raw || typeof raw !== 'object') return null;
+    const { name, code } = raw as Record<string, unknown>;
+    if (typeof name !== 'string' || name === '' || typeof code !== 'string' || code === '') return null;
+    const href = affiliateHref({ code }, linkProxyPath, 'official_source');
+    return href ? { name, href } : null;
+}
+
+/**
+ * The method line cut around the first mention of the official site,
+ * for the template to wrap it in the source link. Null when the line
+ * does not name it: no link is hung on other words.
+ */
+export function methodLineAround(sentences: string[], name: string): { before: string; name: string; after: string } | null {
+    const line = sentences.join(' ');
+    const at = line.indexOf(name);
+    return at === -1 ? null : { before: line.slice(0, at), name, after: line.slice(at + name.length) };
 }
 
 function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {

@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { isShelvesPayload, parseShelvesBlock, sectionLabel } from '../src/lib/blocks/ticket-shelves.ts';
+import { isShelvesPayload, methodLineAround, parseShelvesBlock, sectionLabel } from '../src/lib/blocks/ticket-shelves.ts';
 import type { PageBlock } from '../src/lib/foundry.ts';
 
 function block(shelves: Array<Record<string, unknown>>, meta: Record<string, unknown> = {}, quickPicks: Array<Record<string, unknown>> = []): PageBlock {
@@ -411,4 +411,26 @@ test('a pick carries the option to choose at the seller, else none', () => {
 
     assert.equal(parsed.quickPicks[0].option, "Option SANS l'arène");
     assert.equal(parsed.quickPicks[1].option, null);
+});
+
+test('the official source is one cloaked link under its own placement, or nothing', () => {
+    const rows = [{ shelf: 'entry', offers: [offer({ id: 1 })] }];
+    const sourced = parseShelvesBlock(block(rows, { official_source: { name: 'Site officiel', code: 'abc123' } }), 'fr');
+    assert.deepEqual(sourced.officialSource, { name: 'Site officiel', href: '/go/abc123?p=official_source' });
+
+    // No code, no link: a naked official address is never printed.
+    for (const raw of [null, { name: 'Site officiel' }, { name: 'Site officiel', code: '', partner_url: 'https://ticketing.colosseo.it/x' }]) {
+        assert.equal(parseShelvesBlock(block(rows, { official_source: raw }), 'fr').officialSource, null);
+    }
+});
+
+test('the source link hangs on the official site named in the method line, and on nothing else', () => {
+    const sentences = ['Nous avons comparé 4 offres de 2 vendeurs : Viator, Site officiel.', 'Prix relevés par nos soins le 17 novembre 2026.'];
+
+    assert.deepEqual(methodLineAround(sentences, 'Site officiel'), {
+        before: 'Nous avons comparé 4 offres de 2 vendeurs : Viator, ',
+        name: 'Site officiel',
+        after: '. Prix relevés par nos soins le 17 novembre 2026.',
+    });
+    assert.equal(methodLineAround(sentences, 'Official site'), null);
 });

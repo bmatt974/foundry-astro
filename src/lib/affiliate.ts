@@ -345,6 +345,7 @@ const PLACEMENTS = [
     'deal',
     'article',
     'meta_search',
+    'official_source',
 ] as const;
 
 export type Placement = (typeof PLACEMENTS)[number];

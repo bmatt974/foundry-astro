@@ -17,6 +17,7 @@
  */
 import {
     parseShelvesBlock,
+    methodLineAround,
     sectionLabel,
     type ParsedShelf,
     type ParsedShelfSection,
@@ -55,6 +56,10 @@ const BlockHeading = `h${parsed.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
 const ShelfHeading = `h${Math.min(parsed.headingLevel + 1, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
 const SectionHeading = `h${Math.min(parsed.headingLevel + 2, 6)}` as 'h4' | 'h5' | 'h6';
 
+/* The page's single link to the venue's own site, on its name in the
+   method line: cloaked and counted like every other outbound link. */
+const sourcedMethod = parsed.officialSource ? methodLineAround(parsed.methodSentences, parsed.officialSource.name) : null;
+const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 const pricesCheckedOn = parsed.pricesCheckedAt !== null
     ? formatDate(parsed.pricesCheckedAt, locale)
     : null;
@@ -272,7 +277,9 @@ function showMoreLabel(count: number): string {
 
         {parsed.methodSentences.length > 0 ? (
             <p class="brand-text-muted mt-3 text-xs" data-comparison-method>
-                {parsed.methodSentences.join(' ')}
+                {sourcedMethod && parsed.officialSource ? (
+                    <>{sourcedMethod.before}<a href={parsed.officialSource.href} target="_blank" rel={outboundRel} class="underline" data-official-source>{sourcedMethod.name}</a>{sourcedMethod.after}</>
+                ) : parsed.methodSentences.join(' ')}
             </p>
         ) : pricesCheckedOn && (
             <p class="brand-text-muted mt-3 text-xs">
