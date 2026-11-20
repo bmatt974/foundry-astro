@@ -26,6 +26,9 @@ const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofoll
 
 const badges = shelfBadgeLabels(offer, shelf, t, omitZones);
 const gapLabel = officialGapLabel(offer, t);
+/* Stated by the partner, printed as stated: silence about cancelling is
+   not a refusal, so nothing is printed without it. */
+const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.feature.free_cancellation') : null;
 
 /* Two claims, two wordings: "+ X" says a ticket is included, which is
    true only when the API proved it. A venue known from the product
@@ -128,6 +131,9 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
                     )}
                     {gapLabel && offer.officialGap && (
                         <span class="brand-text-muted text-[11px] leading-tight" title={offer.officialGap.referenceTitle}>{gapLabel}</span>
+                    )}
+                    {cancelLabel && (
+                        <span class="text-[11px] leading-tight" style="color: var(--brand-accent-success)">{cancelLabel}</span>
                     )}
                     {offer.href && (
                         <a

@@ -59,6 +59,9 @@ const reviewVolume = offer.ratingText?.match(/\(([^)]+)\)/)?.[1] ?? null;
 
 /* The gap to the official ticket is the API's measure. */
 const gapLabel = officialGapLabel(offer, t);
+/* Stated by the partner, printed as stated: silence about cancelling is
+   not a refusal, so nothing is printed without it. */
+const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.feature.free_cancellation') : null;
 ---
 
 <li id={`offer-${offer.id}`} class="brand-border overflow-hidden rounded-lg border bg-white">
@@ -161,10 +164,11 @@ const gapLabel = officialGapLabel(offer, t);
                         <span class="text-xl font-bold tabular-nums" style="color: #111827">{offer.priceText}</span>
                     )}
                 </span>
-                    )}
-                </span>
                 {gapLabel && offer.officialGap && (
                     <span class="brand-text-muted text-[11px] leading-tight" title={offer.officialGap.referenceTitle}>{gapLabel}</span>
+                )}
+                {cancelLabel && (
+                    <span class="text-[11px] leading-tight" style="color: var(--brand-accent-success)">{cancelLabel}</span>
                 )}
 
                 {offer.href && (
