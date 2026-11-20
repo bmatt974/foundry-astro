@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import { strict as assert } from 'node:assert';
-import { isShelvesPayload, methodLineAround, parseShelvesBlock, sectionLabel } from '../src/lib/blocks/ticket-shelves.ts';
+import { isShelvesPayload, leadTicket, methodLineAround, parseShelvesBlock, sectionLabel } from '../src/lib/blocks/ticket-shelves.ts';
 import type { PageBlock } from '../src/lib/foundry.ts';
 
 function block(shelves: Array<Record<string, unknown>>, meta: Record<string, unknown> = {}, quickPicks: Array<Record<string, unknown>> = []): PageBlock {
@@ -433,4 +433,37 @@ test('the source link hangs on the official site named in the method line, and o
         after: '. Prix relevés par nos soins le 17 novembre 2026.',
     });
     assert.equal(methodLineAround(sentences, 'Official site'), null);
+});
+
+test('the page header leads with the ticket the API ships, its own counted link and the sourced line', () => {
+    const lead = leadTicket(parseShelvesBlock(block([], {
+        lead: { slot: 'recommended', title: 'Petit groupe en français', option: null, offer: offer({ id: 7, title: 'Small group', code: 'abc', price_eur: 69 }) },
+        lead_line: ' La réservation est obligatoire. ',
+    }), 'fr'));
+
+    assert.equal(lead?.name, 'Petit groupe en français');
+    assert.equal(lead?.slot, 'recommended');
+    assert.equal(lead?.offer.leadHref, '/go/abc?p=lead_ticket');
+    assert.equal(lead?.line, 'La réservation est obligatoire.');
+    assert.equal(lead?.official, null);
+});
+
+test('the official ticket is named beside a partner lead, and only when the API says so', () => {
+    const lead = leadTicket(parseShelvesBlock(block([], {
+        lead: { slot: 'with_guide', title: null, option: null, offer: offer({ id: 2, title: 'Guided', code: 'def', price_eur: 54 }) },
+        lead_official: { title: 'Billet officiel 24h', offer: offer({ id: 1, provider: 'officialsite', price_eur: 18, sales_open: 'La vente ouvre 30 jours avant la visite' }) },
+    }), 'fr'));
+
+    assert.equal(lead?.name, 'Guided');
+    assert.equal(lead?.official?.name, 'Billet officiel 24h');
+    assert.equal(lead?.official?.offer.salesOpen, 'La vente ouvre 30 jours avant la visite');
+});
+
+test('no lead shipped, no lead: the front never promotes a pick of its own', () => {
+    const rows = [{ shelf: 'entry', offers: [offer({ id: 2 })] }];
+    const picks = [{ offer_id: 2, slots: ['recommended'] }];
+
+    assert.equal(leadTicket(parseShelvesBlock(block(rows, {}, picks), 'fr')), null);
+    assert.equal(leadTicket(parseShelvesBlock(block(rows, { lead: { slot: 'made_up', offer: offer({ id: 2 }) } }, picks), 'fr')), null);
+    assert.equal(leadTicket(parseShelvesBlock(block(rows, { lead: { slot: 'recommended', offer: { id: 2 } } }, picks), 'fr')), null);
 });

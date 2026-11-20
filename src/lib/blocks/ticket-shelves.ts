@@ -189,6 +189,8 @@ export interface ShelfOffer {
     href: string | null;
     /** The same link, counted as a click from the picks strip. */
     pickHref: string | null;
+    /** The same ticket's link from the page header's lead card. */
+    leadHref: string | null;
     priceEur: number | null;
     priceText: string | null;
     /** When this official ticket goes on sale, as its source states it:
@@ -294,6 +296,12 @@ export interface ParsedShelves {
     pricesCheckedAt: string | null;
     /** How the comparison was made, composed by the API: printed as is. */
     methodSentences: string[];
+    /** Why one books at all, as the venue states it: the API's line
+     *  for the page header, above the advised ticket. */
+    leadLine: string | null;
+    /** The ticket the API has the page header lead with, shipped whole:
+     *  on a page of one kind it is elected among that page's rows. */
+    lead: LeadTicket | null;
     /** The page's one link to the venue's own site: the seller name to
      *  wrap in the method line, and its counted, cloaked href. */
     officialSource: { name: string; href: string } | null;
@@ -472,6 +480,8 @@ export function parseShelvesBlock(
         languageAdvice: parseLanguageAdvice(meta.language_advice),
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
+        lead: parseLead(meta, locale, reviewsSuffix, linkProxyPath),
+        leadLine: typeof meta.lead_line === 'string' && meta.lead_line.trim() !== '' ? meta.lead_line.trim() : null,
         officialSource: parseOfficialSource(meta.official_source, linkProxyPath),
     };
 }
@@ -495,6 +505,46 @@ function parseMethodSentences(raw: unknown): string[] {
     if (!raw || typeof raw !== 'object') return [];
     const sentences = (raw as Record<string, unknown>).sentences;
     return Array.isArray(sentences) ? sentences.filter((s): s is string => typeof s === 'string' && s !== '') : [];
+}
+
+/** Slots the dictionaries know; an API-added slot is not labelled by
+ *  a raw translation key path. */
+export const KNOWN_PICK_SLOTS = ['recommended', 'with_guide', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
+
+export interface LeadTicket {
+    offer: ShelfOffer;
+    name: string;
+    /** The pick's slot, a slug the dictionaries label. */
+    slot: string;
+    /** The venue's own ticket, named beside a partner lead as the price
+     *  to measure against; it carries no button. */
+    official: { name: string; offer: ShelfOffer } | null;
+}
+
+/**
+ * The ticket the page header opens on, as the API ships it. Null when
+ * it ships none, a row that cannot be rendered or a slot no dictionary
+ * knows: the header then stays as it is, and the front promotes no
+ * other pick in its place.
+ */
+function parseLead(meta: Record<string, unknown>, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): LeadTicket | null {
+    const read = (raw: unknown): { offer: ShelfOffer; name: string; slot: unknown } | null => {
+        if (!raw || typeof raw !== 'object') return null;
+        const { offer: row, title, slot } = raw as Record<string, unknown>;
+        const [offer] = buildOffer(row, locale, reviewsSuffix, linkProxyPath);
+        return offer ? { offer, name: typeof title === 'string' && title.trim() !== '' ? title.trim() : offer.title, slot } : null;
+    };
+
+    const lead = read(meta.lead);
+    if (!lead || typeof lead.slot !== 'string' || !KNOWN_PICK_SLOTS.includes(lead.slot)) return null;
+
+    const official = read(meta.lead_official);
+    return { offer: lead.offer, name: lead.name, slot: lead.slot, official: official && { name: official.name, offer: official.offer } };
+}
+
+/** The lead ticket with the sourced line printed under it. */
+export function leadTicket(parsed: ParsedShelves): (LeadTicket & { line: string | null }) | null {
+    return parsed.lead && { ...parsed.lead, line: parsed.leadLine };
 }
 
 /**
@@ -555,6 +605,7 @@ function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefi
         // worker owns the real target) — see `affiliateHref`.
         href: affiliateHref(entry, linkProxyPath, 'ticket_shelf'),
         pickHref: affiliateHref(entry, linkProxyPath, 'quick_pick'),
+        leadHref: affiliateHref(entry, linkProxyPath, 'lead_ticket'),
         priceEur,
         priceText: formatPrice(priceEur, locale),
         salesOpen: typeof entry.sales_open === 'string' && entry.sales_open.trim() !== '' ? entry.sales_open.trim() : null,

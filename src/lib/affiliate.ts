@@ -346,6 +346,7 @@ const PLACEMENTS = [
     'article',
     'meta_search',
     'official_source',
+    'lead_ticket',
 ] as const;
 
 export type Placement = (typeof PLACEMENTS)[number];

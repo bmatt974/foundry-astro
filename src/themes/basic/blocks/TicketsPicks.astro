@@ -11,7 +11,7 @@
  * payload's `picks_only`), which then carries the block heading and the
  * strip prints no second title.
  */
-import type { ParsedShelf, ParsedShelves, ShelfOffer } from '../../../lib/blocks/ticket-shelves';
+import { KNOWN_PICK_SLOTS, type ParsedShelf, type ParsedShelves, type ShelfOffer } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { serializeJsonLd } from '../../../lib/seo';
 
@@ -39,9 +39,8 @@ const categoryPicks = parsed.categoryPicks.flatMap((pick) => {
     return offer ? [{ ...pick, offer, name: pick.title ?? offer.title }] : [];
 });
 
-/** Slots the dictionaries know; an API-added slot degrades to its bare
+/** An API-added slot the dictionaries do not know degrades to its bare
  *  slug instead of leaking a raw translation key path. */
-const KNOWN_PICK_SLOTS = ['recommended', 'with_guide', 'cheapest', 'best_rated', 'most_complete', 'family', 'unusual'];
 function pickSlotLabel(slot: string, offer?: ShelfOffer): string {
     const label = KNOWN_PICK_SLOTS.includes(slot)
         ? t(`tickets.quickPicks.${slot}` as TranslationKey)
