@@ -34,6 +34,11 @@ const picks = parsed.quickPicks.flatMap((pick) => {
     const offer = rowById.get(pick.offerId);
     return offer && pick.slots.length > 0 ? [{ ...pick, offer, name: pick.title ?? offer.title }] : [];
 });
+/** The price scale opens the strip; a pick it already shows is not
+ *  listed a second time below. */
+const tiers = standalone ? parsed.tiers : [];
+const tieredIds = new Set(tiers.map((tier) => tier.offer.id));
+const listedPicks = picks.filter((pick) => !tieredIds.has(pick.offer.id));
 const categoryPicks = parsed.categoryPicks.flatMap((pick) => {
     const offer = rowById.get(pick.offerId);
     return offer ? [{ ...pick, offer, name: pick.title ?? offer.title }] : [];
@@ -87,7 +92,7 @@ const BlockHeading = `h${parsed.headingLevel}` as 'h2' | 'h3' | 'h4' | 'h5';
    own it IS the block's content, and an <aside> would tell readers and
    extractors (Readability, Trafilatura) to skip it. */
 const Strip = standalone ? 'div' : 'aside';
-const hasPicks = picks.length > 0 || categoryPicks.length > 0;
+const hasPicks = picks.length > 0 || categoryPicks.length > 0 || tiers.length > 0;
 ---
 
 {hasPicks && (
@@ -107,9 +112,48 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
                     {t('tickets.quickPicks.title')}
                 </p>
             )}
-            {picks.length > 0 && (
+            {tiers.length > 0 && (
+                <ol class={`mb-4 grid gap-3 ${tiers.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`} data-price-tiers>
+                    {tiers.map((tier) => (
+                        <li
+                            class={`flex flex-col rounded-xl border bg-white p-4 ${tier.tier === 'best' ? 'shadow-sm' : 'brand-border'}`}
+                            style={tier.tier === 'best' ? 'border-color: var(--brand-primary); border-width: 2px' : undefined}
+                            data-price-tier={tier.tier}
+                        >
+                            <p class={`text-xs font-semibold uppercase tracking-wider ${tier.tier === 'best' ? 'brand-text-primary' : 'brand-text-muted'}`}>
+                                {t(`tickets.priceTiers.${tier.tier}` as TranslationKey)}
+                            </p>
+                            <p class="mt-2 text-sm font-semibold leading-snug">{tier.name}</p>
+                            <p class="brand-text-muted mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                {tier.offer.ratingText && <span>{tier.offer.ratingText}</span>}
+                                {tier.offer.durationText && <span>{tier.offer.durationText}</span>}
+                                {tier.offer.language?.badge && (
+                                    <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium" style="background-color: rgba(0,0,0,0.06); color: #4b5563">
+                                        {tier.offer.language.badge}
+                                    </span>
+                                )}
+                            </p>
+                            {tier.option && (
+                                <p class="brand-text-muted mt-1 text-xs opacity-80">{t('tickets.quickPicks.option', { option: tier.option })}</p>
+                            )}
+                            <div class="mt-auto flex items-center justify-between gap-3 pt-3 sm:flex-col sm:items-stretch">
+                                {tier.offer.priceText && <p class="text-xl font-bold tabular-nums">{tier.offer.priceText}</p>}
+                                <a
+                                    href={tier.href ?? `#offer-${tier.offer.id}`}
+                                    target={tier.href ? '_blank' : undefined}
+                                    rel={tier.href ? outboundRel : undefined}
+                                    class={`rounded-lg px-4 py-2 text-center text-sm font-semibold hover:opacity-90 ${tier.tier === 'best' ? 'brand-bg-primary text-white' : 'brand-border brand-text-primary border'}`}
+                                >
+                                    {t('tickets.card.book')}
+                                </a>
+                            </div>
+                        </li>
+                    ))}
+                </ol>
+            )}
+            {listedPicks.length > 0 && (
                 <ul class="space-y-1.5">
-                    {picks.map((pick) => (
+                    {listedPicks.map((pick) => (
                         <li class="flex flex-wrap items-baseline gap-x-2 text-sm">
                             <span class="font-semibold" style="color: #1f2937">
                                 {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
@@ -135,7 +179,7 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0;
             )}
             {categoryPicks.length > 0 && (
                 <>
-                    <p class={`brand-text-muted mb-2 text-xs font-semibold uppercase tracking-wider${picks.length > 0 ? ' mt-4' : ''}`}>
+                    <p class={`brand-text-muted mb-2 text-xs font-semibold uppercase tracking-wider${listedPicks.length > 0 ? ' mt-4' : ''}`}>
                         {t('tickets.quickPicks.byCategory')}
                     </p>
                     <ul class="space-y-1.5">

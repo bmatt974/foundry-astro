@@ -110,6 +110,12 @@ const fr: Dictionary = {
             audio_guide: 'Avec audio guide',
             priority: 'Coupe-file',
         },
+        /** The picks strip's price scale: a label per step. */
+        priceTiers: {
+            essential: "L'essentiel",
+            best: 'Le meilleur choix',
+            complete: "L'expérience complète",
+        },
         quickPicks: {
             title: 'Nos billets conseillés',
             recommended: 'Notre recommandation',

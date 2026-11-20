@@ -467,3 +467,30 @@ test('no lead shipped, no lead: the front never promotes a pick of its own', () 
     assert.equal(leadTicket(parseShelvesBlock(block(rows, { lead: { slot: 'made_up', offer: offer({ id: 2 }) } }, picks), 'fr')), null);
     assert.equal(leadTicket(parseShelvesBlock(block(rows, { lead: { slot: 'recommended', offer: { id: 2 } } }, picks), 'fr')), null);
 });
+
+test('the price scale keeps the API order and counts each step under its own placement', () => {
+    const parsed = parseShelvesBlock(block([], {
+        tiers: [
+            { tier: 'essential', title: null, option: null, offer: offer({ id: 1, title: 'Entry', code: 'aaa', price_eur: 42 }) },
+            { tier: 'best', title: 'Guided tour', option: 'French', offer: offer({ id: 2, title: 'Tour', code: 'bbb', price_eur: 54 }) },
+            { tier: 'complete', title: null, option: null, offer: offer({ id: 3, title: 'Underground', code: 'ccc', price_eur: 199.9 }) },
+        ],
+    }), 'fr');
+
+    assert.deepEqual(parsed.tiers.map((tier) => [tier.tier, tier.name, tier.href]), [
+        ['essential', 'Entry', '/go/aaa?p=tier_essential'],
+        ['best', 'Guided tour', '/go/bbb?p=tier_best'],
+        ['complete', 'Underground', '/go/ccc?p=tier_complete'],
+    ]);
+    assert.equal(parsed.tiers[1].option, 'French');
+});
+
+test('a scale left with one step the front can print is no scale', () => {
+    const tiers = [
+        { tier: 'made_up', offer: offer({ id: 1, price_eur: 42 }) },
+        { tier: 'best', offer: offer({ id: 2, price_eur: 54 }) },
+    ];
+
+    assert.deepEqual(parseShelvesBlock(block([], { tiers }), 'fr').tiers, []);
+    assert.deepEqual(parseShelvesBlock(block([], {}), 'fr').tiers, []);
+});

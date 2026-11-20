@@ -302,6 +302,9 @@ export interface ParsedShelves {
     /** The ticket the API has the page header lead with, shipped whole:
      *  on a page of one kind it is elected among that page's rows. */
     lead: LeadTicket | null;
+    /** The strip read as a price scale, cheapest first: two or three
+     *  steps the API elected, or none. */
+    tiers: PriceTier[];
     /** The page's one link to the venue's own site: the seller name to
      *  wrap in the method line, and its counted, cloaked href. */
     officialSource: { name: string; href: string } | null;
@@ -481,6 +484,7 @@ export function parseShelvesBlock(
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
         lead: parseLead(meta, locale, reviewsSuffix, linkProxyPath),
+        tiers: parseTiers(meta.tiers, locale, reviewsSuffix, linkProxyPath),
         leadLine: typeof meta.lead_line === 'string' && meta.lead_line.trim() !== '' ? meta.lead_line.trim() : null,
         officialSource: parseOfficialSource(meta.official_source, linkProxyPath),
     };
@@ -540,6 +544,45 @@ function parseLead(meta: Record<string, unknown>, locale: string, reviewsSuffix:
 
     const official = read(meta.lead_official);
     return { offer: lead.offer, name: lead.name, slot: lead.slot, official: official && { name: official.name, offer: official.offer } };
+}
+
+const PRICE_TIERS = ['essential', 'best', 'complete'] as const;
+
+export interface PriceTier {
+    tier: (typeof PRICE_TIERS)[number];
+    offer: ShelfOffer;
+    name: string;
+    option: string | null;
+    /** The ticket's link counted under this step's own placement: the
+     *  spread of clicks between the steps is what the scale measures. */
+    href: string | null;
+}
+
+/**
+ * The steps the API elected, in its order. A step the dictionaries do
+ * not know or a row that cannot be rendered drops; a scale left with
+ * one step is no scale.
+ */
+function parseTiers(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): PriceTier[] {
+    if (!Array.isArray(raw)) return [];
+
+    const tiers = raw.flatMap((entry): PriceTier[] => {
+        if (!entry || typeof entry !== 'object') return [];
+        const { tier: slug, title, option, offer: row } = entry as Record<string, unknown>;
+        const tier = PRICE_TIERS.find((known) => known === slug);
+        const [offer] = buildOffer(row, locale, reviewsSuffix, linkProxyPath);
+        if (!tier || !offer) return [];
+
+        return [{
+            tier,
+            offer,
+            name: typeof title === 'string' && title.trim() !== '' ? title.trim() : offer.title,
+            option: typeof option === 'string' && option.trim() !== '' ? option.trim() : null,
+            href: affiliateHref(row as Record<string, unknown>, linkProxyPath, `tier_${tier}`),
+        }];
+    });
+
+    return tiers.length < 2 ? [] : tiers;
 }
 
 /** The lead ticket with the sourced line printed under it. */

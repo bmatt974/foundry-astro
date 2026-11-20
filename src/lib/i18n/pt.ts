@@ -97,6 +97,12 @@ const pt: Dictionary = {
             audio_guide: 'Com audioguia',
             priority: 'Sem filas',
         },
+        /** The picks strip's price scale: a label per step. */
+        priceTiers: {
+            essential: 'O essencial',
+            best: 'A melhor escolha',
+            complete: 'A experiência completa',
+        },
         quickPicks: {
             title: 'Os bilhetes que recomendamos',
             recommended: 'A nossa recomendação',

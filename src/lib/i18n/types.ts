@@ -179,6 +179,12 @@ export interface Dictionary {
          *  label per QuickPickSlot slug the API resolves. Title +
          *  labels are the anti-footprint wording surface : override
          *  per website via `wording`. */
+        /** The picks strip's price scale: a label per step. */
+        priceTiers: {
+            essential: string;
+            best: string;
+            complete: string;
+        };
         quickPicks: {
             title: string;
             recommended: string;

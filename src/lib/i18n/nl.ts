@@ -97,6 +97,12 @@ const nl: Dictionary = {
             audio_guide: 'Met audiogids',
             priority: 'Zonder wachtrij',
         },
+        /** The picks strip's price scale: a label per step. */
+        priceTiers: {
+            essential: 'De basis',
+            best: 'De beste keuze',
+            complete: 'De volledige ervaring',
+        },
         quickPicks: {
             title: 'Onze aanbevolen tickets',
             recommended: 'Onze aanrader',
