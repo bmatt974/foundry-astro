@@ -615,6 +615,10 @@ export interface SitemapUrl {
      *  Used by the build's sitemap.xml generator. Absent for
      *  landings and redirects. */
     lastmod?: string;
+    /** Page entries only: false for a noindex page. Such a page is
+     *  still routed (the catch-all reads this feed) but must stay out
+     *  of the sitemap files. */
+    indexable?: boolean;
 }
 
 /**

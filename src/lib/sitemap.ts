@@ -15,7 +15,7 @@
  * for 10s per hostname in module scope. A bot crawling all sub-
  * sitemaps in sequence pays one CMS round-trip instead of N.
  */
-import { fetchSitemapUrls, type SitemapUrl } from './foundry';
+import { fetchSitemapUrls, type SitemapUrl } from './foundry.ts';
 
 export interface SitemapStyleOptions {
     /** Public URL of the XSL stylesheet to declare, or `null` to skip. */
@@ -60,11 +60,21 @@ export async function fetchAndGroupUrls(hostname: string): Promise<SitemapGroup[
         return cached.groups;
     }
 
-    const urls = await fetchSitemapUrls(hostname, {});
+    const groups = groupSitemapUrls(await fetchSitemapUrls(hostname, {}));
 
+    cache.set(hostname, { groups, expiresAt: Date.now() + CACHE_TTL_MS });
+    return groups;
+}
+
+/**
+ * The sitemap files of a feed: redirects and noindex pages left out
+ * (a sitemap listing a noindex URL is an error a search console
+ * reports), the rest grouped by kind and locale, then chunked.
+ */
+export function groupSitemapUrls(urls: SitemapUrl[]): SitemapGroup[] {
     const buckets = new Map<string, SitemapUrl[]>();
     for (const url of urls) {
-        if (url.kind === 'redirect') continue;
+        if (url.kind === 'redirect' || url.indexable === false) continue;
         const key = `${url.kind}-${url.locale}`;
         const list = buckets.get(key) ?? [];
         list.push(url);
@@ -88,7 +98,6 @@ export async function fetchAndGroupUrls(hostname: string): Promise<SitemapGroup[
         }
     }
 
-    cache.set(hostname, { groups, expiresAt: Date.now() + CACHE_TTL_MS });
     return groups;
 }
 
