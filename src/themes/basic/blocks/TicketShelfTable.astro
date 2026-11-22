@@ -9,6 +9,7 @@
  * page never scrolls sideways. The highlight chip is the API's verdict,
  * carried by the row.
  */
+import OfferLink from '../../../components/OfferLink.astro';
 import type { ParsedShelf, ShelfSettings } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
@@ -51,7 +52,7 @@ const arrow = settings.showProviderArrow ? ' →' : '';
                     <tr id={`offer-${offer.id}`}>
                         <td class="max-w-96 px-3 py-2">
                             <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <span class="font-medium leading-snug" style="color: #1f2937">{offer.title}</span>
+                                <span class="font-medium leading-snug" style="color: #1f2937"><OfferLink href={offer.href} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{offer.title}</OfferLink></span>
                                 {highlightLabel && (
                                     <span
                                         class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -102,14 +103,9 @@ const arrow = settings.showProviderArrow ? ' →' : '';
                         </td>
                         <td class="whitespace-nowrap px-3 py-2 text-right">
                             {offer.href && (
-                                <a
-                                    href={offer.href}
-                                    target="_blank"
-                                    rel={outboundRel}
-                                    class="brand-bg-primary inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
-                                >
+                                <OfferLink href={offer.href} zone="button" rel={outboundRel} class="brand-bg-primary inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-medium text-white hover:opacity-90">
                                     {ctaLabel}{arrow}
-                                </a>
+                                </OfferLink>
                             )}
                         </td>
                     </tr>

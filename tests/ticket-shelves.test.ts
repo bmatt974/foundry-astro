@@ -350,8 +350,8 @@ test('a live link code cloaks the href behind the per-site proxy path', () => {
     ]), 'fr', null, 'visite');
 
     const [cloaked, naked] = parsed.shelves[0].offers;
-    assert.equal(cloaked.href, '/visite/abc123def456?p=ticket_shelf', 'The cloaked handle wins over the partner URL.');
-    assert.equal(cloaked.pickHref, '/visite/abc123def456?p=quick_pick', 'A pick counts its own clicks.');
+    assert.equal(cloaked.href, '/visite/abc123def456?p=ticket_shelf&b=1', 'The cloaked handle wins over the partner URL.');
+    assert.equal(cloaked.pickHref, '/visite/abc123def456?p=quick_pick&b=1', 'A pick counts its own clicks.');
     assert.equal(naked.href, 'https://example.test/x', 'No live link: the naked partner URL is the honest fallback.');
 });
 
@@ -370,8 +370,8 @@ test('frozen translations still shipping click_id keep their cloaked href', () =
     ]), 'fr', null, 'visite');
 
     const [legacy, both] = parsed.shelves[0].offers;
-    assert.equal(legacy.href, '/visite/abc123def456?p=ticket_shelf');
-    assert.equal(both.href, '/visite/newcode00001?p=ticket_shelf', 'code wins over click_id');
+    assert.equal(legacy.href, '/visite/abc123def456?p=ticket_shelf&b=1');
+    assert.equal(both.href, '/visite/newcode00001?p=ticket_shelf&b=1', 'code wins over click_id');
 });
 
 test('a digest shelf keeps the full count and the link the API resolved', () => {
@@ -416,7 +416,7 @@ test('a pick carries the option to choose at the seller, else none', () => {
 test('the official source is one cloaked link under its own placement, or nothing', () => {
     const rows = [{ shelf: 'entry', offers: [offer({ id: 1 })] }];
     const sourced = parseShelvesBlock(block(rows, { official_source: { name: 'Site officiel', code: 'abc123' } }), 'fr');
-    assert.deepEqual(sourced.officialSource, { name: 'Site officiel', href: '/go/abc123?p=official_source' });
+    assert.deepEqual(sourced.officialSource, { name: 'Site officiel', href: '/go/abc123?p=official_source&b=1' });
 
     // No code, no link: a naked official address is never printed.
     for (const raw of [null, { name: 'Site officiel' }, { name: 'Site officiel', code: '', partner_url: 'https://ticketing.colosseo.it/x' }]) {
@@ -443,7 +443,7 @@ test('the page header leads with the ticket the API ships, its own counted link 
 
     assert.equal(lead?.name, 'Petit groupe en français');
     assert.equal(lead?.slot, 'recommended');
-    assert.equal(lead?.offer.leadHref, '/go/abc?p=lead_ticket');
+    assert.equal(lead?.offer.leadHref, '/go/abc?p=lead_ticket&b=1');
     assert.equal(lead?.line, 'La réservation est obligatoire.');
     assert.equal(lead?.official, null);
 });
@@ -478,9 +478,9 @@ test('the price scale keeps the API order and counts each step under its own pla
     }), 'fr');
 
     assert.deepEqual(parsed.tiers.map((tier) => [tier.tier, tier.name, tier.href]), [
-        ['essential', 'Entry', '/go/aaa?p=tier_essential'],
-        ['best', 'Guided tour', '/go/bbb?p=tier_best'],
-        ['complete', 'Underground', '/go/ccc?p=tier_complete'],
+        ['essential', 'Entry', '/go/aaa?p=tier_essential&b=1'],
+        ['best', 'Guided tour', '/go/bbb?p=tier_best&b=1'],
+        ['complete', 'Underground', '/go/ccc?p=tier_complete&b=1'],
     ]);
     assert.equal(parsed.tiers[1].option, 'French');
 });

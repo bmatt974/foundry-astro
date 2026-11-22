@@ -15,7 +15,7 @@
  * (parser + seven variant components) is deleted.
  */
 import type { PageBlock } from '../foundry.ts';
-import { affiliateHref } from '../affiliate.ts';
+import { affiliateHref, type LinkPlace } from '../affiliate.ts';
 import { formatDuration, formatPrice, formatRating } from '../format.ts';
 import { useTranslations, type TranslationKey } from '../i18n/index.ts';
 
@@ -411,6 +411,7 @@ export function parseShelvesBlock(
     linkProxyPath: string = 'go',
 ): ParsedShelves {
     const t = useTranslations(locale, wording);
+    const link: LinkPlace = { proxy: linkProxyPath, blockId: block.id };
     const content = (block.content ?? {}) as Record<string, unknown>;
     const meta = (content.meta ?? {}) as Record<string, unknown>;
     const settings = (meta.settings ?? {}) as Record<string, unknown>;
@@ -433,7 +434,7 @@ export function parseShelvesBlock(
                 if (!entry || typeof entry !== 'object') return [];
                 const section = entry as Record<string, unknown>;
                 const offers = (Array.isArray(section.offers) ? section.offers : [])
-                    .flatMap((offer) => buildOffer(offer, locale, reviewsSuffix, linkProxyPath));
+                    .flatMap((offer) => buildOffer(offer, locale, reviewsSuffix, link));
 
                 return offers.length > 0
                     ? [{
@@ -514,10 +515,10 @@ export function parseShelvesBlock(
         languageAdvice: parseLanguageAdvice(meta.language_advice),
         pricesCheckedAt: typeof meta.prices_checked_at === 'string' ? meta.prices_checked_at : null,
         methodSentences: parseMethodSentences(meta.method),
-        lead: parseLead(meta, locale, reviewsSuffix, linkProxyPath),
-        tiers: parseTiers(meta.tiers, locale, reviewsSuffix, linkProxyPath),
+        lead: parseLead(meta, locale, reviewsSuffix, link),
+        tiers: parseTiers(meta.tiers, locale, reviewsSuffix, link),
         leadLine: typeof meta.lead_line === 'string' && meta.lead_line.trim() !== '' ? meta.lead_line.trim() : null,
-        officialSource: parseOfficialSource(meta.official_source, linkProxyPath),
+        officialSource: parseOfficialSource(meta.official_source, link),
         zoneViews: parseZoneViews(meta.zone_views),
     };
 }
@@ -563,7 +564,7 @@ export interface LeadTicket {
  * knows: the header then stays as it is, and the front promotes no
  * other pick in its place.
  */
-function parseLead(meta: Record<string, unknown>, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): LeadTicket | null {
+function parseLead(meta: Record<string, unknown>, locale: string, reviewsSuffix: string | undefined, linkProxyPath: LinkPlace): LeadTicket | null {
     const read = (raw: unknown): { offer: ShelfOffer; name: string; slot: unknown } | null => {
         if (!raw || typeof raw !== 'object') return null;
         const { offer: row, title, slot } = raw as Record<string, unknown>;
@@ -595,7 +596,7 @@ export interface PriceTier {
  * not know or a row that cannot be rendered drops; a scale left with
  * one step is no scale.
  */
-function parseTiers(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): PriceTier[] {
+function parseTiers(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: LinkPlace): PriceTier[] {
     if (!Array.isArray(raw)) return [];
 
     const tiers = raw.flatMap((entry): PriceTier[] => {
@@ -626,7 +627,7 @@ export function leadTicket(parsed: ParsedShelves): (LeadTicket & { line: string 
  * Cloaked or nothing: unlike a row, the source link never falls back
  * to a naked address, so no official URL is printed in the page.
  */
-function parseOfficialSource(raw: unknown, linkProxyPath: string): { name: string; href: string } | null {
+function parseOfficialSource(raw: unknown, linkProxyPath: LinkPlace): { name: string; href: string } | null {
     if (!raw || typeof raw !== 'object') return null;
     const { name, code } = raw as Record<string, unknown>;
     if (typeof name !== 'string' || name === '' || typeof code !== 'string' || code === '') return null;
@@ -645,7 +646,7 @@ export function methodLineAround(sentences: string[], name: string): { before: s
     return at === -1 ? null : { before: line.slice(0, at), name, after: line.slice(at + name.length) };
 }
 
-function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: string): ShelfOffer[] {
+function buildOffer(raw: unknown, locale: string, reviewsSuffix: string | undefined, linkProxyPath: LinkPlace): ShelfOffer[] {
     if (!raw || typeof raw !== 'object') return [];
     const entry = raw as Record<string, unknown>;
 

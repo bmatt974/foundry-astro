@@ -11,6 +11,8 @@
  * payload's `picks_only`), which then carries the block heading and the
  * strip prints no second title.
  */
+import { zonedHref } from '../../../lib/affiliate';
+import OfferLink from '../../../components/OfferLink.astro';
 import { KNOWN_PICK_SLOTS, type ParsedShelf, type ParsedShelves, type ShelfOffer } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
 import { serializeJsonLd } from '../../../lib/seo';
@@ -116,14 +118,15 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0 || tiers.length > 
                 <ol class={`mb-4 grid gap-3 ${tiers.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`} data-price-tiers>
                     {tiers.map((tier) => (
                         <li
-                            class={`flex flex-col rounded-xl border bg-white p-4 ${tier.tier === 'best' ? 'shadow-sm' : 'brand-border'}`}
+                            class={`relative flex flex-col rounded-xl border bg-white p-4 ${tier.tier === 'best' ? 'shadow-sm' : 'brand-border'}`}
                             style={tier.tier === 'best' ? 'border-color: var(--brand-primary); border-width: 2px' : undefined}
                             data-price-tier={tier.tier}
                         >
+                            <OfferLink href={tier.href} zone="card" rel={outboundRel} label={tier.name} />
                             <p class={`text-xs font-semibold uppercase tracking-wider ${tier.tier === 'best' ? 'brand-text-primary' : 'brand-text-muted'}`}>
                                 {t(`tickets.priceTiers.${tier.tier}` as TranslationKey)}
                             </p>
-                            <p class="mt-2 text-sm font-semibold leading-snug">{tier.name}</p>
+                            <p class="mt-2 text-sm font-semibold leading-snug"><OfferLink href={tier.href} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{tier.name}</OfferLink></p>
                             <p class="brand-text-muted mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                                 {tier.offer.ratingText && <span>{tier.offer.ratingText}</span>}
                                 {tier.offer.durationText && <span>{tier.offer.durationText}</span>}
@@ -139,10 +142,10 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0 || tiers.length > 
                             <div class="mt-auto flex items-center justify-between gap-3 pt-3 sm:flex-col sm:items-stretch">
                                 {tier.offer.priceText && <p class="text-xl font-bold tabular-nums">{tier.offer.priceText}</p>}
                                 <a
-                                    href={tier.href ?? `#offer-${tier.offer.id}`}
+                                    href={zonedHref(tier.href, 'button') ?? `#offer-${tier.offer.id}`}
                                     target={tier.href ? '_blank' : undefined}
                                     rel={tier.href ? outboundRel : undefined}
-                                    class={`rounded-lg px-4 py-2 text-center text-sm font-semibold hover:opacity-90 ${tier.tier === 'best' ? 'brand-bg-primary text-white' : 'brand-border brand-text-primary border'}`}
+                                    class={`relative z-[1] rounded-lg px-4 py-2 text-center text-sm font-semibold hover:opacity-90 ${tier.tier === 'best' ? 'brand-bg-primary text-white' : 'brand-border brand-text-primary border'}`}
                                 >
                                     {t('tickets.card.book')}
                                 </a>
@@ -158,7 +161,7 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0 || tiers.length > 
                             <span class="font-semibold" style="color: #1f2937">
                                 {pick.slots.map((slot) => pickSlotLabel(slot, pick.offer)).join(' · ')}
                             </span>
-                            <a href={pick.offer.pickHref ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                            <a href={zonedHref(pick.offer.pickHref, 'title') ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
                                 {pick.name}
                             </a>
                             {pick.offer.priceText && (
@@ -190,7 +193,7 @@ const hasPicks = picks.length > 0 || categoryPicks.length > 0 || tiers.length > 
                                         ? `${t(`tickets.shelf.${pick.shelf}` as TranslationKey)} ${t('tickets.quickPicks.inYourLanguage')}`
                                         : t(`tickets.shelf.${pick.shelf}` as TranslationKey)}
                                 </span>
-                                <a href={pick.offer.pickHref ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
+                                <a href={zonedHref(pick.offer.pickHref, 'title') ?? `#offer-${pick.offer.id}`} target={pick.offer.pickHref ? '_blank' : undefined} rel={pick.offer.pickHref ? outboundRel : undefined} class="brand-text-muted underline decoration-dotted">
                                     {pick.name}
                                 </a>
                                 {pick.offer.priceText && (

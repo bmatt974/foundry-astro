@@ -16,14 +16,17 @@ import {
     getVisitorCountry,
     injectSubId,
     loadLinkMap,
+    affiliateHref,
+    parseClickZone,
     parsePlacement,
     parseReferer,
     parseUaFamily,
     pickTarget,
     sendClickEvent,
+    zonedHref,
     type LinkEntry,
 } from '../src/lib/affiliate.ts';
-import { matchAffiliateClickPath, redirectClick } from '../src/lib/affiliate-redirect.ts';
+import { matchAffiliateClickPath, parseBlockId, redirectClick } from '../src/lib/affiliate-redirect.ts';
 import { AFFILIATE_PROXY_PREFIXES, affiliateRouteIncludes } from '../src/lib/affiliate-prefixes.ts';
 import { __resetSearchMapCache } from '../src/lib/search-map.ts';
 
@@ -602,7 +605,7 @@ test('redirectClick: 302 whose subid equals the beacon click_id, placement strip
     try {
         const response = await redirectClick({
             code: 'abc123def456',
-            ...clickArgs('https://site-a.test/go/abc123def456?p=comparison_table', {
+            ...clickArgs('https://site-a.test/go/abc123def456?p=comparison_table&b=42&z=title', {
                 headers: {
                     'user-agent': 'Mozilla/5.0 Chrome/124.0.0.0 Safari/537.36',
                     referer: 'https://site-a.test/fr/le-colisee?utm=x',
@@ -618,6 +621,7 @@ test('redirectClick: 302 whose subid equals the beacon click_id, placement strip
         assert.match(subid, ULID_REGEX, 'the injected subid is a valid ULID');
         assert.ok(!location.includes('{subid}'), 'template token fully replaced');
         assert.ok(!location.includes('p=comparison_table'), '?p= never reaches the partner');
+        assert.ok(!location.includes('z=title') && !location.includes('b=42'), 'neither do the zone and the block');
 
         // Pinned headers — the pair the whole cloaking story rests on.
         assert.equal(response.headers.get('Referrer-Policy'), 'origin');
@@ -629,6 +633,8 @@ test('redirectClick: 302 whose subid equals the beacon click_id, placement strip
         assert.equal(beacon.click_id, subid, 'Location subid == beacon click_id');
         assert.equal(beacon.code, 'abc123def456');
         assert.equal(beacon.placement, 'comparison_table');
+        assert.equal(beacon.zone, 'title');
+        assert.equal(beacon.page_block_id, 42);
         assert.equal(beacon.website_id, 3);
         assert.equal(beacon.account_id, 1);
         assert.equal(beacon.referer_path, '/fr/le-colisee');
@@ -851,4 +857,28 @@ test('redirectClick: no collector configured → redirect still works, no beacon
     } finally {
         world.restore();
     }
+});
+
+// ─── Click zone and block carried by the link ────────────────────
+
+test('affiliateHref: a link rendered in a block names it', () => {
+    assert.equal(affiliateHref({ code: 'abc' }, { proxy: 'go', blockId: 42 }, 'ticket_shelf'), '/go/abc?p=ticket_shelf&b=42');
+    assert.equal(affiliateHref({ code: 'abc' }, { proxy: 'go' }, 'ticket_shelf'), '/go/abc?p=ticket_shelf');
+    assert.equal(affiliateHref({ code: 'abc' }, 'go', 'ticket_shelf'), '/go/abc?p=ticket_shelf');
+});
+
+test('zonedHref: the zone is added to a tracked link only', () => {
+    assert.equal(zonedHref('/go/abc?p=ticket_shelf&b=42', 'title'), '/go/abc?p=ticket_shelf&b=42&z=title');
+    assert.equal(zonedHref('https://partner.test/offer', 'image'), 'https://partner.test/offer');
+    assert.equal(zonedHref(null, 'card'), null);
+});
+
+test('parseClickZone / parseBlockId: anything unknown is no zone, no block', () => {
+    assert.equal(parseClickZone('button'), 'button');
+    assert.equal(parseClickZone('footer'), null);
+    assert.equal(parseClickZone(null), null);
+    assert.equal(parseBlockId('42'), 42);
+    assert.equal(parseBlockId('4x2'), null);
+    assert.equal(parseBlockId('-1'), null);
+    assert.equal(parseBlockId(null), null);
 });

@@ -363,6 +363,40 @@ export function parsePlacement(raw: string | null): Placement | null {
 export const PLACEMENT_PARAM = 'p';
 
 /**
+ * Where inside an offer card the click landed. A card is clickable as a
+ * whole through several plain links to the same destination, one per
+ * zone: the link itself says which, so the redirector counts it with no
+ * script on the page. Mirror of PHP `App\Enums\Affiliate\ClickZone`.
+ */
+export const CLICK_ZONES = ['button', 'title', 'image', 'card'] as const;
+
+export type ClickZone = (typeof CLICK_ZONES)[number];
+
+export function parseClickZone(raw: string | null): ClickZone | null {
+    return CLICK_ZONES.find((zone) => zone === raw) ?? null;
+}
+
+/** Query-param keys of the click zone and of the block the link sits
+ *  in. Like `p`, read by the redirector and never sent to the partner. */
+export const ZONE_PARAM = 'z';
+export const BLOCK_PARAM = 'b';
+
+/** The proxy prefix alone, or with the block the link is rendered in. */
+export type LinkPlace = string | { proxy: string; blockId?: number | null };
+
+/**
+ * The same tracked link, said to be clicked in `zone`. An untracked
+ * href (a raw partner URL, nothing) is returned as it is: only our own
+ * redirector reads the parameter.
+ */
+export function zonedHref(href: string | null, zone: ClickZone): string | null {
+    if (href === null || !href.startsWith('/') || !href.includes(`?${PLACEMENT_PARAM}=`)) {
+        return href;
+    }
+    return `${href}&${ZONE_PARAM}=${zone}`;
+}
+
+/**
  * The CTA href a block parser should render for a payload entry —
  * `/{proxy}/{code}?p={placement}` when the AffiliateLinkGenerator has
  * minted a tracked link, the raw `partner_url` otherwise (legacy
@@ -382,12 +416,14 @@ export const PLACEMENT_PARAM = 'p';
  */
 export function affiliateHref(
     entry: { code?: unknown; click_id?: unknown; partner_url?: unknown },
-    proxy: string,
+    place: LinkPlace,
     placement: Placement,
 ): string | null {
     const code = nonEmptyString(entry.code) ?? nonEmptyString(entry.click_id);
     if (code) {
-        return `/${proxy}/${code}?${PLACEMENT_PARAM}=${placement}`;
+        const proxy = typeof place === 'string' ? place : place.proxy;
+        const blockId = typeof place === 'string' ? null : place.blockId ?? null;
+        return `/${proxy}/${code}?${PLACEMENT_PARAM}=${placement}${blockId === null ? '' : `&${BLOCK_PARAM}=${blockId}`}`;
     }
     return nonEmptyString(entry.partner_url);
 }
@@ -436,6 +472,10 @@ export interface ClickEventPayload {
     website_id?: number | null;
     account_id?: number | null;
     placement?: Placement | null;
+    /** Where in the card the click landed (`z`), when the link said so. */
+    zone?: ClickZone | null;
+    /** The block the clicked link sits in (`b`), when the link said so. */
+    page_block_id?: number | null;
     country?: string | null;
     ua_family?: string | null;
     referer_host?: string | null;

@@ -1,4 +1,5 @@
 ---
+import OfferLink from '../../../components/OfferLink.astro';
 import type { PageBlock } from '../../../lib/foundry';
 import { parseComparison } from '../../../lib/blocks/comparison';
 import { useTranslations, type TranslationKey } from '../../../lib/i18n/index';
@@ -17,6 +18,7 @@ const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
 const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath, (bucket) =>
     t(`tickets.shelf.${bucket}` as TranslationKey),
+    block.id,
 );
 const publishedAt = Astro.locals.pagePublishedAt ?? null;
 const relativeUpdated = formatRelativeDate(publishedAt, locale);
@@ -45,7 +47,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                         <tr class="views-row">
                             <td class="views-field views-field--label">
                                 <strong>{row.label}</strong>
-                                {row.title && <div class="views-field__detail">{row.title}</div>}
+                                {row.title && <div class="views-field__detail"><OfferLink href={row.ctaHref} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{row.title}</OfferLink></div>}
                                 {row.extras > 0 && (
                                     <em class="views-field__extras">{labels.moreOptions(row.extras)}</em>
                                 )}
@@ -61,9 +63,9 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                             </td>
                             <td class="views-field views-field--cta">
                                 {row.ctaHref && (
-                                    <a href={row.ctaHref} target="_blank" rel={outboundRel} class="button button--primary">
+                                    <OfferLink href={row.ctaHref} zone="button" rel={outboundRel} class="button button--primary">
                                         {labels.cta}
-                                    </a>
+                                    </OfferLink>
                                 )}
                             </td>
                         </tr>

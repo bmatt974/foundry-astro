@@ -32,13 +32,16 @@ import {
     generateClickUlid,
     getVisitorCountry,
     injectSubId,
+    BLOCK_PARAM,
     loadLinkMap,
+    parseClickZone,
     parsePlacement,
     parseReferer,
     parseUaFamily,
     pickTarget,
     PLACEMENT_PARAM,
     sendClickEvent,
+    ZONE_PARAM,
     type ClickEventPayload,
 } from './affiliate.ts';
 import { isAffiliateProxyPrefix } from './affiliate-prefixes.ts';
@@ -118,6 +121,8 @@ export async function redirectClick(args: {
             website_id: linkMap.site.id,
             account_id: target.account_id ?? null,
             placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)),
+            zone: parseClickZone(url.searchParams.get(ZONE_PARAM)),
+            page_block_id: parseBlockId(url.searchParams.get(BLOCK_PARAM)),
             geo_rule_idx: target.geo_rule_idx,
         },
     });
@@ -179,6 +184,11 @@ async function redirectSearchClick(args: {
             placement: parsePlacement(url.searchParams.get(PLACEMENT_PARAM)) ?? 'meta_search',
         },
     });
+}
+
+/** The block id a link carries: digits only, anything else is no block. */
+export function parseBlockId(raw: string | null): number | null {
+    return raw !== null && /^[1-9]\d{0,15}$/.test(raw) ? Number(raw) : null;
 }
 
 /** CDN geo headers first, local GeoIP db as the self-hosted fallback. */

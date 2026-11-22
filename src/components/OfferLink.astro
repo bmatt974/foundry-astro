@@ -1,0 +1,61 @@
+---
+/**
+ * One link of an offer card, said to be in a zone of it. A card is
+ * clickable as a whole through several plain links to the same
+ * destination: its title, its image, its button, and one link stretched
+ * over the rest of the card. Each carries its zone in the URL, so the
+ * redirect counts where the card was clicked with no script on the page.
+ *
+ * The card is never wrapped in an `<a>`: it holds other links, and
+ * nested links are invalid HTML. Instead the card is a positioned box
+ * (`relative` on its root), the `card` link is stretched over it by a
+ * pseudo-element, and the other links sit above it.
+ *
+ *   <li class="relative …">
+ *     <OfferLink href={href} zone="card" rel={rel} label={title} />
+ *     <OfferLink href={href} zone="title" rel={rel}>{title}</OfferLink>
+ *     <OfferLink href={href} zone="button" rel={rel} class="…">Book</OfferLink>
+ *   </li>
+ *
+ * Common to every theme and every kind of offer: nothing here knows
+ * what is sold. A site can turn the whole-card click off
+ * (`outbound_links.clickable_cards`): only the button stays a link.
+ */
+import { zonedHref, type ClickZone } from '../lib/affiliate.ts';
+
+interface Props {
+    href: string | null;
+    zone: ClickZone;
+    rel: string;
+    class?: string;
+    /** Names the stretched `card` link for assistive technology. */
+    label?: string;
+}
+
+const { href, zone, rel, class: className, label } = Astro.props;
+const wholeCard = Astro.locals.tenant?.website?.outbound_links?.clickable_cards !== false;
+const linked = href !== null && (zone === 'button' || wholeCard);
+const zoned = zonedHref(href, zone);
+---
+
+{linked && zone === 'card' && (
+    /* Out of the tab order and the accessibility tree: the title link
+       already says where the card leads, this one only widens the target. */
+    <a href={zoned} target="_blank" rel={rel} class="offer-link-card" tabindex="-1" aria-hidden="true" data-zone="card" title={label}></a>
+)}
+{linked && zone !== 'card' && (
+    <a href={zoned} target="_blank" rel={rel} class:list={['offer-link-zone', className]} data-zone={zone}><slot /></a>
+)}
+{!linked && zone !== 'card' && <slot />}
+
+<style>
+    .offer-link-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+    .offer-link-zone {
+        position: relative;
+        z-index: 1;
+    }
+</style>

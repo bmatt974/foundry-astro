@@ -325,6 +325,9 @@ export interface TenantResolution {
         outbound_links: {
             mode: 'minimal' | 'tracked' | 'private';
             rel: string;
+            /** Offer cards are clickable as a whole (title, image,
+             *  rest of the card). Absent on an older API: on. */
+            clickable_cards?: boolean;
         };
     };
     locales: WebsiteLocale[];

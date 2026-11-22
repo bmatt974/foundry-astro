@@ -14,6 +14,7 @@
  * the §2bis pivot, not a styling choice. The one discount a single
  * listing can claim honestly is its provider's own strike price.
  */
+import OfferLink from '../../../components/OfferLink.astro';
 import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
@@ -62,19 +63,20 @@ const reviewVolume = offer.ratingText?.match(/\(([^)]+)\)/)?.[1] ?? null;
 const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.feature.free_cancellation') : null;
 ---
 
-<li id={`offer-${offer.id}`} class="brand-border overflow-hidden rounded-lg border bg-white">
+<li id={`offer-${offer.id}`} class="brand-border relative overflow-hidden rounded-lg border bg-white">
+    <OfferLink href={offer.href} zone="card" rel={outboundRel} label={offer.title} />
     <div class="flex flex-col sm:flex-row">
         {showPhoto && (
-            <img
+            <OfferLink href={offer.href} zone="image" rel={outboundRel} class="block shrink-0"><img
                 src={offer.imageUrl}
                 alt=""
                 loading="lazy"
                 class="h-44 w-full shrink-0 object-cover sm:h-auto sm:w-48"
-            />
+            /></OfferLink>
         )}
 
         <div class="flex min-w-0 grow flex-col gap-1.5 p-4">
-            <p class="text-base font-bold leading-snug" style="color: #1f2937">{offer.title}</p>
+            <p class="text-base font-bold leading-snug" style="color: #1f2937"><OfferLink href={offer.href} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{offer.title}</OfferLink></p>
 
             {ratingBadge && (
                 <span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -170,16 +172,11 @@ const cancelLabel = offer.features.includes('free_cancellation') ? t('tickets.fe
                 )}
 
                 {offer.href && (
-                    <a
-                        href={offer.href}
-                        target="_blank"
-                        rel={outboundRel}
-                        class="brand-bg-primary inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
-                    >
+                    <OfferLink href={offer.href} zone="button" rel={outboundRel} class="brand-bg-primary inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
                         {settings.priceAsButton && offer.priceText
                             ? <span class="tabular-nums">{offer.priceText}{arrow}</span>
                             : <span>{ctaLabel}{arrow}</span>}
-                    </a>
+                    </OfferLink>
                 )}
             </div>
         </div>

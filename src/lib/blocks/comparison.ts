@@ -13,7 +13,7 @@
  * indirection that doesn't pay off — see docs/websites/cms/themes.md.
  */
 
-import { affiliateHref } from '../affiliate.ts';
+import { affiliateHref, type LinkPlace } from '../affiliate.ts';
 import { formatPrice, formatRating } from '../format.ts';
 
 interface RawDisplayFeatures {
@@ -167,7 +167,7 @@ function resolveLabel(group: RawGroup, shelfLabel?: ShelfLabelResolver): string 
 function buildRow(
     group: RawGroup,
     locale: string,
-    linkProxyPath: string,
+    linkProxyPath: LinkPlace,
     shelfLabel?: ShelfLabelResolver,
 ): ComparisonRow {
     const df = group.display_features ?? {};
@@ -214,13 +214,14 @@ export function parseComparison(
     locale: string,
     linkProxyPath: string = 'go',
     shelfLabel?: ShelfLabelResolver,
+    blockId: number | null = null,
 ): ParsedComparison {
     const raw = (content ?? {}) as RawContent;
     const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title || g.bucket));
 
     return {
         heading: raw.title?.trim() || raw.heading?.trim() || null,
-        rows: groups.map((g) => buildRow(g, locale, linkProxyPath, shelfLabel)),
+        rows: groups.map((g) => buildRow(g, locale, { proxy: linkProxyPath, blockId }, shelfLabel)),
         labels: pickLabels(locale),
     };
 }

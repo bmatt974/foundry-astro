@@ -13,6 +13,7 @@
  * through the dictionaries; the language badge and every zone name
  * arrive composed by the API.
  */
+import OfferLink from '../../../components/OfferLink.astro';
 import { shelfBadgeLabels, type ShelfOffer, type ShelfSettings, type TicketShelfSlug } from '../../../lib/blocks/ticket-shelves';
 import { useTranslations } from '../../../lib/i18n/index';
 
@@ -54,19 +55,20 @@ const arrow = settings.showProviderArrow ? ' →' : '';
 const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
 ---
 
-<li id={`offer-${offer.id}`} class="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+<li id={`offer-${offer.id}`} class="relative flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <OfferLink href={offer.href} zone="card" rel={outboundRel} label={offer.title} />
     <div class="flex min-w-0 items-start gap-3">
         {showThumbnail && (
-            <img
+            <OfferLink href={offer.href} zone="image" rel={outboundRel} class="block shrink-0"><img
                 src={offer.imageUrl}
                 alt=""
                 loading="lazy"
                 class="hidden h-14 w-14 shrink-0 rounded-md object-cover sm:block"
-            />
+            /></OfferLink>
         )}
         <div class="flex min-w-0 flex-col gap-1">
             <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span class="text-sm font-semibold leading-snug" style="color: #1f2937">{offer.title}</span>
+                <span class="text-sm font-semibold leading-snug" style="color: #1f2937"><OfferLink href={offer.href} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{offer.title}</OfferLink></span>
                 {highlightLabel && (
                     <span
                         class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -123,14 +125,9 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
 
     <div class="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
         {settings.priceAsButton && offer.href ? (
-            <a
-                href={offer.href}
-                target="_blank"
-                rel={outboundRel}
-                class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold tabular-nums text-white hover:opacity-90"
-            >
+            <OfferLink href={offer.href} zone="button" rel={outboundRel} class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold tabular-nums text-white hover:opacity-90">
                 {offer.priceText ?? ctaLabel}{arrow}
-            </a>
+            </OfferLink>
         ) : (
             <>
                 {offer.priceText && (
@@ -147,14 +144,9 @@ const showThumbnail = settings.showPhotos && offer.imageUrl !== null;
                     </span>
                 )}
                 {offer.href && (
-                    <a
-                        href={offer.href}
-                        target="_blank"
-                        rel={outboundRel}
-                        class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                    >
+                    <OfferLink href={offer.href} zone="button" rel={outboundRel} class="brand-bg-primary inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium text-white hover:opacity-90">
                         {ctaLabel}{arrow}
-                    </a>
+                    </OfferLink>
                 )}
             </>
         )}
