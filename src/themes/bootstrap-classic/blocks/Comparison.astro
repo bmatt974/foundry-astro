@@ -29,7 +29,7 @@ const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
-const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath, (bucket) =>
+const { heading, columns, rows, labels } = parseComparison(block.content, locale, linkProxyPath, (bucket) =>
     t(`tickets.shelf.${bucket}` as TranslationKey),
     block.id,
 );
@@ -64,14 +64,20 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                     <div class="p-4">
                         <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{row.label}</p>
                         <h3 class="mt-1 text-sm font-semibold leading-snug"><OfferLink href={row.ctaHref} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{row.title}</OfferLink></h3>
-                        {row.extras > 0 && (
+                        {columns.length === 0 && row.extras > 0 && (
                             <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
                         )}
                         <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
-                            <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
-                            <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
-                            <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
-                            <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
+                            {columns.length > 0 ? columns.map((column, index) => row.cells[index] && (
+                                <li class="col-span-2"><span class="font-semibold">{column.label}</span> {row.cells[index]}</li>
+                            )) : (
+                                <Fragment>
+                                    <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
+                                    <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
+                                    <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
+                                    <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
+                                </Fragment>
+                            )}
                         </ul>
                         <div class="mt-4 flex items-center justify-between gap-3">
                             <div>
@@ -96,10 +102,16 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="brand-text-muted p-3 text-left text-xs font-semibold uppercase tracking-wider">{labels.headers.type}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.coupeFile}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.audioGuide}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.liveGuide}</th>
-                        <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.freeCancellation}</th>
+                        {columns.length > 0 ? columns.map((column) => (
+                            <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{column.label}</th>
+                        )) : (
+                            <Fragment>
+                                <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.coupeFile}</th>
+                                <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.audioGuide}</th>
+                                <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.liveGuide}</th>
+                                <th class="brand-text-muted p-3 text-center text-xs font-semibold uppercase tracking-wider">{labels.headers.freeCancellation}</th>
+                            </Fragment>
+                        )}
                         <th class="brand-text-muted p-3 text-right text-xs font-semibold uppercase tracking-wider">{labels.headers.price}</th>
                         <th class="brand-text-muted p-3 text-xs font-semibold uppercase tracking-wider">{labels.headers.cta}</th>
                     </tr>
@@ -110,14 +122,20 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                             <td class="p-3">
                                 <p class="font-semibold">{row.label}</p>
                                 <p class="brand-text-muted mt-1 text-xs leading-snug"><OfferLink href={row.ctaHref} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{row.title}</OfferLink></p>
-                                {row.extras > 0 && (
+                                {columns.length === 0 && row.extras > 0 && (
                                     <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
                                 )}
                             </td>
-                            <td class="p-3 text-center">{row.features.coupeFile ? '✅' : '❌'}</td>
-                            <td class="p-3 text-center">{row.features.audioGuide ? '✅' : '❌'}</td>
-                            <td class="p-3 text-center">{row.features.liveGuide ? '✅' : '❌'}</td>
-                            <td class="p-3 text-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            {columns.length > 0 ? row.cells.map((cell) => (
+                                <td class="p-3 text-center">{cell}</td>
+                            )) : (
+                                <Fragment>
+                                    <td class="p-3 text-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                                    <td class="p-3 text-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                                    <td class="p-3 text-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                                    <td class="p-3 text-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                                </Fragment>
+                            )}
                             <td class="p-3 text-right">
                                 {row.priceText && <p class="font-semibold">{row.priceText}</p>}
                                 {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}

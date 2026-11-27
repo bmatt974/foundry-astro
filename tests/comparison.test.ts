@@ -267,3 +267,39 @@ test('groups with neither label nor title nor bucket are dropped', () => {
     assert.equal(parsed.rows.length, 1);
     assert.equal(parsed.rows[0].label, 'Entrée libre');
 });
+
+test('columns: a source naming its own columns gets one printable cell per column', () => {
+    const out = parseComparison(
+        {
+            columns: [
+                { key: 'led_by', label: 'Qui mène la visite' },
+                { key: 'duration', label: 'Durée' },
+                { key: 'offers', label: 'Offres comparées' },
+            ],
+            groups: [
+                {
+                    key: 'guided',
+                    bucket: 'guided',
+                    title: 'Visite guidée',
+                    cells: { led_by: 'Un guide, en groupe', duration: { minutes_from: 60, minutes_to: 180 }, offers: 19 },
+                },
+                { key: 'entry', bucket: 'entry', title: 'Billet', cells: { duration: { minutes_from: 90, minutes_to: 90 } } },
+            ],
+        },
+        'fr',
+    );
+    assert.deepEqual(out.columns.map((c) => c.label), ['Qui mène la visite', 'Durée', 'Offres comparées']);
+    assert.deepEqual(out.rows[0].cells, ['Un guide, en groupe', '1 h – 3 h', '19']);
+    assert.deepEqual(out.rows[1].cells, ['', '1 h 30', '']);
+});
+
+test('columns: none named leaves the default yes/no table', () => {
+    const out = parseComparison({ groups: [{ key: 'entry', title: 'Billet' }] }, 'fr');
+    assert.deepEqual(out.columns, []);
+    assert.deepEqual(out.rows[0].cells, []);
+});
+
+test('ctaHref: a row with neither code nor address has no button', () => {
+    const out = parseComparison({ groups: [{ key: 'entry', title: 'Billet', code: null, partner_url: null }] }, 'fr');
+    assert.equal(out.rows[0].ctaHref, null);
+});

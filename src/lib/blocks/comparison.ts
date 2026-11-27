@@ -14,7 +14,7 @@
  */
 
 import { affiliateHref, type LinkPlace } from '../affiliate.ts';
-import { formatPrice, formatRating } from '../format.ts';
+import { formatDuration, formatPrice, formatRating } from '../format.ts';
 
 interface RawDisplayFeatures {
     coupe_file?: boolean;
@@ -23,8 +23,18 @@ interface RawDisplayFeatures {
     free_cancellation?: boolean;
 }
 
+/** One answer to a source-named column: a text, a number, or a
+ *  duration range the front words for the locale. */
+type RawCell = string | number | { minutes_from?: number; minutes_to?: number } | null;
+
+interface RawColumn {
+    key?: string;
+    label?: string;
+}
+
 interface RawGroup {
     key?: string;
+    cells?: Record<string, RawCell>;
     /** Shelf SLUG since the offers-model port (entry / audio_guided /
      *  guided / small_group / private / pass_combo) — the front maps it
      *  to a localized header through its dictionary. Absent on legacy
@@ -55,7 +65,15 @@ interface RawGroup {
 interface RawContent {
     title?: string;
     heading?: string;
+    /** Columns the block's source names for itself. When present they
+     *  replace the default yes/no columns of `display_features`. */
+    columns?: RawColumn[];
     groups?: RawGroup[];
+}
+
+export interface ComparisonColumn {
+    key: string;
+    label: string;
 }
 
 export interface ComparisonFeatures {
@@ -74,6 +92,9 @@ export interface ComparisonRow {
     /** `total_count - 1` — themes display "+N autres options" when > 0. */
     extras: number;
     features: ComparisonFeatures;
+    /** One printable text per source-named column, in column order;
+     *  empty when the row has no answer. */
+    cells: string[];
     priceText: string | null;
     ratingText: string | null;
     providerLabel: string | null;
@@ -106,6 +127,8 @@ export interface ComparisonLabels {
 
 export interface ParsedComparison {
     heading: string | null;
+    /** Empty for the default table (yes/no columns). */
+    columns: ComparisonColumn[];
     rows: ComparisonRow[];
     labels: ComparisonLabels;
 }
@@ -164,10 +187,26 @@ function resolveLabel(group: RawGroup, shelfLabel?: ShelfLabelResolver): string 
     return group.label ?? '';
 }
 
+function cellText(cell: RawCell | undefined, locale: string): string {
+    if (cell === null || cell === undefined) {
+        return '';
+    }
+    if (typeof cell === 'object') {
+        const from = formatDuration(cell.minutes_from, locale);
+        const to = formatDuration(cell.minutes_to, locale);
+        if (!from || !to || from === to) {
+            return from ?? to ?? '';
+        }
+        return `${from} – ${to}`;
+    }
+    return String(cell);
+}
+
 function buildRow(
     group: RawGroup,
     locale: string,
     linkProxyPath: LinkPlace,
+    columns: ComparisonColumn[],
     shelfLabel?: ShelfLabelResolver,
 ): ComparisonRow {
     const df = group.display_features ?? {};
@@ -184,6 +223,7 @@ function buildRow(
             liveGuide: Boolean(df.live_guide),
             freeCancellation: Boolean(df.free_cancellation),
         },
+        cells: columns.map((column) => cellText(group.cells?.[column.key], locale)),
         priceText: formatPrice(group.price_eur, locale),
         ratingText: formatRating(group.rating, group.review_count, locale),
         providerLabel: group.provider_label?.trim() || null,
@@ -219,9 +259,14 @@ export function parseComparison(
     const raw = (content ?? {}) as RawContent;
     const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title || g.bucket));
 
+    const columns = (raw.columns ?? [])
+        .filter((c): c is { key: string; label: string } => Boolean(c?.key && c?.label))
+        .map((c) => ({ key: c.key, label: c.label }));
+
     return {
         heading: raw.title?.trim() || raw.heading?.trim() || null,
-        rows: groups.map((g) => buildRow(g, locale, { proxy: linkProxyPath, blockId }, shelfLabel)),
+        columns,
+        rows: groups.map((g) => buildRow(g, locale, { proxy: linkProxyPath, blockId }, columns, shelfLabel)),
         labels: pickLabels(locale),
     };
 }

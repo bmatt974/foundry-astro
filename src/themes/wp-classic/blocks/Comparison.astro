@@ -16,7 +16,7 @@ const linkProxyPath = Astro.locals.tenant?.experiments?.link_proxy_path ?? 'go';
 const outboundRel = Astro.locals.tenant?.website?.outbound_links?.rel ?? 'nofollow';
 const wording = Astro.locals.wording ?? null;
 const t = useTranslations(locale, wording);
-const { heading, rows, labels } = parseComparison(block.content, locale, linkProxyPath, (bucket) =>
+const { heading, columns, rows, labels } = parseComparison(block.content, locale, linkProxyPath, (bucket) =>
     t(`tickets.shelf.${bucket}` as TranslationKey),
     block.id,
 );
@@ -34,10 +34,16 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                 <thead>
                     <tr>
                         <th scope="col">{labels.headers.type}</th>
-                        <th scope="col" class="has-text-align-center">{labels.headers.coupeFile}</th>
-                        <th scope="col" class="has-text-align-center">{labels.headers.audioGuide}</th>
-                        <th scope="col" class="has-text-align-center">{labels.headers.liveGuide}</th>
-                        <th scope="col" class="has-text-align-center">{labels.headers.freeCancellation}</th>
+                        {columns.length > 0 ? columns.map((column) => (
+                            <th scope="col" class="has-text-align-center">{column.label}</th>
+                        )) : (
+                            <Fragment>
+                                <th scope="col" class="has-text-align-center">{labels.headers.coupeFile}</th>
+                                <th scope="col" class="has-text-align-center">{labels.headers.audioGuide}</th>
+                                <th scope="col" class="has-text-align-center">{labels.headers.liveGuide}</th>
+                                <th scope="col" class="has-text-align-center">{labels.headers.freeCancellation}</th>
+                            </Fragment>
+                        )}
                         <th scope="col" class="has-text-align-right">{labels.headers.price}</th>
                         <th scope="col">{labels.headers.cta}</th>
                     </tr>
@@ -48,14 +54,20 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                             <td>
                                 <strong>{row.label}</strong>
                                 {row.title && <div class="wp-block-comparison-table__detail"><OfferLink href={row.ctaHref} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{row.title}</OfferLink></div>}
-                                {row.extras > 0 && (
+                                {columns.length === 0 && row.extras > 0 && (
                                     <em class="wp-block-comparison-table__extras">{labels.moreOptions(row.extras)}</em>
                                 )}
                             </td>
-                            <td class="has-text-align-center">{row.features.coupeFile ? '✅' : '❌'}</td>
-                            <td class="has-text-align-center">{row.features.audioGuide ? '✅' : '❌'}</td>
-                            <td class="has-text-align-center">{row.features.liveGuide ? '✅' : '❌'}</td>
-                            <td class="has-text-align-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                            {columns.length > 0 ? row.cells.map((cell) => (
+                                <td class="has-text-align-center">{cell}</td>
+                            )) : (
+                                <Fragment>
+                                    <td class="has-text-align-center">{row.features.coupeFile ? '✅' : '❌'}</td>
+                                    <td class="has-text-align-center">{row.features.audioGuide ? '✅' : '❌'}</td>
+                                    <td class="has-text-align-center">{row.features.liveGuide ? '✅' : '❌'}</td>
+                                    <td class="has-text-align-center">{row.features.freeCancellation ? '✅' : '❌'}</td>
+                                </Fragment>
+                            )}
                             <td class="has-text-align-right">
                                 {row.priceText && <strong>{row.priceText}</strong>}
                                 {row.providerLabel && <div class="wp-block-comparison-table__provider">{row.providerLabel}</div>}
