@@ -30,16 +30,16 @@ type RawCell = string | number | { minutes_from?: number; minutes_to?: number } 
 interface RawColumn {
     key?: string;
     label?: string;
-    /** `more`: the cell is the link to the page listing the row in full. */
+    /** `more`: the cell links to where the page lists the row in full. */
     link?: string;
 }
 
 interface RawGroup {
     key?: string;
     cells?: Record<string, RawCell>;
-    /** The page that lists this row in full; `url` is null while that
-     *  page is not published. */
-    more?: { url?: string | null };
+    /** Where the page lists this row in full: a shelf of its tickets
+     *  block. */
+    more?: { shelf?: string };
     /** Shelf SLUG since the offers-model port (entry / audio_guided /
      *  guided / small_group / private / pass_combo) — the front maps it
      *  to a localized header through its dictionary. Absent on legacy
@@ -84,7 +84,7 @@ export interface ComparisonColumn {
 
 export interface ComparisonCell {
     text: string;
-    /** Internal address the cell links to, when its column asks for it. */
+    /** In-page address the cell links to, when its column asks for it. */
     href: string | null;
 }
 
@@ -199,6 +199,11 @@ function resolveLabel(group: RawGroup, shelfLabel?: ShelfLabelResolver): string 
     return group.label ?? '';
 }
 
+/** The heading id of a shelf in the page's tickets block. */
+export function shelfAnchorId(shelf: string): string {
+    return `tickets-shelf-${shelf}`;
+}
+
 function cellText(cell: RawCell | undefined, locale: string): string {
     if (cell === null || cell === undefined) {
         return '';
@@ -237,7 +242,8 @@ function buildRow(
         },
         cells: columns.map((column) => {
             const text = cellText(group.cells?.[column.key], locale);
-            return { text, href: (column.linksMore && text !== '' && group.more?.url) || null };
+            const shelf = column.linksMore && text !== '' ? group.more?.shelf : undefined;
+            return { text, href: shelf ? `#${shelfAnchorId(shelf)}` : null };
         }),
         priceText: formatPrice(group.price_eur, locale),
         ratingText: formatRating(group.rating, group.review_count, locale),

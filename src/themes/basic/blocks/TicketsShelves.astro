@@ -15,6 +15,7 @@
  * Density: every disposition folds its tail behind a native <details>
  * except the table — dense IS its job.
  */
+import { shelfAnchorId } from '../../../lib/blocks/comparison';
 import {
     parseShelvesBlock,
     methodLineAround,
@@ -115,7 +116,7 @@ const zoneViewsOf = zoneViewsBySection(parsed);
                 return (
                     <article aria-labelledby={`tickets-shelf-${shelf.shelf}`}>
                         <ShelfHeading
-                            id={`tickets-shelf-${shelf.shelf}`}
+                            id={shelfAnchorId(shelf.shelf)}
                             class="brand-text-primary mb-3 text-lg font-semibold tracking-tight"
                         >
                             {t(`tickets.shelf.${shelf.shelf}` as TranslationKey)}

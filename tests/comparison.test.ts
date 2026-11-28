@@ -304,17 +304,17 @@ test('ctaHref: a row with neither code nor address has no button', () => {
     assert.equal(out.rows[0].ctaHref, null);
 });
 
-test('columns: a cell links to the page listing the row in full when its column asks', () => {
-    const content = (url: string | null) => ({
+test('columns: a cell links to the shelf of the same page when its column asks', () => {
+    const content = (more: { shelf?: string } | undefined) => ({
         columns: [
             { key: 'duration', label: 'Durée' },
             { key: 'offers', label: 'Offres comparées', link: 'more' },
         ],
-        groups: [{ key: 'guided', title: 'Visite guidée', cells: { duration: 'x', offers: 19 }, more: { url } }],
+        groups: [{ key: 'guided', title: 'Visite guidée', cells: { duration: 'x', offers: 19 }, more }],
     });
-    assert.deepEqual(parseComparison(content('/visites-guidees'), 'fr').rows[0].cells, [
+    assert.deepEqual(parseComparison(content({ shelf: 'guided' }), 'fr').rows[0].cells, [
         { text: 'x', href: null },
-        { text: '19', href: '/visites-guidees' },
+        { text: '19', href: '#tickets-shelf-guided' },
     ]);
-    assert.equal(parseComparison(content(null), 'fr').rows[0].cells[1].href, null);
+    assert.equal(parseComparison(content(undefined), 'fr').rows[0].cells[1].href, null);
 });
