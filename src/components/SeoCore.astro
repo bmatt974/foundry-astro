@@ -90,16 +90,16 @@ const websiteLocale = tenant.locales.find((l) => l.locale === locale);
 const tier = computePageTier(page, tenant);
 const cfg = tierConfig(tier);
 
-const jsonLdGraph = cfg.emitSchema
-    ? buildJsonLd({
-        tenant,
-        locale,
-        page,
-        canonicalUrl,
-        imageUrl: socialImage,
-        allowedTypes: Astro.locals.tenant?.experiments?.jsonld_types ?? null,
-    })
-    : null;
+// Structured data follows the site's level on every page; the tier
+// above only varies the social tags.
+const jsonLdGraph = buildJsonLd({
+    tenant,
+    locale,
+    page,
+    canonicalUrl,
+    imageUrl: socialImage,
+    allowedTypes: Astro.locals.tenant?.experiments?.jsonld_types ?? null,
+});
 const jsonLd = jsonLdGraph ? serializeJsonLd(jsonLdGraph) : null;
 ---
 
@@ -134,4 +134,4 @@ const jsonLd = jsonLdGraph ? serializeJsonLd(jsonLdGraph) : null;
     <link rel={l.rel} href={l.href} type={l.type} title={l.title} />
 ))}
 
-{cfg.emitSchema && jsonLd && <script type="application/ld+json" is:inline set:html={jsonLd} />}
+{jsonLd && <script type="application/ld+json" is:inline set:html={jsonLd} />}

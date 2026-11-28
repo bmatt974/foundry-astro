@@ -11,11 +11,17 @@
  *
  * Distribution (rough, can be retuned per anti-footprint testing):
  *
- *   30% featured  — full suite: JSON-LD schema, og:image,
- *                   twitter:card, canonical, hreflang
- *   50% standard  — og + canonical + hreflang, no schema
+ *   30% featured  — full suite: og:image, twitter:card with image,
+ *                   canonical, hreflang
+ *   50% standard  — og + canonical + hreflang, twitter without image
  *   20% light     — title + description + canonical, no og:image,
- *                   no twitter, no schema
+ *                   no twitter
+ *
+ * Structured data is NOT part of the tier: how much JSON-LD a site
+ * emits is the site's level (`experiments.jsonld_level`), the same on
+ * every page. The tier used to switch the whole script off on seven
+ * pages out of ten, so a site's guided-tours page lost the breadcrumb
+ * and article markup its neighbours carried.
  *
  * Pages that ship affiliate / conversion blocks should be pinned
  * to `featured` upstream (revenue beats anti-footprint variance).
@@ -70,8 +76,6 @@ export function computePageTier(page: Page | null, tenant: TenantContext): SeoTi
 }
 
 export interface TierConfig {
-    /** Emit the JSON-LD <script> with WebSite / Article / Breadcrumb schemas. */
-    readonly emitSchema: boolean;
     /** Emit og:image + og:image:width/height. */
     readonly emitOgImage: boolean;
     /** Emit twitter:card / twitter:title / twitter:description. */
@@ -84,21 +88,18 @@ export function tierConfig(tier: SeoTier): TierConfig {
     switch (tier) {
         case 'featured':
             return {
-                emitSchema: true,
                 emitOgImage: true,
                 emitTwitter: true,
                 emitTwitterImage: true,
             };
         case 'standard':
             return {
-                emitSchema: false,
                 emitOgImage: true,
                 emitTwitter: true,
                 emitTwitterImage: false,
             };
         case 'light':
             return {
-                emitSchema: false,
                 emitOgImage: false,
                 emitTwitter: false,
                 emitTwitterImage: false,
