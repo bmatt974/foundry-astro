@@ -90,17 +90,17 @@ const websiteLocale = tenant.locales.find((l) => l.locale === locale);
 const tier = computePageTier(page, tenant);
 const cfg = tierConfig(tier);
 
-const jsonLd = cfg.emitSchema
-    ? serializeJsonLd(
-        buildJsonLd({
-            tenant,
-            locale,
-            page,
-            canonicalUrl,
-            imageUrl: socialImage,
-        }),
-    )
+const jsonLdGraph = cfg.emitSchema
+    ? buildJsonLd({
+        tenant,
+        locale,
+        page,
+        canonicalUrl,
+        imageUrl: socialImage,
+        allowedTypes: Astro.locals.tenant?.experiments?.jsonld_types ?? null,
+    })
     : null;
+const jsonLd = jsonLdGraph ? serializeJsonLd(jsonLdGraph) : null;
 ---
 
 {resolvedDescription && <meta name="description" content={resolvedDescription} />}

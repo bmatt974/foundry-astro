@@ -282,6 +282,8 @@ export type LinkProxyPath = AffiliateProxyPrefix;
 export interface WebsiteExperiments {
     posture: Posture;
     jsonld_level: JsonLdLevel;
+    /** The schema.org types that level lets the site emit on its own. */
+    jsonld_types?: string[];
     link_proxy_path: LinkProxyPath;
 }
 

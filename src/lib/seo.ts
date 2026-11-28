@@ -78,7 +78,9 @@ export function alternateUrls(
 /**
  * Build a JSON-LD `@graph` block with WebSite + Article + BreadcrumbList
  * + Place/Destination nodes when the corresponding data is available.
- * Empty nodes (no translation, no parent, …) are skipped.
+ * Empty nodes (no translation, no parent, …) are skipped, and so is any
+ * node the site's level does not allow. Null when nothing is left: the
+ * page then carries no JSON-LD script at all.
  *
  * Always serialize the result via `serializeJsonLd` to avoid `</script>`
  * injection if a string field contains it.
@@ -89,9 +91,16 @@ export interface JsonLdInput {
     page: Page | null;
     canonicalUrl: string | null;
     imageUrl: string | null;
+    /**
+     * The schema.org types the site's level allows
+     * (`experiments.jsonld_types`): a node of another type is left out.
+     * Absent, every node is kept. The nodes the API composed itself
+     * (`page.structured_data`) are its own decision and always printed.
+     */
+    allowedTypes?: readonly string[] | null;
 }
 
-export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
+export function buildJsonLd(input: JsonLdInput): Record<string, unknown> | null {
     const { tenant, locale, page, canonicalUrl, imageUrl } = input;
     const homepage = siteUrl(tenant, locale);
     const websiteId = homepage ? `${homepage}#website` : `${tenant.website.hostname}#website`;
@@ -218,15 +227,21 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> {
         graph.push(node);
     }
 
+    const allowed = input.allowedTypes ?? null;
+    const ownNodes = allowed === null
+        ? graph
+        : graph.filter((node) => allowed.includes(String(node['@type'])));
+
     // Nodes the API composed (prices, offer counts): printed verbatim,
     // the front decides nothing about a product.
-    for (const node of page?.structured_data ?? []) {
-        graph.push(node);
+    const nodes = [...ownNodes, ...(page?.structured_data ?? [])];
+    if (nodes.length === 0) {
+        return null;
     }
 
     return {
         '@context': 'https://schema.org',
-        '@graph': graph,
+        '@graph': nodes,
     };
 }
 

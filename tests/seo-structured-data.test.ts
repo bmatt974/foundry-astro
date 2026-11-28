@@ -79,3 +79,29 @@ test('structured data: the article is modified when the page was last edited, no
     assert.equal(article?.dateModified, '2026-11-11T22:00:00+00:00');
     assert.equal(article?.datePublished, '2026-08-01T00:00:00+00:00');
 });
+
+test('structured data: a node beyond the site level is left out, the API node stays', () => {
+    const page = {
+        id: 1960,
+        translation: { locale: 'fr', slug: 'arene', title: 'Arène du Colisée' },
+        blocks: [],
+        sourceable: { type: 'place', name: 'Colisée', country_code: 'IT' },
+        nav: { parent: null, breadcrumb: [], children: [], siblings: [] },
+        structured_data: [{ '@type': 'Product', name: 'Arène du Colisée' }],
+    } as never;
+    const typesAt = (allowedTypes: string[] | null | undefined) => {
+        const jsonLd = buildJsonLd({ tenant: tenant as never, locale: 'fr', page, canonicalUrl: 'https://test.example/fr/arene', imageUrl: null, allowedTypes });
+        return ((jsonLd as { '@graph': Array<Record<string, unknown>> } | null)?.['@graph'] ?? []).map((n) => n['@type']);
+    };
+
+    assert.deepEqual(typesAt(['Article', 'WebSite', 'BreadcrumbList', 'ItemList']), ['WebSite', 'Article', 'Product']);
+    assert.deepEqual(typesAt(['Article', 'WebSite', 'TouristAttraction']), ['WebSite', 'Article', 'TouristAttraction', 'Product']);
+    assert.deepEqual(typesAt([]), ['Product'], 'a site of level none still ships the offer the API chose');
+    assert.ok(typesAt(undefined).includes('TouristAttraction'), 'an API that names no types changes nothing');
+});
+
+test('structured data: nothing allowed and nothing from the API means no JSON-LD at all', () => {
+    const page = { id: 1, translation: { locale: 'fr', slug: 'x', title: 'X' }, blocks: [], sourceable: null, nav: { parent: null, breadcrumb: [], children: [], siblings: [] } } as never;
+
+    assert.equal(buildJsonLd({ tenant: tenant as never, locale: 'fr', page, canonicalUrl: null, imageUrl: null, allowedTypes: [] }), null);
+});
