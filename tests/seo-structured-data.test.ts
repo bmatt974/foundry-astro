@@ -105,3 +105,27 @@ test('structured data: nothing allowed and nothing from the API means no JSON-LD
 
     assert.equal(buildJsonLd({ tenant: tenant as never, locale: 'fr', page, canonicalUrl: null, imageUrl: null, allowedTypes: [] }), null);
 });
+
+test('structured data: the article names the place it is about, with its site and Wikidata entry', () => {
+    const pageAbout = (sourceable: Record<string, unknown> | null) => {
+        const page = {
+            id: 1954,
+            translation: { locale: 'fr', slug: 'billets', title: 'Billets du Colisée' },
+            blocks: [],
+            sourceable,
+            nav: { parent: null, breadcrumb: [], children: [], siblings: [] },
+        } as never;
+        const jsonLd = buildJsonLd({ tenant: tenant as never, locale: 'fr', page, canonicalUrl: 'https://test.example/fr/billets', imageUrl: null, allowedTypes: ['Article', 'WebSite'] });
+        const graph = (jsonLd as { '@graph': Array<Record<string, unknown>> })['@graph'];
+        assert.deepEqual(graph.map((n) => n['@type']), ['WebSite', 'Article'], 'the place is no node of its own at this level');
+
+        return graph[1].about;
+    };
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(pageAbout({ type: 'place', name: 'Colisée', website: 'https://colosseo.it', same_as: ['https://www.wikidata.org/entity/Q10285'] }))),
+        { '@type': 'TouristAttraction', name: 'Colisée', url: 'https://colosseo.it', sameAs: ['https://www.wikidata.org/entity/Q10285'] },
+    );
+    assert.deepEqual(JSON.parse(JSON.stringify(pageAbout({ type: 'place', name: 'Colisée', website: null }))), { '@type': 'TouristAttraction', name: 'Colisée' });
+    assert.equal(pageAbout(null), undefined);
+});

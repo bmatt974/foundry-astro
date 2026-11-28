@@ -137,6 +137,7 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> | null 
             dateModified: page.updated_at ?? page.published_at ?? t.published_at ?? undefined,
             inLanguage: locale,
             isPartOf: { '@id': websiteId },
+            about: aboutNode(page),
             author: authors.length === 0
                 ? undefined
                 : (authors.length === 1 ? authors[0] : authors),
@@ -243,6 +244,30 @@ export function buildJsonLd(input: JsonLdInput): Record<string, unknown> | null 
         '@context': 'https://schema.org',
         '@graph': nodes,
     };
+}
+
+/**
+ * What the article is about: the place or destination the page is
+ * attached to, named inside the Article rather than as a node of its
+ * own. A page comparing tickets for a venue is not the venue's record;
+ * it is an article whose subject is that venue. The venue's own site
+ * and its Wikidata entry tell which venue, when the API has them.
+ */
+function aboutNode(page: Page): Record<string, unknown> | undefined {
+    const subject = page.sourceable;
+    if (subject?.type === 'place') {
+        return {
+            '@type': 'TouristAttraction',
+            name: subject.name,
+            url: subject.website ?? undefined,
+            sameAs: subject.same_as && subject.same_as.length > 0 ? subject.same_as : undefined,
+        };
+    }
+    if (subject?.type === 'destination') {
+        return { '@type': 'TouristDestination', name: subject.name };
+    }
+
+    return undefined;
 }
 
 /**

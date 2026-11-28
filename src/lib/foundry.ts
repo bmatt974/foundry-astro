@@ -100,6 +100,8 @@ export type Sourceable =
           coordinates: { lat: number; lon: number } | null;
           country_code: string | null;
           website: string | null;
+          /** Pages identifying the place without ambiguity (Wikidata). */
+          same_as?: string[];
           cover_image: string | null;
           /** Visitor-facing header chips, composed by the API — the
            *  front renders slugs, never derives facts. */
