@@ -63,7 +63,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                             {rows.map((row) => (
                                 <td class="p-3">
                                     <p class="brand-text-muted text-xs">{column.label}</p>
-                                    <p class="mt-0.5 font-medium">{row.cells[index]}</p>
+                                    <p class="mt-0.5 font-medium">{row.cells[index].href ? <a href={row.cells[index].href}>{row.cells[index].text}</a> : row.cells[index].text}</p>
                                 </td>
                             ))}
                         </tr>
@@ -168,7 +168,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 )}
                             </td>
                             {columns.length > 0 ? row.cells.map((cell) => (
-                                <td class="p-3 text-center">{cell}</td>
+                                <td class="p-3 text-center">{cell.href ? <a href={cell.href}>{cell.text}</a> : cell.text}</td>
                             )) : (
                                 <Fragment>
                                     <td class="p-3 text-center">{row.features.coupeFile ? '✅' : '❌'}</td>

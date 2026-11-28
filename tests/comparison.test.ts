@@ -289,8 +289,8 @@ test('columns: a source naming its own columns gets one printable cell per colum
         'fr',
     );
     assert.deepEqual(out.columns.map((c) => c.label), ['Qui mène la visite', 'Durée', 'Offres comparées']);
-    assert.deepEqual(out.rows[0].cells, ['Un guide, en groupe', '1 h – 3 h', '19']);
-    assert.deepEqual(out.rows[1].cells, ['', '1 h 30', '']);
+    assert.deepEqual(out.rows[0].cells.map((c) => c.text), ['Un guide, en groupe', '1 h – 3 h', '19']);
+    assert.deepEqual(out.rows[1].cells.map((c) => c.text), ['', '1 h 30', '']);
 });
 
 test('columns: none named leaves the default yes/no table', () => {
@@ -302,4 +302,19 @@ test('columns: none named leaves the default yes/no table', () => {
 test('ctaHref: a row with neither code nor address has no button', () => {
     const out = parseComparison({ groups: [{ key: 'entry', title: 'Billet', code: null, partner_url: null }] }, 'fr');
     assert.equal(out.rows[0].ctaHref, null);
+});
+
+test('columns: a cell links to the page listing the row in full when its column asks', () => {
+    const content = (url: string | null) => ({
+        columns: [
+            { key: 'duration', label: 'Durée' },
+            { key: 'offers', label: 'Offres comparées', link: 'more' },
+        ],
+        groups: [{ key: 'guided', title: 'Visite guidée', cells: { duration: 'x', offers: 19 }, more: { url } }],
+    });
+    assert.deepEqual(parseComparison(content('/visites-guidees'), 'fr').rows[0].cells, [
+        { text: 'x', href: null },
+        { text: '19', href: '/visites-guidees' },
+    ]);
+    assert.equal(parseComparison(content(null), 'fr').rows[0].cells[1].href, null);
 });

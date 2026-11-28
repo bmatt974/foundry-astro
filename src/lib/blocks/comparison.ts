@@ -30,11 +30,16 @@ type RawCell = string | number | { minutes_from?: number; minutes_to?: number } 
 interface RawColumn {
     key?: string;
     label?: string;
+    /** `more`: the cell is the link to the page listing the row in full. */
+    link?: string;
 }
 
 interface RawGroup {
     key?: string;
     cells?: Record<string, RawCell>;
+    /** The page that lists this row in full; `url` is null while that
+     *  page is not published. */
+    more?: { url?: string | null };
     /** Shelf SLUG since the offers-model port (entry / audio_guided /
      *  guided / small_group / private / pass_combo) — the front maps it
      *  to a localized header through its dictionary. Absent on legacy
@@ -74,6 +79,13 @@ interface RawContent {
 export interface ComparisonColumn {
     key: string;
     label: string;
+    linksMore: boolean;
+}
+
+export interface ComparisonCell {
+    text: string;
+    /** Internal address the cell links to, when its column asks for it. */
+    href: string | null;
 }
 
 export interface ComparisonFeatures {
@@ -92,9 +104,9 @@ export interface ComparisonRow {
     /** `total_count - 1` — themes display "+N autres options" when > 0. */
     extras: number;
     features: ComparisonFeatures;
-    /** One printable text per source-named column, in column order;
-     *  empty when the row has no answer. */
-    cells: string[];
+    /** One printable cell per source-named column, in column order;
+     *  its text is empty when the row has no answer. */
+    cells: ComparisonCell[];
     priceText: string | null;
     ratingText: string | null;
     providerLabel: string | null;
@@ -223,7 +235,10 @@ function buildRow(
             liveGuide: Boolean(df.live_guide),
             freeCancellation: Boolean(df.free_cancellation),
         },
-        cells: columns.map((column) => cellText(group.cells?.[column.key], locale)),
+        cells: columns.map((column) => {
+            const text = cellText(group.cells?.[column.key], locale);
+            return { text, href: (column.linksMore && text !== '' && group.more?.url) || null };
+        }),
         priceText: formatPrice(group.price_eur, locale),
         ratingText: formatRating(group.rating, group.review_count, locale),
         providerLabel: group.provider_label?.trim() || null,
@@ -260,8 +275,8 @@ export function parseComparison(
     const groups = (raw.groups ?? []).filter((g) => g && (g.label || g.title || g.bucket));
 
     const columns = (raw.columns ?? [])
-        .filter((c): c is { key: string; label: string } => Boolean(c?.key && c?.label))
-        .map((c) => ({ key: c.key, label: c.label }));
+        .filter((c): c is { key: string; label: string; link?: string } => Boolean(c?.key && c?.label))
+        .map((c) => ({ key: c.key, label: c.label, linksMore: c.link === 'more' }));
 
     return {
         heading: raw.title?.trim() || raw.heading?.trim() || null,

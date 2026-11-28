@@ -59,7 +59,7 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                                 )}
                             </td>
                             {columns.length > 0 ? row.cells.map((cell) => (
-                                <td class="has-text-align-center">{cell}</td>
+                                <td class="has-text-align-center">{cell.href ? <a href={cell.href}>{cell.text}</a> : cell.text}</td>
                             )) : (
                                 <Fragment>
                                     <td class="has-text-align-center">{row.features.coupeFile ? '✅' : '❌'}</td>
