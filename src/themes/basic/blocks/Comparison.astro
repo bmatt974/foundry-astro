@@ -46,8 +46,55 @@ const absoluteUpdated = formatDate(publishedAt, locale);
             </h2>
         )}
 
+        {/* Narrow, sides set against each other: one column per side,
+            one line per criterion. Stacked cards compare nothing. */}
+        {columns.length > 0 && (
+            <table class="brand-border w-full table-fixed border-collapse border text-sm sm:hidden">
+                <thead class="bg-gray-50">
+                    <tr>
+                        {rows.map((row) => (
+                            <th class="brand-text-primary p-3 text-left align-top text-xs font-semibold uppercase tracking-wider">{row.label}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {columns.map((column, index) => (
+                        <tr class="brand-border border-t align-top">
+                            {rows.map((row) => (
+                                <td class="p-3">
+                                    <p class="brand-text-muted text-xs">{column.label}</p>
+                                    <p class="mt-0.5 font-medium">{row.cells[index]}</p>
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                    <tr class="brand-border border-t align-top">
+                        {rows.map((row) => (
+                            <td class="p-3">
+                                <p class="brand-text-muted text-xs">{labels.headers.price}</p>
+                                {row.priceText && <p class="mt-0.5 text-base font-semibold">{row.priceText}</p>}
+                                {row.providerLabel && <p class="brand-text-muted text-xs">{row.providerLabel}</p>}
+                                {row.ratingText && <p class="brand-text-muted text-xs">{row.ratingText}</p>}
+                            </td>
+                        ))}
+                    </tr>
+                    <tr class="brand-border border-t align-top">
+                        {rows.map((row) => (
+                            <td class="p-3">
+                                {row.ctaHref && (
+                                    <OfferLink href={row.ctaHref} zone="button" rel={outboundRel} class="brand-bg-primary inline-block rounded-md px-3 py-2 text-xs font-medium text-white hover:opacity-90">
+                                        {labels.cta}
+                                    </OfferLink>
+                                )}
+                            </td>
+                        ))}
+                    </tr>
+                </tbody>
+            </table>
+        )}
+
         {/* Mobile / narrow: card stack */}
-        <ul class="space-y-4 sm:hidden">
+        <ul class:list={['space-y-4 sm:hidden', columns.length > 0 && 'hidden']}>
             {rows.map((row) => (
                 <li class="brand-border relative overflow-hidden rounded-lg border bg-white">
                     <OfferLink href={row.ctaHref} zone="card" rel={outboundRel} label={row.title ?? row.label} />
@@ -64,20 +111,14 @@ const absoluteUpdated = formatDate(publishedAt, locale);
                     <div class="p-4">
                         <p class="brand-text-primary text-xs font-semibold uppercase tracking-wider">{row.label}</p>
                         <h3 class="mt-1 text-sm font-semibold leading-snug"><OfferLink href={row.ctaHref} zone="title" rel={outboundRel} class="[color:inherit] no-underline hover:underline">{row.title}</OfferLink></h3>
-                        {columns.length === 0 && row.extras > 0 && (
+                        {row.extras > 0 && (
                             <p class="brand-text-muted mt-1 text-xs italic">{labels.moreOptions(row.extras)}</p>
                         )}
                         <ul class="brand-text-muted mt-3 grid grid-cols-2 gap-1 text-xs">
-                            {columns.length > 0 ? columns.map((column, index) => row.cells[index] && (
-                                <li class="col-span-2"><span class="mr-1 font-semibold">{column.label}</span>{row.cells[index]}</li>
-                            )) : (
-                                <Fragment>
-                                    <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
-                                    <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
-                                    <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
-                                    <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
-                                </Fragment>
-                            )}
+                            <li>{row.features.coupeFile ? '✅' : '❌'} {labels.headers.coupeFile}</li>
+                            <li>{row.features.audioGuide ? '✅' : '❌'} {labels.headers.audioGuide}</li>
+                            <li>{row.features.liveGuide ? '✅' : '❌'} {labels.headers.liveGuide}</li>
+                            <li>{row.features.freeCancellation ? '✅' : '❌'} {labels.headers.freeCancellation}</li>
                         </ul>
                         <div class="mt-4 flex items-center justify-between gap-3">
                             <div>
